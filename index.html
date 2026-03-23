@@ -14,7 +14,7 @@ const CONFIG = {
   // In Google Sheets: File → Share → Publish to web →
   //   select the output tab → CSV → Publish → copy link.
   // Leave empty ("") to show the file upload dropzone instead.
-  dataUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQc--XNIN9X3e1m2hAchdpJNtMvVF77PzDDSU-jLlgTk9FjO5ZwJNNTnatyjaMbDTUKsoe11VwHjy6R/pub?gid=1313275809&single=true&output=csv",
+  dataUrl: "https://docs.google.com/spreadsheets/d/e/2PACX-1vQc--XNIN9X3e1m2hAchdpJNtMvVF77PzDDSU-jLlgTk9FjO5ZwJNNTnatyjaMbDTUKsoe11VwHjy6R/pub?gid=320321807&single=true&output=csv",
 
   // Set to true to always show the file upload dropzone
   // even when dataUrl is set (useful for admins testing files).
@@ -1162,27 +1162,43 @@ function showSpinner(on){document.getElementById("spinner").style.display=on?"bl
 // REMOTE DATA FETCH
 // ════════════════════════════════════════════════════════
 function fetchData() {
-  if (!CONFIG.dataUrl) return;
+  if (!CONFIG.dataUrl) {
+    showError("No data URL configured. Open the HTML file and paste your Google Sheets CSV URL into the CONFIG.dataUrl field.");
+    return;
+  }
+
   const btn = document.getElementById("refresh-btn");
   btn.classList.add("spinning");
   showError(null); showSpinner(true);
-  // Use a CORS proxy approach: Google Sheets published CSV supports direct fetch
-  fetch(CONFIG.dataUrl)
-    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.text(); })
+
+  // Google Sheets blocks direct fetch() due to CORS — route through a proxy.
+  // corsproxy.io is a free, open-source proxy that passes the request through.
+  const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(CONFIG.dataUrl);
+
+  fetch(proxyUrl, { cache:"no-cache" })
+    .then(r => {
+      if (!r.ok) throw new Error(`Server returned HTTP ${r.status}.`);
+      return r.text();
+    })
     .then(text => {
+      if (!text || text.trim().length === 0)
+        throw new Error("The sheet returned empty data. Check that the correct tab is published.");
       try {
         const classes = parseFile(text, "data.csv");
+        if (!classes || classes.length === 0)
+          throw new Error("No classes found. Check that the published tab has the right column headers.");
         processClasses(classes);
-        // Stamp last-updated time
-        const now = new Date();
+        const now   = new Date();
         const stamp = now.toLocaleDateString(undefined, {month:"short",day:"numeric",year:"numeric"})
                     + " " + now.toLocaleTimeString(undefined, {hour:"2-digit",minute:"2-digit"});
         const el = document.getElementById("last-updated");
         el.textContent = `Updated ${stamp}`;
         el.classList.add("visible");
-      } catch(err) { showError("Failed to parse data: " + err.message); }
+      } catch(err) {
+        showError("Failed to parse data: " + err.message);
+      }
     })
-    .catch(err => showError("Could not fetch data. Check your network or the sheet URL. (" + err.message + ")"))
+    .catch(err => showError("Could not fetch data: " + (err.message || "Unknown error")))
     .finally(() => { btn.classList.remove("spinning"); showSpinner(false); });
 }
 
