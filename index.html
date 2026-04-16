@@ -216,9 +216,9 @@ const CONFIG = {
     padding:4px 10px; cursor:pointer; transition:all .15s; user-select:none; }
   .flt-chip.active { border-color:#e3b341; color:#e3b341; background:rgba(227,179,65,.1); }
   .flt-range-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); }
-  .flt-range-val { font-weight:700; color:var(--text); font-size:12px; min-width:68px; }
+  .flt-range-val { font-weight:700; color:var(--text); font-size:11px; width:112px; flex-shrink:0; font-family:'Courier New',monospace; }
   .flt-range-val.right { text-align:right; }
-  .flt-range-slider { flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--border); outline:none; cursor:pointer; }
+  .flt-range-slider { flex:1; min-width:0; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--border); outline:none; cursor:pointer; }
   .flt-range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#e3b341; cursor:pointer; }
   .flt-range-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:#e3b341; border:none; cursor:pointer; }
   .flt-range-slider::-moz-range-track { height:4px; border-radius:2px; background:var(--border); }
@@ -399,21 +399,23 @@ const SIZE_CRIT  = 12;
 const SIZE_SMALL = 3;
 
 // Hard maximum grade spread by mean ability
+// ability < 4  = books KJ–2D  → danger at spread ≥ 3
+// ability 4–8  = books 3A–4B  → danger at spread ≥ 4
+// ability ≥ 8  = book 5+      → danger at spread ≥ 5
 function maxGradeSpread(meanAbility) {
-  if (meanAbility >= 6) return 5;  // warn at 5, hard at 6 — but spread > 5 is the violation
-  if (meanAbility >= 5) return 4;
-  if (meanAbility >= 2) return 3;
-  return 2;
+  if (meanAbility >= 8) return 5;
+  if (meanAbility >= 4) return 4;
+  return 3;
 }
 
-// Warning threshold — spread at or above this triggers a warning even if under hard limit.
-// For all tiers, warn when spread equals the hard limit (at the edge).
-// For level 6+, also warn at 5 (one below the hard limit of 6).
+// Warning threshold — fires one below the hard limit
+// ability < 4  → warn at spread 2
+// ability 4–8  → warn at spread 3
+// ability ≥ 8  → warn at spread 4
 function warnGradeSpread(meanAbility) {
-  if (meanAbility >= 6) return 5;   // hard limit is 6, warn at 5
-  if (meanAbility >= 5) return 4;   // hard limit is 5 (i.e. spread>=5 = danger), warn at 4
-  if (meanAbility >= 2) return 3;   // hard limit is 4, warn at 3
-  return 2;                          // hard limit is 3, warn at 2
+  if (meanAbility >= 8) return 4;
+  if (meanAbility >= 4) return 3;
+  return 2;
 }
 
 function isPrecocious(student, meanGrade, meanAbility) {
