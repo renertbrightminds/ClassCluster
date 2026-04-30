@@ -310,10 +310,16 @@ function normalizeName(rawName) {
   const trimmed = (rawName || "").trim();
   // Direct match first
   if (INSTRUCTOR_PROFILES[trimmed]) return trimmed;
-  // Check if trimmed starts with a known profile key (handles "Alice Schroeder" → "Alice")
   const lower = trimmed.toLowerCase();
-  for (const [first, key] of Object.entries(_profileKeysByFirstName)) {
-    if (lower === first || lower.startsWith(first + " ")) return key;
+  const firstWord = lower.split(" ")[0];
+  // Check if trimmed starts with a known profile key e.g. "Alice Schroeder" → "Alice"
+  for (const [profileKey, key] of Object.entries(_profileKeysByFirstName)) {
+    if (lower === profileKey || lower.startsWith(profileKey + " ")) return key;
+  }
+  // Check if first word of raw name matches first word of any profile key
+  // e.g. "Elena" matches "Elena B"
+  for (const [profileKey, key] of Object.entries(_profileKeysByFirstName)) {
+    if (profileKey.split(" ")[0] === firstWord) return key;
   }
   // Fall back to first word
   return trimmed.split(" ")[0];
