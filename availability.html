@@ -182,12 +182,63 @@ const SLOTS = [...new Set(DAYS.flatMap(slotsForDay))].sort((a,b)=>{
   const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);
   return (ah*60+am)-(bh*60+bm);
 });
+// ── BOOK LEVELS (ordered by numeric value) ──
+// Derived from the ClassCluster CSV at runtime; this is the fallback order.
+const BOOK_LEVEL_MAP = [
+  {name:'KJr',        min:-1,   max:-0.5},
+  {name:'KSr',        min:-0.5, max:0},
+  {name:'1A Mammoth', min:0,    max:0.5},
+  {name:'1A Renert',  min:0.5,  max:1},
+  {name:'1B Mammoth', min:1,    max:1.5},
+  {name:'1B Renert',  min:1.5,  max:2},
+  {name:'2A',         min:2,    max:2.5},
+  {name:'2B',         min:2.5,  max:3},
+  {name:'2C',         min:3,    max:3.5},
+  {name:'2D',         min:3.5,  max:4},
+  {name:'3A',         min:4,    max:4.5},
+  {name:'3B',         min:4.5,  max:5},
+  {name:'3C',         min:5,    max:5.5},
+  {name:'3D',         min:5.5,  max:6},
+  {name:'4A',         min:6,    max:7},
+  {name:'4B',         min:7,    max:8},
+  {name:'Book 5',     min:8,    max:9},
+  {name:'Book 6',     min:9,    max:10},
+  {name:'Book 7',     min:10,   max:11},
+  {name:'Book 8',     min:11,   max:12},
+  {name:'D1',         min:11.5, max:12},
+  {name:'D2',         min:12,   max:12.25},
+  {name:'M10',        min:12.25,max:14},
+  {name:'M20',        min:14,   max:16},
+  {name:'M30',        min:16,   max:18},
+  {name:'M31',        min:18,   max:20},
+];
+// Derive sorted unique book names from live CSV data
+let bookLevels = BOOK_LEVEL_MAP.map(b=>b.name); // updated after CSV loads
+
+function numericToBookName(val){
+  for(const b of BOOK_LEVEL_MAP){ if(val>=b.min && val<b.max) return b.name; }
+  return null;
+}
+function updateBookLevelsFromClasses(classes){
+  const seen=new Set();
+  classes.forEach(c=>c.students.forEach(s=>{
+    const name=numericToBookName(s.ability);
+    if(name) seen.add(name);
+  }));
+  // Keep fallback order, filter to those seen in data (or all if none found)
+  const filtered=BOOK_LEVEL_MAP.map(b=>b.name).filter(n=>seen.has(n));
+  bookLevels = filtered.length>=2 ? filtered : BOOK_LEVEL_MAP.map(b=>b.name);
+}
+
+const GRADES = ['JK','SK','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5',
+                'Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
+
 const STATES = ['none','ip','online','both'];
 const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
 const TITLES = {none:'Unavailable',ip:'In-person only',online:'Online only',both:'Both IP & online'};
 
 let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[];
-let draftAvail={}, activeTab='my-availability', selectedInst=null, unsaved=false;
+let draftAvail={}, draftDayNotes={}, activeTab='my-availability', selectedInst=null, unsaved=false;
 
 const AVG=[
   {bg:"rgba(88,166,255,.15)",txt:"#79c0ff"},{bg:"rgba(63,185,80,.15)",txt:"#56d364"},
@@ -210,9 +261,11 @@ onAuthStateChanged(auth, async user=>{
   currentProfile={uid:user.uid,...ps.data()};
   allProfiles=all.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(a.displayName||"").localeCompare(b.displayName||""));
   draftAvail=clone(currentProfile.availability||{});
+  draftDayNotes=clone(currentProfile.dayNotes||{});
   document.getElementById("user-label").textContent=currentProfile.displayName;
   if (currentProfile.role==="admin") document.getElementById("admin-link").style.display="";
   allClasses=await fetchClasses();
+  updateBookLevelsFromClasses(allClasses);
   document.getElementById("spinner").style.display="none";
   document.getElementById("app").style.display="";
   renderTab("my-availability");
@@ -289,6 +342,15 @@ function renderMine(){
   const el=document.getElementById("tab-my-availability");
   const p=currentProfile, c=ac(p.displayName);
   const {lead,shadow}=classesForProfile(p);
+
+  const gradeOpts=GRADES.map(g=>`<option value="${g}" ${(p.gradeMin||'')===(g)?'selected':''}>${g}</option>`).join('');
+  const gradeOptsMax=GRADES.map(g=>`<option value="${g}" ${(p.gradeMax||'')===(g)?'selected':''}>${g}</option>`).join('');
+  const levelOpts=bookLevels.map(l=>`<option value="${l}" ${(p.levelMin||'')===(l)?'selected':''}>${l}</option>`).join('');
+  const levelOptsMax=bookLevels.map(l=>`<option value="${l}" ${(p.levelMax||'')===(l)?'selected':''}>${l}</option>`).join('');
+
+  const inputStyle='background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 12px;outline:none;width:100%;';
+  const selectStyle='background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;outline:none;';
+
   el.innerHTML=`
     <div class="profile-header">
       <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
@@ -298,13 +360,40 @@ function renderMine(){
           ${p.role==="admin"?'<span class="badge b-purple">Admin</span>':''}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
           ${p.maxNew===0?'<span class="badge b-amber">No new classes</span>':p.maxNew?`<span class="badge b-green">Open to ${p.maxNew} new</span>`:''}
-          ${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}
         </div>
       </div>
     </div>
-    ${p.notes?`<div class="card" style="border-color:rgba(88,166,255,.2);"><div class="section-label">Your notes</div><div class="note-box">${p.notes}</div></div>`:''}
+
+    <!-- Preferences card -->
     <div class="card">
-      <div class="section-label">Weekly availability — click a cell to cycle through states</div>
+      <div class="section-label" style="margin-bottom:14px;">Teaching preferences</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Grade range</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="pref-grade-min" style="${selectStyle}flex:1;"><option value="">Min grade</option>${gradeOpts}</select>
+            <span style="color:var(--muted);font-size:13px;">→</span>
+            <select id="pref-grade-max" style="${selectStyle}flex:1;"><option value="">Max grade</option>${gradeOptsMax}</select>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Level range</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="pref-level-min" style="${selectStyle}flex:1;"><option value="">Min level</option>${levelOpts}</select>
+            <span style="color:var(--muted);font-size:13px;">→</span>
+            <select id="pref-level-max" style="${selectStyle}flex:1;"><option value="">Max level</option>${levelOptsMax}</select>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">General comment</div>
+        <textarea id="pref-comment" rows="3" style="${inputStyle}resize:vertical;" placeholder="Any general notes about your availability or preferences…">${p.comment||''}</textarea>
+      </div>
+    </div>
+
+    <!-- Availability grid -->
+    <div class="card">
+      <div class="section-label">Weekly availability</div>
       <div id="avail-grid-wrap"></div>
       <div class="avail-legend">
         <span><span class="legend-dot" style="background:rgba(63,185,80,.35)"></span>In-person only</span>
@@ -313,14 +402,16 @@ function renderMine(){
         <span><span class="legend-dot" style="background:var(--surface2);border:1px solid #1c2333;"></span>Unavailable</span>
       </div>
     </div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;margin-bottom:20px;">
       <span class="save-status" id="save-status"></span>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-ghost" onclick="resetDraft()">Reset</button>
-        <button class="btn btn-primary" id="save-btn" onclick="saveAvail()">Save availability</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveAvail()">Save</button>
       </div>
     </div>
-    ${lead.length||shadow.length?`<div class="card" style="margin-top:20px;">
+
+    ${lead.length||shadow.length?`<div class="card">
       <div class="section-label">Your assigned classes</div>
       ${lead.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
         <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
@@ -368,6 +459,13 @@ function buildGrid(wrapperId,avail,editable){
       else
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st} readonly" style="width:52px;" title="${TITLES[st]}">${st==='none'?'':LABELS[st]}</div></div>`;
     });
+    if(editable){
+      const dayNote=(typeof draftDayNotes!=='undefined'?draftDayNotes[day]:'') || '';
+      h+=`<textarea id="daynote-${day}" rows="2" placeholder="${day} notes…" style="margin-top:8px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:5px 7px;resize:none;outline:none;">${dayNote}</textarea>`;
+    } else {
+      const dayNote=(avail['_dayNotes']||{})[day]||'';
+      if(dayNote) h+=`<div style="margin-top:6px;font-size:11px;color:var(--muted);font-style:italic;">${dayNote}</div>`;
+    }
     h+=`</div>`;
   });
   h+=`</div>`;
@@ -449,14 +547,35 @@ window.cycleSlot=function(day,slot,el){
   unsaved=true; setSS('');
 };
 
-window.resetDraft=function(){draftAvail=clone(currentProfile.availability||{});unsaved=false;buildGrid("avail-grid-wrap",draftAvail,true);setSS("Reset to last saved.");};
+window.resetDraft=function(){draftAvail=clone(currentProfile.availability||{});draftDayNotes=clone(currentProfile.dayNotes||{});unsaved=false;renderMine();setSS("Reset to last saved.");};
 window.saveAvail=async function(){
   const btn=document.getElementById("save-btn"); btn.disabled=true; btn.textContent="Saving…";
+  // Collect per-day notes from textareas
+  DAYS.forEach(day=>{
+    const ta=document.getElementById('daynote-'+day);
+    if(ta) draftDayNotes[day]=ta.value;
+  });
+  // Collect preference fields
+  const gradeMin  = document.getElementById('pref-grade-min')?.value  || '';
+  const gradeMax  = document.getElementById('pref-grade-max')?.value  || '';
+  const levelMin  = document.getElementById('pref-level-min')?.value  || '';
+  const levelMax  = document.getElementById('pref-level-max')?.value  || '';
+  const comment   = document.getElementById('pref-comment')?.value    || '';
   try{
-    await updateDoc(doc(db,"instructors",currentUser.uid),{availability:draftAvail,availabilityUpdatedAt:serverTimestamp()});
-    currentProfile.availability=clone(draftAvail); unsaved=false; setSS("✓ Saved",true);
+    await updateDoc(doc(db,"instructors",currentUser.uid),{
+      availability: draftAvail,
+      dayNotes:     draftDayNotes,
+      gradeMin, gradeMax, levelMin, levelMax, comment,
+      availabilityUpdatedAt: serverTimestamp(),
+    });
+    currentProfile.availability=clone(draftAvail);
+    currentProfile.dayNotes=clone(draftDayNotes);
+    currentProfile.gradeMin=gradeMin; currentProfile.gradeMax=gradeMax;
+    currentProfile.levelMin=levelMin; currentProfile.levelMax=levelMax;
+    currentProfile.comment=comment;
+    unsaved=false; setSS("✓ Saved",true);
   }catch(e){setSS("Error: "+e.message);}
-  finally{btn.disabled=false;btn.textContent="Save availability";}
+  finally{btn.disabled=false;btn.textContent="Save";}
 };
 function setSS(msg,ok){const e=document.getElementById("save-status");if(!e)return;e.textContent=msg;e.className="save-status"+(ok?" saved":"");}
 
@@ -520,7 +639,16 @@ function renderProfile(el,uid){
         </div>
       </div>
     </div>
-    ${p.notes?`<div class="card" style="border-color:rgba(88,166,255,.15);margin-bottom:12px;"><div class="section-label">Notes</div><div class="note-box">${p.notes}</div></div>`:''}
+    ${(p.notes||p.comment||p.gradeMin||p.levelMin)?`<div class="card" style="border-color:rgba(88,166,255,.15);margin-bottom:12px;">
+      ${p.gradeMin||p.gradeMax||p.levelMin||p.levelMax?`<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:${p.notes||p.comment?'12px':'0'};">
+        ${p.gradeMin||p.gradeMax?`<div><div class="section-label" style="margin-bottom:3px;">Grade range</div>
+          <span style="font-size:13px;color:var(--text);">${p.gradeMin||'?'} → ${p.gradeMax||'?'}</span></div>`:''}
+        ${p.levelMin||p.levelMax?`<div><div class="section-label" style="margin-bottom:3px;">Level range</div>
+          <span style="font-size:13px;color:var(--text);">${p.levelMin||'?'} → ${p.levelMax||'?'}</span></div>`:''}
+      </div>`:''}
+      ${p.notes?`<div class="section-label" style="margin-bottom:4px;">Admin notes</div><div class="note-box" style="margin-bottom:${p.comment?'10px':'0'};">${p.notes}</div>`:''}
+      ${p.comment?`<div class="section-label" style="margin-bottom:4px;margin-top:${p.notes?'10px':'0'};">Instructor comment</div><div class="note-box">${p.comment}</div>`:''}
+    </div>`:''}`
     <div class="two-col">
       <div>
         <div class="card"><div class="section-label">Lead classes (${lead.length})</div>
