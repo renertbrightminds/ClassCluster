@@ -266,6 +266,8 @@ onAuthStateChanged(auth, async user=>{
   if (currentProfile.role==="admin") document.getElementById("admin-link").style.display="";
   allClasses=await fetchClasses();
   updateBookLevelsFromClasses(allClasses);
+  // Debug helpers — accessible from browser console
+  window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
   document.getElementById("spinner").style.display="none";
   document.getElementById("app").style.display="";
   renderTab("my-availability");
@@ -780,26 +782,50 @@ window.buildRollup=function(){
   const blockedByUid={};
   allProfiles.forEach(p=>{ blockedByUid[p.uid]=assignedSlotsForProfile(p); });
 
+  // Helper: does a slot pass the delivery mode filter?
+  function slotMatchesMode(avail, isAssigned, assignedDelivery, mode){
+    if(!mode) return true;
+    if(!isAssigned){
+      if(mode==="ip"     ) return avail==="ip"||avail==="both";
+      if(mode==="online" ) return avail==="online"||avail==="both";
+      if(mode==="both"   ) return avail==="both";
+    } else {
+      // For assigned slots, match on the class delivery type
+      if(mode==="ip"    ) return assignedDelivery!=="online";
+      if(mode==="online") return assignedDelivery==="online";
+      if(mode==="both"  ) return false; // assigned slots are one delivery type, not "both"
+    }
+    return false;
+  }
+
+  // Build a map of day|slot → delivery for assigned classes
+  function assignedDeliveryMap(profile){
+    const map={};
+    const {lead,shadow}=classesForProfile(profile);
+    [...lead,...shadow].forEach(cls=>{
+      assignedSlotsForClass(cls).forEach(key=>{map[key]=cls.delivery||"in-person";});
+    });
+    return map;
+  }
+
+  const deliveryByUid={};
+  allProfiles.forEach(p=>{ deliveryByUid[p.uid]=assignedDeliveryMap(p); });
+
   const insts=allProfiles.filter(p=>{
     if(p.active===false) return false;
     if(q&&!(p.displayName||"").toLowerCase().includes(q)) return false;
     const blocked=blockedByUid[p.uid];
+    const delivMap=deliveryByUid[p.uid];
     for(const d of days) for(const s of slots){
       const key=`${d}|${s}`;
       const isAssigned=blocked.has(key);
       const avail=(p.availability?.[d]||{})[s]||"none";
-      if(filt==="assigned") { if(isAssigned) return true; continue; }
-      if(filt==="free")     { if(isAssigned||avail==="none") continue; }
-      // filt==="all": show if assigned OR available
-      if(filt==="all" && !isAssigned && avail==="none") continue;
-      if(!mode) return true;
-      if(!isAssigned){
-        if(mode==="ip"     &&(avail==="ip"||avail==="both"))     return true;
-        if(mode==="online" &&(avail==="online"||avail==="both")) return true;
-        if(mode==="both"   && avail==="both")                    return true;
-      } else {
-        return true; // assigned slots always shown when mode filter active
-      }
+      const assignedDel=delivMap[key]||"in-person";
+      if(filt==="assigned"){ if(isAssigned && slotMatchesMode(avail,true,assignedDel,mode)) return true; continue; }
+      if(filt==="free"    ){ if(isAssigned||avail==="none") continue; }
+      // filt==="all"
+      if(!isAssigned && avail==="none") continue;
+      if(slotMatchesMode(avail,isAssigned,assignedDel,mode)) return true;
     }
     return false;
   });
