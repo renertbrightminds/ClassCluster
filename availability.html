@@ -730,155 +730,145 @@ function assignedSlotsForClass(cls) {
   return blocked;
 }
 
+function assignedDeliveryMap(profile){
+  const map={};
+  const {lead,shadow}=classesForProfile(profile);
+  [...lead,...shadow].forEach(cls=>{
+    assignedSlotsForClass(cls).forEach(key=>{map[key]=cls.delivery||"in-person";});
+  });
+  return map;
+}
+
 function renderRollup(){
   const el=document.getElementById("tab-rollup");
+
+  // Build time range options — union of all slots across all days, sorted
+  const allSlotsSorted=SLOTS;
+
   el.innerHTML=`
-    <div class="filter-row">
-      <select id="rd"><option value="">All days</option>${DAYS.map(d=>`<option value="${d}">${d}</option>`).join('')}</select>
+    <div class="filter-row" style="margin-bottom:16px;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Delivery</label>
       <select id="rm">
-        <option value="">Any availability</option>
+        <option value="">Any</option>
         <option value="ip">In-person</option>
         <option value="online">Online</option>
         <option value="both">Both</option>
       </select>
-      <select id="rs"><option value="">Any time</option>${SLOTS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
-      <select id="rf">
-        <option value="free">Free only</option>
-        <option value="all">Free + assigned</option>
-        <option value="assigned">Assigned only</option>
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-left:8px;">From</label>
+      <select id="rt-from">
+        ${allSlotsSorted.map(s=>`<option value="${s}">${s}</option>`).join('')}
+      </select>
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">To</label>
+      <select id="rt-to">
+        ${allSlotsSorted.map(s=>`<option value="${s}">${s}</option>`).join('')}
       </select>
       <input id="rq" placeholder="Filter instructor…" oninput="buildRollup()" style="min-width:150px;"/>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px;font-size:11px;color:var(--muted);">
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--muted);">
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(63,185,80,.3);margin-right:4px;vertical-align:middle;"></span>In-person free</span>
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(88,166,255,.3);margin-right:4px;vertical-align:middle;"></span>Online free</span>
       <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(188,140,255,.3);margin-right:4px;vertical-align:middle;"></span>Both free</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(210,153,34,.3);margin-right:4px;vertical-align:middle;"></span>Assigned (lead)</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(188,140,255,.15);border:1px solid rgba(188,140,255,.3);margin-right:4px;vertical-align:middle;"></span>Assigned (shadow)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(210,153,34,.25);margin-right:4px;vertical-align:middle;"></span>Assigned (lead)</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(188,140,255,.12);border:1px solid rgba(188,140,255,.3);margin-right:4px;vertical-align:middle;"></span>Assigned (shadow)</span>
     </div>
     <div id="rollup-wrap"></div>`;
 
-  document.getElementById("rd").addEventListener("change", function(){
-    const day=this.value;
-    const slots=day?slotsForDay(day):SLOTS;
-    const rs=document.getElementById("rs");
-    rs.innerHTML='<option value="">Any time</option>'+slots.map(s=>`<option value="${s}">${s}</option>`).join('');
-    buildRollup();
+  // Set "to" default to last slot
+  const toEl=document.getElementById("rt-to");
+  if(toEl) toEl.selectedIndex=allSlotsSorted.length-1;
+
+  ["rm","rt-from","rt-to"].forEach(id=>{
+    document.getElementById(id)?.addEventListener("change", buildRollup);
   });
-  ["rm","rs","rf"].forEach(id=>document.getElementById(id).addEventListener("change",buildRollup));
   buildRollup();
 }
 
 window.buildRollup=function(){
-  const day  = document.getElementById("rd")?.value||"";
-  const mode = document.getElementById("rm")?.value||"";
-  const slot = document.getElementById("rs")?.value||"";
-  const filt = document.getElementById("rf")?.value||"free";
-  const q    = (document.getElementById("rq")?.value||"").toLowerCase();
-  const wrap = document.getElementById("rollup-wrap"); if(!wrap) return;
-  const days=day?[day]:DAYS, slots=slot?[slot]:SLOTS;
+  const mode    = document.getElementById("rm")?.value||"";
+  const fromVal = document.getElementById("rt-from")?.value||SLOTS[0];
+  const toVal   = document.getElementById("rt-to")?.value||SLOTS[SLOTS.length-1];
+  const q       = (document.getElementById("rq")?.value||"").toLowerCase();
+  const wrap    = document.getElementById("rollup-wrap"); if(!wrap) return;
 
-  // Pre-compute blocked slots per instructor
-  const blockedByUid={};
-  allProfiles.forEach(p=>{ blockedByUid[p.uid]=assignedSlotsForProfile(p); });
+  // Convert time string to minutes for comparison
+  function toMins(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+  const fromMins=toMins(fromVal), toMins_=toMins(toVal);
 
-  // Helper: does a slot pass the delivery mode filter?
-  function slotMatchesMode(avail, isAssigned, assignedDelivery, mode){
-    if(!mode) return true;
-    if(!isAssigned){
-      if(mode==="ip"     ) return avail==="ip"||avail==="both";
-      if(mode==="online" ) return avail==="online"||avail==="both";
-      if(mode==="both"   ) return avail==="both";
-    } else {
-      // For assigned slots, match on the class delivery type
-      if(mode==="ip"    ) return assignedDelivery!=="online";
-      if(mode==="online") return assignedDelivery==="online";
-      if(mode==="both"  ) return false; // assigned slots are one delivery type, not "both"
-    }
-    return false;
-  }
+  // Pre-compute per instructor
+  const blockedByUid={}, delivByUid={};
+  allProfiles.forEach(p=>{
+    blockedByUid[p.uid]=assignedSlotsForProfile(p);
+    delivByUid[p.uid]=assignedDeliveryMap(p);
+  });
 
-  // Build a map of day|slot → delivery for assigned classes
-  function assignedDeliveryMap(profile){
-    const map={};
-    const {lead,shadow}=classesForProfile(profile);
-    [...lead,...shadow].forEach(cls=>{
-      assignedSlotsForClass(cls).forEach(key=>{map[key]=cls.delivery||"in-person";});
-    });
-    return map;
-  }
-
-  const deliveryByUid={};
-  allProfiles.forEach(p=>{ deliveryByUid[p.uid]=assignedDeliveryMap(p); });
-
+  // Active instructors matching name search
   const insts=allProfiles.filter(p=>{
     if(p.active===false) return false;
     if(q&&!(p.displayName||"").toLowerCase().includes(q)) return false;
-    const blocked=blockedByUid[p.uid];
-    const delivMap=deliveryByUid[p.uid];
-    for(const d of days) for(const s of slots){
-      const key=`${d}|${s}`;
-      const isAssigned=blocked.has(key);
-      const avail=(p.availability?.[d]||{})[s]||"none";
-      const assignedDel=delivMap[key]||"in-person";
-      if(filt==="assigned"){ if(isAssigned && slotMatchesMode(avail,true,assignedDel,mode)) return true; continue; }
-      if(filt==="free"    ){ if(isAssigned||avail==="none") continue; }
-      // filt==="all"
-      if(!isAssigned && avail==="none") continue;
-      if(slotMatchesMode(avail,isAssigned,assignedDel,mode)) return true;
-    }
-    return false;
+    return true;
   });
 
-  if(!insts.length){wrap.innerHTML='<div class="empty">No instructors match these filters.</div>';return;}
+  if(!insts.length){ wrap.innerHTML='<div class="empty">No instructors found.</div>'; return; }
 
-  // Build columns — slots where at least one instructor has something to show
-  const cols=[];
-  for(const d of days) for(const s of slots){
-    const key=`${d}|${s}`;
-    const any=insts.some(p=>{
-      const blocked=blockedByUid[p.uid];
-      const isAssigned=blocked.has(key);
-      const avail=(p.availability?.[d]||{})[s]||"none";
-      if(filt==="assigned") return isAssigned;
-      if(filt==="free")     return !isAssigned&&avail!=="none";
-      return isAssigned||avail!=="none";
-    });
-    if(any) cols.push({day:d,slot:s});
+  // Cell value for an instructor at a day+slot
+  function cellState(p, day, slot){
+    const key=`${day}|${slot}`;
+    if(blockedByUid[p.uid].has(key)){
+      const {lead}=classesForProfile(p);
+      const isLead=lead.some(cls=>assignedSlotsForClass(cls).has(key));
+      return isLead?'lead':'shadow';
+    }
+    const avail=(p.availability?.[day]||{})[slot]||'none';
+    if(avail==='none') return 'none';
+    if(!mode) return avail;
+    if(mode==='ip'    ) return (avail==='ip'||avail==='both')?avail:'none';
+    if(mode==='online') return (avail==='online'||avail==='both')?avail:'none';
+    if(mode==='both'  ) return avail==='both'?avail:'none';
+    return avail;
   }
 
-  if(!cols.length){wrap.innerHTML='<div class="empty">No availability matches these filters.</div>';return;}
+  // Build one table per day, each showing all slots in the selected time range
+  let html='';
+  DAYS.forEach(day=>{
+    const daySlots=slotsForDay(day).filter(s=>{
+      const m=toMins(s);
+      return m>=fromMins && m<=toMins_;
+    });
+    if(!daySlots.length) return; // day has no slots in range
 
-  wrap.innerHTML=`<div style="overflow-x:auto;"><table class="rollup-table"><thead><tr>
-    <th>Instructor</th>
-    ${cols.map(({day,slot})=>`<th style="white-space:nowrap;">${day}<br/><span style="font-weight:400;color:var(--muted);">${slot}</span></th>`).join('')}
-  </tr></thead><tbody>
-  ${insts.map(p=>{
-    const blocked=blockedByUid[p.uid];
-    return`<tr>
-      <td style="font-weight:500;cursor:pointer;color:var(--accent);" onclick="showTab('instructors');openProf('${p.uid}')">${p.displayName}</td>
-      ${cols.map(({day,slot})=>{
-        const key=`${day}|${slot}`;
-        const isAssigned=blocked.has(key);
-        const avail=(p.availability?.[day]||{})[slot]||"none";
-        if(isAssigned){
-          // Determine lead vs shadow
-          const {lead}=classesForProfile(p);
-          const isLead=lead.some(cls=>{
-            const d=DAYS.find(d=>(cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
-            return assignedSlotsForClass(cls).has(key);
-          });
-          return isLead
-            ? `<td title="Assigned as lead"><span class="pip pip-class">📚 Lead</span></td>`
-            : `<td title="Assigned as shadow"><span class="pip pip-shadow">👁 Shadow</span></td>`;
-        }
-        if(avail==="none") return`<td></td>`;
-        return`<td><span class="pip ${avail==='ip'?'pip-ip':avail==='online'?'pip-online':'pip-both'}">${LABELS[avail]}</span></td>`;
-      }).join('')}
-    </tr>`;
-  }).join('')}
-  </tbody></table></div>`;
+    html+=`<div style="margin-bottom:20px;">
+      <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text);">${day}</div>
+      <div style="overflow-x:auto;">
+        <table class="rollup-table">
+          <thead><tr>
+            <th style="min-width:130px;position:sticky;left:0;background:var(--bg);z-index:1;">Instructor</th>
+            ${daySlots.map(s=>`<th style="text-align:center;white-space:nowrap;min-width:54px;">${s}</th>`).join('')}
+          </tr></thead>
+          <tbody>
+          ${insts.map(p=>{
+            const cells=daySlots.map(s=>{
+              const st=cellState(p,day,s);
+              if(st==='lead')   return`<td style="text-align:center;" title="Assigned as lead"><span class="pip pip-class" style="font-size:10px;">Lead</span></td>`;
+              if(st==='shadow') return`<td style="text-align:center;" title="Assigned as shadow"><span class="pip pip-shadow" style="font-size:10px;">Shadow</span></td>`;
+              if(st==='none')   return`<td></td>`;
+              const pipClass=st==='ip'?'pip-ip':st==='online'?'pip-online':'pip-both';
+              return`<td style="text-align:center;"><span class="pip ${pipClass}">${LABELS[st]}</span></td>`;
+            }).join('');
+            return`<tr>
+              <td style="font-weight:500;cursor:pointer;color:var(--accent);white-space:nowrap;position:sticky;left:0;background:var(--bg);"
+                  onclick="showTab('instructors');openProf('${p.uid}')">${p.displayName}</td>
+              ${cells}
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
+  });
+
+  wrap.innerHTML=html||'<div class="empty">No slots in selected time range.</div>';
 };
+
 
 // ── CONFLICTS ──
 function renderConflicts(){
