@@ -741,57 +741,39 @@ function assignedDeliveryMap(profile){
 
 function renderRollup(){
   const el=document.getElementById("tab-rollup");
-
-  // Build time range options — union of all slots across all days, sorted
-  const allSlotsSorted=SLOTS;
-
   el.innerHTML=`
-    <div class="filter-row" style="margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">Delivery</label>
+    <div class="filter-row" style="margin-bottom:16px;align-items:center;">
+      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">View</label>
       <select id="rm">
-        <option value="">Any</option>
         <option value="ip">In-person</option>
         <option value="online">Online</option>
-        <option value="both">Both</option>
       </select>
       <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-left:8px;">From</label>
-      <select id="rt-from">
-        ${allSlotsSorted.map(s=>`<option value="${s}">${s}</option>`).join('')}
-      </select>
+      <select id="rt-from">${SLOTS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
       <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">To</label>
-      <select id="rt-to">
-        ${allSlotsSorted.map(s=>`<option value="${s}">${s}</option>`).join('')}
-      </select>
+      <select id="rt-to">${SLOTS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
       <input id="rq" placeholder="Filter instructor…" oninput="buildRollup()" style="min-width:150px;"/>
-    </div>
-    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:14px;font-size:11px;color:var(--muted);">
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(63,185,80,.3);margin-right:4px;vertical-align:middle;"></span>In-person free</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(88,166,255,.3);margin-right:4px;vertical-align:middle;"></span>Online free</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(188,140,255,.3);margin-right:4px;vertical-align:middle;"></span>Both free</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(210,153,34,.25);margin-right:4px;vertical-align:middle;"></span>Assigned (lead)</span>
-      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:rgba(188,140,255,.12);border:1px solid rgba(188,140,255,.3);margin-right:4px;vertical-align:middle;"></span>Assigned (shadow)</span>
     </div>
     <div id="rollup-wrap"></div>`;
 
-  // Set "to" default to last slot
+  // Default "to" to last slot
   const toEl=document.getElementById("rt-to");
-  if(toEl) toEl.selectedIndex=allSlotsSorted.length-1;
+  if(toEl) toEl.selectedIndex=SLOTS.length-1;
 
   ["rm","rt-from","rt-to"].forEach(id=>{
-    document.getElementById(id)?.addEventListener("change", buildRollup);
+    document.getElementById(id)?.addEventListener("change",buildRollup);
   });
   buildRollup();
 }
 
 window.buildRollup=function(){
-  const mode    = document.getElementById("rm")?.value||"";
+  const mode    = document.getElementById("rm")?.value||"ip";
   const fromVal = document.getElementById("rt-from")?.value||SLOTS[0];
   const toVal   = document.getElementById("rt-to")?.value||SLOTS[SLOTS.length-1];
   const q       = (document.getElementById("rq")?.value||"").toLowerCase();
   const wrap    = document.getElementById("rollup-wrap"); if(!wrap) return;
 
-  // Convert time string to minutes for comparison
-  function toMins(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+  function toMins(t){ const [h,m]=(t||"0:0").split(":").map(Number); return h*60+m; }
   const fromMins=toMins(fromVal), toMins_=toMins(toVal);
 
   // Pre-compute per instructor
@@ -801,72 +783,112 @@ window.buildRollup=function(){
     delivByUid[p.uid]=assignedDeliveryMap(p);
   });
 
-  // Active instructors matching name search
+  // Active instructors matching name filter
   const insts=allProfiles.filter(p=>{
     if(p.active===false) return false;
     if(q&&!(p.displayName||"").toLowerCase().includes(q)) return false;
     return true;
   });
 
-  if(!insts.length){ wrap.innerHTML='<div class="empty">No instructors found.</div>'; return; }
-
-  // Cell value for an instructor at a day+slot
-  function cellState(p, day, slot){
+  // For a given instructor, day, slot — what is their status for the selected mode?
+  // Returns: 'free-ip' | 'free-online' | 'free-both' | 'assigned-lead' | 'assigned-shadow' | 'none'
+  function instStatus(p, day, slot){
     const key=`${day}|${slot}`;
     if(blockedByUid[p.uid].has(key)){
       const {lead}=classesForProfile(p);
       const isLead=lead.some(cls=>assignedSlotsForClass(cls).has(key));
-      return isLead?'lead':'shadow';
+      return isLead?"assigned-lead":"assigned-shadow";
     }
-    const avail=(p.availability?.[day]||{})[slot]||'none';
-    if(avail==='none') return 'none';
-    if(!mode) return avail;
-    if(mode==='ip'    ) return (avail==='ip'||avail==='both')?avail:'none';
-    if(mode==='online') return (avail==='online'||avail==='both')?avail:'none';
-    if(mode==='both'  ) return avail==='both'?avail:'none';
-    return avail;
+    const avail=(p.availability?.[day]||{})[slot]||"none";
+    return avail; // 'none' | 'ip' | 'online' | 'both'
   }
 
-  // Build one table per day, each showing all slots in the selected time range
-  let html='';
-  DAYS.forEach(day=>{
-    const daySlots=slotsForDay(day).filter(s=>{
-      const m=toMins(s);
-      return m>=fromMins && m<=toMins_;
-    });
-    if(!daySlots.length) return; // day has no slots in range
+  // Does a status count as "free" for the selected delivery mode?
+  function isFreeForMode(status, mode){
+    if(status==="assigned-lead"||status==="assigned-shadow") return false;
+    if(status==="none") return false;
+    if(mode==="ip"    ) return status==="ip"||status==="both";
+    if(mode==="online") return status==="online"||status==="both";
+    return false;
+  }
 
-    html+=`<div style="margin-bottom:20px;">
-      <div style="font-family:'Fraunces',serif;font-size:16px;font-weight:700;margin-bottom:8px;color:var(--text);">${day}</div>
-      <div style="overflow-x:auto;">
-        <table class="rollup-table">
-          <thead><tr>
-            <th style="min-width:130px;position:sticky;left:0;background:var(--bg);z-index:1;">Instructor</th>
-            ${daySlots.map(s=>`<th style="text-align:center;white-space:nowrap;min-width:54px;">${s}</th>`).join('')}
-          </tr></thead>
-          <tbody>
-          ${insts.map(p=>{
-            const cells=daySlots.map(s=>{
-              const st=cellState(p,day,s);
-              if(st==='lead')   return`<td style="text-align:center;" title="Assigned as lead"><span class="pip pip-class" style="font-size:10px;">Lead</span></td>`;
-              if(st==='shadow') return`<td style="text-align:center;" title="Assigned as shadow"><span class="pip pip-shadow" style="font-size:10px;">Shadow</span></td>`;
-              if(st==='none')   return`<td></td>`;
-              const pipClass=st==='ip'?'pip-ip':st==='online'?'pip-online':'pip-both';
-              return`<td style="text-align:center;"><span class="pip ${pipClass}">${LABELS[st]}</span></td>`;
-            }).join('');
-            return`<tr>
-              <td style="font-weight:500;cursor:pointer;color:var(--accent);white-space:nowrap;position:sticky;left:0;background:var(--bg);"
-                  onclick="showTab('instructors');openProf('${p.uid}')">${p.displayName}</td>
-              ${cells}
-            </tr>`;
-          }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
+  // Build rows = time slots (filtered by range), cols = days
+  // Each day only shows slots valid for that day; if a slot is not valid for a day, cell is greyed out
+  const rowSlots=SLOTS.filter(s=>{
+    const m=toMins(s); return m>=fromMins && m<=toMins_;
   });
 
-  wrap.innerHTML=html||'<div class="empty">No slots in selected time range.</div>';
+  if(!rowSlots.length){
+    wrap.innerHTML='<div class="empty">No slots in selected time range.</div>'; return;
+  }
+
+  // Table: rows = time slots, cols = days
+  // Each cell = list of instructor names who are free (for mode) at that day+slot
+  //           + smaller italic list of those assigned at that slot
+
+  const cellStyle=`padding:6px 8px;vertical-align:top;border-bottom:1px solid #0a0f18;min-width:130px;`;
+  const headerStyle=`padding:8px 10px;font-size:12px;font-weight:700;color:var(--text);text-align:center;border-bottom:1px solid var(--border);white-space:nowrap;`;
+  const timeStyle=`padding:6px 8px;font-size:11px;color:var(--muted);white-space:nowrap;font-family:monospace;border-bottom:1px solid #0a0f18;vertical-align:middle;`;
+
+  let html=`<div style="overflow:auto;max-height:70vh;">
+    <table style="border-collapse:collapse;width:100%;font-size:12px;">
+      <thead style="position:sticky;top:0;z-index:2;background:var(--bg);">
+        <tr>
+          <th style="${headerStyle}min-width:60px;text-align:left;">Time</th>
+          ${DAYS.map(d=>`<th style="${headerStyle}">${d}</th>`).join('')}
+        </tr>
+      </thead>
+      <tbody>
+      ${rowSlots.map(slot=>`
+        <tr>
+          <td style="${timeStyle}">${slot}</td>
+          ${DAYS.map(day=>{
+            // Is this slot valid for this day?
+            const daySlots=slotsForDay(day);
+            if(!daySlots.includes(slot)){
+              return`<td style="${cellStyle}background:#0a0f18;"></td>`;
+            }
+
+            const freeNames=[];
+            const assignedLeadNames=[];
+            const assignedShadowNames=[];
+
+            insts.forEach(p=>{
+              const status=instStatus(p,day,slot);
+              if(isFreeForMode(status,mode)) freeNames.push(p.displayName);
+              else if(status==="assigned-lead") assignedLeadNames.push(p.displayName);
+              else if(status==="assigned-shadow") assignedShadowNames.push(p.displayName);
+            });
+
+            let cellHtml="";
+            if(freeNames.length){
+              cellHtml+=freeNames.map(n=>
+                `<div style="color:${mode==="online"?"#79c0ff":"#56d364"};font-weight:500;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${n}">${n}</div>`
+              ).join("");
+            }
+            if(assignedLeadNames.length){
+              cellHtml+=assignedLeadNames.map(n=>
+                `<div style="color:#e3b341;font-size:10px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.8;" title="${n} (lead)">📚 ${n}</div>`
+              ).join("");
+            }
+            if(assignedShadowNames.length){
+              cellHtml+=assignedShadowNames.map(n=>
+                `<div style="color:#d2a8ff;font-size:10px;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;opacity:.7;" title="${n} (shadow)">👁 ${n}</div>`
+              ).join("");
+            }
+
+            const bg=freeNames.length>0
+              ? (mode==="online"?"rgba(88,166,255,.05)":"rgba(63,185,80,.05)")
+              : "transparent";
+
+            return`<td style="${cellStyle}background:${bg};">${cellHtml||""}</td>`;
+          }).join("")}
+        </tr>`).join("")}
+      </tbody>
+    </table>
+  </div>`;
+
+  wrap.innerHTML=html;
 };
 
 
