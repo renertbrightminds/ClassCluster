@@ -201,17 +201,33 @@ function renderPage() {
       <div class="success" id="create-success"></div>
     </div>
 
-    <!-- Bulk create -->
+    <!-- Step 1: Import profiles from CSV -->
+    <div class="card" id="import-card">
+      <div class="card-title">📥 Step 1 — Import instructor profiles from ClassCluster</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Reads lead instructor names from your ClassCluster CSV and creates Firestore profiles
+        for anyone not already in the system. No accounts are created yet — just profiles.
+      </p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-ghost" onclick="previewImport()">Preview instructors to import</button>
+        <button class="btn btn-primary" id="import-run-btn" onclick="runImport()" style="display:none;">Import profiles</button>
+      </div>
+      <div id="import-preview" style="margin-bottom:8px;"></div>
+      <div class="error" id="import-error"></div>
+      <div class="success" id="import-success"></div>
+    </div>
+
+    <!-- Step 2: Bulk create accounts -->
     <div class="card" id="bulk-card">
-      <div class="card-title">⚡ Bulk create accounts</div>
+      <div class="card-title">⚡ Step 2 — Bulk create login accounts</div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
         Creates login accounts for all Firestore profiles that don't have one yet.
-        No emails are sent — instructors won't know until you share the login link and password with them.
+        No emails are sent — instructors won't be notified until you're ready.
       </p>
       <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="form-group">
           <label>Temporary password for all accounts</label>
-          <input type="password" id="bulk-password" placeholder="Min 6 characters" value=""/>
+          <input type="password" id="bulk-password" placeholder="Min 6 characters"/>
         </div>
         <div class="form-group">
           <label>Confirm password</label>
@@ -358,6 +374,190 @@ function friendlyError(code) {
     default: return "Something went wrong (" + code + "). Please try again.";
   }
 }
+// ── ODS PROFILE DATA (seeded from Bright_Minds_math_instructor_availability.ods) ──
+const ODS_PROFILES = {
+  "Alice":    {levelMin:"KJr",  levelMax:"2A",       maxNew:3,  notes:"Preference for opening classes Saturday / Tuesday.", active:true},
+  "Alyna":    {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Andy":     {levelMin:"2C",   levelMax:"",          maxNew:2,  notes:"Can remove breaks on Saturday and teach instead of assessing.", active:true},
+  "Angela":   {levelMin:"KJr",  levelMax:"Book 6",    maxNew:0,  notes:"Maxed out. No extra classes. Can substitute occasionally.", active:true},
+  "Ben":      {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Caleb":    {levelMin:"KJr",  levelMax:"4A",        maxNew:null,notes:"Would like to work in-person all day or online — no mixes.", active:true},
+  "Cameron":  {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Chantel":  {levelMin:"KJr",  levelMax:"2D",        maxNew:null,notes:"May change semester to semester.", active:true},
+  "Daisy":    {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Danielle": {levelMin:"3D",   levelMax:"Book 8",    maxNew:3,  notes:"Currently abroad — Saturday morning only until back in Calgary.", active:true},
+  "Diya":     {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Doina":    {levelMin:"",     levelMax:"",          maxNew:0,  notes:"", active:true},
+  "Elena B":  {levelMin:"3A",   levelMax:"D2",        maxNew:10, notes:"", active:true},
+  "Frank":    {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Gurinder": {levelMin:"3C",   levelMax:"Book 7",    maxNew:1,  notes:"Available Mon–Fri 5–7:30 PM. Would like to give away M-10 Wednesday class.", active:true},
+  "Jasmine":  {levelMin:"KSr",  levelMax:"2D",        maxNew:7,  notes:"Prefer back-to-back classes. Can teach morning classes.", active:true},
+  "Jibola":   {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Juliette": {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Kian":     {levelMin:"KJr",  levelMax:"M31",       maxNew:6,  notes:"Prefer in person, okay with both.", active:true},
+  "Lekha":    {levelMin:"1A Mammoth",levelMax:"4B",   maxNew:null,notes:"", active:true},
+  "Liam":     {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Marina":   {levelMin:"",     levelMax:"",          maxNew:null,notes:"TUESDAY IS NOT A GOOD DAY (per March 2/26 WhatsApp).", active:true},
+  "Myrna":    {levelMin:"",     levelMax:"",          maxNew:0,  notes:"No longer with Bright Minds as of mid January 2026.", active:false},
+  "Naz":      {levelMin:"KJr",  levelMax:"Book 6",    maxNew:15, notes:"Flexible — prefer multiple classes in one day. Happy to sub online.", active:true},
+  "Nicha":    {levelMin:"2A",   levelMax:"M31",       maxNew:3,  notes:"", active:true},
+  "Penekeh":  {levelMin:"3A",   levelMax:"M31",       maxNew:2,  notes:"", active:true},
+  "Pria":     {levelMin:"KSr",  levelMax:"3B",        maxNew:5,  notes:"May change semester to semester.", active:true},
+  "Priyal":   {levelMin:"3D",   levelMax:"M31",       maxNew:3,  notes:"Prefer Friday evenings and Saturday mornings. Check in before assigning.", active:true},
+  "Rita":     {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Ryan":     {levelMin:"KJr",  levelMax:"4A",        maxNew:0,  notes:"Not taking new classes.", active:true},
+  "Saika":    {levelMin:"2C",   levelMax:"M30",       maxNew:3,  notes:"Available Tuesday, Wednesday, and Saturday morning.", active:true},
+  "Salina":   {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Sameem":   {levelMin:"",     levelMax:"",          maxNew:0,  notes:"No longer with Bright Minds as of mid January 2026.", active:false},
+  "Shweta":   {levelMin:"",     levelMax:"",          maxNew:0,  notes:"No longer with Bright Minds as of mid January 2026.", active:false},
+  "Sumaira":  {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Tara":     {levelMin:"1A Mammoth",levelMax:"4A",   maxNew:0,  notes:"Only wants the 2 current classes for now (per March 2/26 WhatsApp).", active:true},
+  "Trisha":   {levelMin:"",     levelMax:"4B",        maxNew:0,  notes:"Not taking new classes.", active:true},
+};
+
+// Match a raw CSV name to an ODS profile key (first-name match, same logic as availability.html)
+function matchOdsProfile(rawName) {
+  const trimmed = (rawName||"").trim();
+  if (ODS_PROFILES[trimmed]) return trimmed;
+  const first = trimmed.split(" ")[0].toLowerCase();
+  return Object.keys(ODS_PROFILES).find(k => k.split(" ")[0].toLowerCase() === first) || null;
+}
+
+// ── CSV IMPORT ──
+async function fetchCsvNames() {
+  const { CLASS_DATA_URL } = await import("./firebase-config.js");
+  const proxy = "https://corsproxy.io/?" + encodeURIComponent(CLASS_DATA_URL);
+  const r = await fetch(proxy, {cache:"no-cache"});
+  if (!r.ok) throw new Error("Could not fetch ClassCluster CSV (HTTP " + r.status + ")");
+  const text = await r.text();
+  const lines = text.trim().split(/?
+/);
+  const hdr = lines[0].split(",").map(h=>h.trim().toLowerCase());
+  const ii = hdr.indexOf("instructor");
+  if (ii < 0) throw new Error("No 'instructor' column found in CSV.");
+  const names = new Set();
+  for (let i=1; i<lines.length; i++) {
+    const cols = lines[i].split(",").map(v=>v.trim());
+    const name = cols[ii];
+    if (name) names.add(name.trim());
+  }
+  return [...names].filter(Boolean).sort();
+}
+
+// Names already in Firestore (by displayName, case-insensitive first word)
+function existingFirstNames() {
+  return new Set(allProfiles.map(p => (p.displayName||"").split(" ")[0].toLowerCase()));
+}
+
+let importCandidates = [];
+
+window.previewImport = async function() {
+  const previewEl = document.getElementById("import-preview");
+  const errEl     = document.getElementById("import-error");
+  const sucEl     = document.getElementById("import-success");
+  const runBtn    = document.getElementById("import-run-btn");
+  errEl.style.display = "none"; sucEl.style.display = "none";
+  previewEl.innerHTML = `<div style="color:var(--muted);font-size:13px;">Fetching CSV…</div>`;
+
+  try {
+    const csvNames = await fetchCsvNames();
+    const existing = existingFirstNames();
+
+    // Find names in CSV not yet in Firestore
+    importCandidates = csvNames.filter(name => {
+      const first = name.split(" ")[0].toLowerCase();
+      return !existing.has(first);
+    });
+
+    if (!importCandidates.length) {
+      previewEl.innerHTML = `<div style="color:var(--green);font-size:13px;">✓ All instructors in the CSV already have profiles in Firestore.</div>`;
+      runBtn.style.display = "none";
+      return;
+    }
+
+    previewEl.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+        ${importCandidates.length} instructor${importCandidates.length!==1?'s':''} found in CSV not yet in Firestore:
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;border:1px solid var(--border);overflow:hidden;max-height:280px;overflow-y:auto;">
+        ${importCandidates.map(name => {
+          const key = matchOdsProfile(name);
+          const ods = key ? ODS_PROFILES[key] : null;
+          const badge = ods
+            ? (ods.active===false
+                ? '<span class="badge b-inactive" style="margin-left:6px;">Inactive</span>'
+                : '<span class="badge b-active" style="margin-left:6px;">Active</span>')
+            : '<span class="badge b-instructor" style="margin-left:6px;">No ODS data</span>';
+          const levels = ods&&(ods.levelMin||ods.levelMax)
+            ? `<span style="color:var(--muted);font-size:11px;margin-left:8px;">${ods.levelMin||'?'} → ${ods.levelMax||'?'}</span>`
+            : '';
+          return `<div class="bulk-row" id="irow-${name.replace(/\W/g,'_')}">
+            <span style="font-weight:500;">${name}${badge}${levels}</span>
+            <span class="bulk-status bs-pending" id="istat-${name.replace(/\W/g,'_')}">Pending</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    runBtn.style.display = "";
+  } catch(e) {
+    previewEl.innerHTML = "";
+    showMsg(errEl, "Error: " + e.message);
+  }
+};
+
+window.runImport = async function() {
+  const errEl  = document.getElementById("import-error");
+  const sucEl  = document.getElementById("import-success");
+  const runBtn = document.getElementById("import-run-btn");
+  const prevBtn = document.querySelector('[onclick="previewImport()"]');
+  errEl.style.display = "none"; sucEl.style.display = "none";
+
+  if (!importCandidates.length) { showMsg(errEl, "Nothing to import — run Preview first."); return; }
+
+  runBtn.disabled = true; runBtn.innerHTML = '<span class="spinner"></span>Importing…';
+  if (prevBtn) prevBtn.disabled = true;
+
+  let done=0, skipped=0, errors=0;
+
+  for (const name of importCandidates) {
+    const safeId = name.replace(/\W/g,'_');
+    const statEl = document.getElementById(`istat-${safeId}`);
+
+    const key = matchOdsProfile(name);
+    const ods = key ? ODS_PROFILES[key] : null;
+
+    // Use a temporary Firestore doc ID (name-based); will be replaced by auth UID when account is created
+    const tempId = "pending_" + name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+
+    try {
+      await setDoc(doc(db, "instructors", tempId), {
+        displayName:  name,
+        email:        "",           // no email yet — added when account is created
+        role:         "instructor",
+        active:       ods ? ods.active : true,
+        levelMin:     ods ? (ods.levelMin||"") : "",
+        levelMax:     ods ? (ods.levelMax||"") : "",
+        maxNew:       ods ? ods.maxNew : null,
+        notes:        ods ? (ods.notes||"") : "",
+        availability: {},
+        createdAt:    serverTimestamp(),
+      });
+      if (statEl) { statEl.textContent="✓ Imported"; statEl.className="bulk-status bs-done"; }
+      done++;
+    } catch(e) {
+      if (statEl) { statEl.textContent=e.message||e.code; statEl.className="bulk-status bs-error"; }
+      errors++;
+    }
+    await new Promise(r=>setTimeout(r,150));
+  }
+
+  runBtn.disabled = false; runBtn.textContent = "Import profiles";
+  if (prevBtn) prevBtn.disabled = false;
+  showMsg(sucEl, `Done — ${done} profile${done!==1?'s':''} imported${errors?`, ${errors} error${errors!==1?'s':''}`:''}.`);
+  importCandidates = [];
+  await loadAll();
+  renderPage();
+};
+
 // ── BULK ACCOUNT CREATION ──
 
 // Fetch the set of UIDs that already have Firebase Auth accounts
