@@ -259,7 +259,7 @@ function renderPage() {
             <td style="color:var(--muted);">${p.maxNew!=null?p.maxNew:'—'}</td>
             <td>
               <div class="actions">
-                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openResetModal('${p.uid}','${(p.displayName||'').replace(/'/g,"\\'")}','${p.email||''}')">Reset pw</button>
+                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleRole('${p.uid}','${p.role||'instructor'}')">${p.role==='admin'?'→ Instructor':'→ Admin'}</button>
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>
               </div>
@@ -327,9 +327,10 @@ window.toggleActive = async function(uid, currentlyActive) {
   await loadAll(); renderPage();
 };
 
-window.openResetModal = function(uid, name, email) {
-  resetTargetUid = {uid, email};
-  document.getElementById("reset-name").textContent = name;
+window.openResetModal = function(uid) {
+  const p = allProfiles.find(x => x.uid === uid) || {};
+  resetTargetUid = {uid, email: p.email||''};
+  document.getElementById("reset-name").textContent = p.displayName||uid;
   document.getElementById("reset-password").value = "";
   document.getElementById("reset-error").style.display = "none";
   document.getElementById("reset-modal").style.display = "flex";
