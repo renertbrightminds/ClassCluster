@@ -431,9 +431,8 @@ async function fetchCsvNames() {
   const r = await fetch(proxy, {cache:"no-cache"});
   if (!r.ok) throw new Error("Could not fetch ClassCluster CSV (HTTP " + r.status + ")");
   const text = await r.text();
-  const lines = text.trim().split(/
-?
-/);
+  const lines = text.trim().split("
+").map(l => l.replace(/$/,""));
   const hdr = lines[0].split(",").map(h=>h.trim().toLowerCase());
   const ii = hdr.indexOf("instructor");
   if (ii < 0) throw new Error("No 'instructor' column found in CSV.");
