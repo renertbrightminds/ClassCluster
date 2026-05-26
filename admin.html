@@ -55,6 +55,15 @@ input:focus,select:focus{border-color:var(--accent);}
 .modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:420px;max-width:90vw;}
 .modal-title{font-size:16px;font-weight:600;margin-bottom:20px;}
 .modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+.bulk-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #0a0f18;font-size:13px;}
+.bulk-row:last-child{border-bottom:none;}
+.bulk-status{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;}
+.bs-pending{background:rgba(118,131,144,.15);color:#adbac7;}
+.bs-done{background:rgba(63,185,80,.15);color:#3fb950;}
+.bs-error{background:rgba(248,81,73,.12);color:#ffa198;}
+.bs-skipped{background:rgba(210,153,34,.12);color:#e3b341;}
+.progress-bar-wrap{background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;margin:12px 0;}
+.progress-bar{height:100%;background:var(--accent);border-radius:6px;transition:width .3s;}
 </style>
 </head>
 <body>
@@ -100,6 +109,11 @@ import { firebaseConfig } from "./firebase-config.js";
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
+
+// Second app instance used only for bulk account creation
+// This prevents creating a new user from signing out the current admin session
+const app2  = initializeApp(firebaseConfig, "bulk-creator");
+const auth2 = getAuth(app2);
 
 let currentUser = null;
 let allProfiles = [];
@@ -185,6 +199,31 @@ function renderPage() {
       <button class="btn btn-primary" id="create-btn" onclick="createAccount()">Create account</button>
       <div class="error" id="create-error"></div>
       <div class="success" id="create-success"></div>
+    </div>
+
+    <!-- Bulk create -->
+    <div class="card" id="bulk-card">
+      <div class="card-title">⚡ Bulk create accounts</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Creates login accounts for all Firestore profiles that don't have one yet.
+        No emails are sent — instructors won't know until you share the login link and password with them.
+      </p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+        <div class="form-group">
+          <label>Temporary password for all accounts</label>
+          <input type="password" id="bulk-password" placeholder="Min 6 characters" value=""/>
+        </div>
+        <div class="form-group">
+          <label>Confirm password</label>
+          <input type="password" id="bulk-password-confirm" placeholder="Repeat password"/>
+        </div>
+      </div>
+      <div id="bulk-preview" style="margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="previewBulk()">Preview accounts to create</button>
+        <button class="btn btn-primary" id="bulk-run-btn" onclick="runBulkCreate()" style="display:none;">Create all accounts</button>
+      </div>
+      <div class="error" id="bulk-error"></div>
     </div>
 
     <!-- Instructor list -->
@@ -319,6 +358,135 @@ function friendlyError(code) {
     default: return "Something went wrong (" + code + "). Please try again.";
   }
 }
+// ── BULK ACCOUNT CREATION ──
+
+// Fetch the set of UIDs that already have Firebase Auth accounts
+// We detect this by checking if the Firestore profile has an 'email' field set
+// (email is only written when the account is created via createAccount or bulk)
+function profilesWithoutAccounts() {
+  return allProfiles.filter(p => p.active !== false && !p.email);
+}
+
+window.previewBulk = function() {
+  const pw  = document.getElementById("bulk-password").value;
+  const pw2 = document.getElementById("bulk-password-confirm").value;
+  const err = document.getElementById("bulk-error");
+  const preview = document.getElementById("bulk-preview");
+  err.style.display = "none";
+
+  if (!pw) { showMsg(err, "Please enter a temporary password."); return; }
+  if (pw.length < 6) { showMsg(err, "Password must be at least 6 characters."); return; }
+  if (pw !== pw2) { showMsg(err, "Passwords don't match."); return; }
+
+  const toCreate = profilesWithoutAccounts();
+  if (!toCreate.length) {
+    preview.innerHTML = `<div style="color:var(--green);font-size:13px;">✓ All active instructor profiles already have accounts.</div>`;
+    document.getElementById("bulk-run-btn").style.display = "none";
+    return;
+  }
+
+  preview.innerHTML = `
+    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+      ${toCreate.length} account${toCreate.length!==1?'s':''} will be created.
+      You'll need to share the login link and temporary password with each instructor manually.
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;border:1px solid var(--border);overflow:hidden;max-height:300px;overflow-y:auto;">
+      ${toCreate.map(p=>`
+        <div class="bulk-row">
+          <span style="font-weight:500;">${p.displayName||'—'}</span>
+          <span class="bulk-status bs-pending" id="bstat-${p.uid}">Pending</span>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById("bulk-run-btn").style.display = "";
+};
+
+window.runBulkCreate = async function() {
+  const pw  = document.getElementById("bulk-password").value;
+  const pw2 = document.getElementById("bulk-password-confirm").value;
+  const err = document.getElementById("bulk-error");
+  err.style.display = "none";
+
+  if (!pw || pw.length < 6) { showMsg(err, "Password must be at least 6 characters."); return; }
+  if (pw !== pw2) { showMsg(err, "Passwords don't match."); return; }
+
+  const toCreate = profilesWithoutAccounts();
+  if (!toCreate.length) { showMsg(err, "No accounts to create."); return; }
+
+  const btn = document.getElementById("bulk-run-btn");
+  const previewBtn = document.querySelector('[onclick="previewBulk()"]');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creating…';
+  if (previewBtn) previewBtn.disabled = true;
+
+  // Add progress bar
+  const preview = document.getElementById("bulk-preview");
+  const barWrap = document.createElement("div");
+  barWrap.className = "progress-bar-wrap";
+  barWrap.innerHTML = `<div class="progress-bar" id="bulk-progress-bar" style="width:0%"></div>`;
+  preview.insertBefore(barWrap, preview.firstChild);
+
+  let done=0, errors=0;
+
+  for (const profile of toCreate) {
+    const statEl = document.getElementById(`bstat-${profile.uid}`);
+
+    // Generate a placeholder email from display name if none exists
+    const safeName = (profile.displayName||"instructor")
+      .toLowerCase().replace(/[^a-z0-9]/g,'.').replace(/\.+/g,'.');
+    const email = `${safeName}@brightminds.placeholder`;
+
+    try {
+      // Create auth account on the secondary app (won't affect admin session)
+      const cred = await createUserWithEmailAndPassword(auth2, email, pw);
+      const newUid = cred.user.uid;
+
+      // Write the auth UID as the Firestore document ID
+      // Copy existing profile data to new doc keyed by auth UID
+      await setDoc(doc(db, "instructors", newUid), {
+        ...profile,
+        uid:       newUid,
+        email:     email,
+        createdAt: serverTimestamp(),
+      });
+
+      // Delete the old placeholder doc (keyed by display name or old ID) if different
+      if (profile.uid !== newUid) {
+        try { await deleteDoc(doc(db, "instructors", profile.uid)); } catch {}
+      }
+
+      if (statEl) { statEl.textContent="✓ Created"; statEl.className="bulk-status bs-done"; }
+      done++;
+    } catch(e) {
+      const msg = e.code==="auth/email-already-in-use" ? "Already exists" : (e.message||e.code);
+      if (statEl) { statEl.textContent=msg; statEl.className="bulk-status bs-error"; }
+      errors++;
+    }
+
+    // Update progress bar
+    const pct = Math.round(((done+errors)/toCreate.length)*100);
+    const bar = document.getElementById("bulk-progress-bar");
+    if (bar) bar.style.width = pct+"%";
+
+    // Small delay to avoid hammering Firebase
+    await new Promise(r=>setTimeout(r,300));
+  }
+
+  btn.disabled = false;
+  btn.textContent = "Create all accounts";
+  if (previewBtn) previewBtn.disabled = false;
+
+  // Summary
+  const summary = document.createElement("div");
+  summary.style.cssText = "font-size:13px;margin-top:10px;font-weight:600;";
+  summary.style.color = errors ? "var(--amber)" : "var(--green)";
+  summary.textContent = `Done — ${done} created${errors?`, ${errors} failed`:'.'}.`;
+  preview.appendChild(summary);
+
+  // Reload profiles to reflect new accounts
+  await loadAll();
+  renderPage();
+};
+
 </script>
 </body>
 </html>
