@@ -430,7 +430,8 @@ async function fetchCsvNames() {
   const r = await fetch(proxy, {cache:"no-cache"});
   if (!r.ok) throw new Error("Could not fetch ClassCluster CSV (HTTP " + r.status + ")");
   const text = await r.text();
-  const lines = text.trim().split(/?
+  const lines = text.trim().split(/
+?
 /);
   const hdr = lines[0].split(",").map(h=>h.trim().toLowerCase());
   const ii = hdr.indexOf("instructor");
@@ -491,9 +492,10 @@ window.previewImport = async function() {
           const levels = ods&&(ods.levelMin||ods.levelMax)
             ? `<span style="color:var(--muted);font-size:11px;margin-left:8px;">${ods.levelMin||'?'} → ${ods.levelMax||'?'}</span>`
             : '';
-          return `<div class="bulk-row" id="irow-${name.replace(/\W/g,'_')}">
+          const safeN = name.replace(/[^a-zA-Z0-9]/g,'_');
+          return `<div class="bulk-row" id="irow-${safeN}">
             <span style="font-weight:500;">${name}${badge}${levels}</span>
-            <span class="bulk-status bs-pending" id="istat-${name.replace(/\W/g,'_')}">Pending</span>
+            <span class="bulk-status bs-pending" id="istat-${safeN}">Pending</span>
           </div>`;
         }).join('')}
       </div>`;
@@ -519,14 +521,14 @@ window.runImport = async function() {
   let done=0, skipped=0, errors=0;
 
   for (const name of importCandidates) {
-    const safeId = name.replace(/\W/g,'_');
+    const safeId = name.replace(/[^a-zA-Z0-9]/g,'_');
     const statEl = document.getElementById(`istat-${safeId}`);
 
     const key = matchOdsProfile(name);
     const ods = key ? ODS_PROFILES[key] : null;
 
     // Use a temporary Firestore doc ID (name-based); will be replaced by auth UID when account is created
-    const tempId = "pending_" + name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+    const tempId = "pending_" + name.toLowerCase().replace(/[ ]+/g,'_').replace(/[^a-z0-9_]/g,'');
 
     try {
       await setDoc(doc(db, "instructors", tempId), {
@@ -632,7 +634,7 @@ window.runBulkCreate = async function() {
 
     // Generate a placeholder email from display name if none exists
     const safeName = (profile.displayName||"instructor")
-      .toLowerCase().replace(/[^a-z0-9]/g,'.').replace(/\.+/g,'.');
+      .toLowerCase().replace(/[^a-z0-9]/g,'.').replace(/[.]+/g,'.');
     const email = `${safeName}@brightminds.placeholder`;
 
     try {
