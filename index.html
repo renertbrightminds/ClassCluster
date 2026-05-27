@@ -314,8 +314,8 @@ const CONFIG = {
 
   <div id="sort-bar">
     <span class="sort-label">Sort:</span>
-    <button class="sort-btn active" data-sort="health"      onclick="setSort('health')">Health<span class="sort-arrow">↑</span></button>
-    <button class="sort-btn"        data-sort="datetime"    onclick="setSort('datetime')">Day &amp; Time<span class="sort-arrow">↑</span></button>
+    <button class="sort-btn"        data-sort="health"      onclick="setSort('health')">Health<span class="sort-arrow">↑</span></button>
+    <button class="sort-btn active" data-sort="datetime"    onclick="setSort('datetime')">Day &amp; Time<span class="sort-arrow">↑</span></button>
     <button class="sort-btn"        data-sort="level"       onclick="setSort('level')">Level<span class="sort-arrow">↑</span></button>
     <button class="sort-btn"        data-sort="grade"       onclick="setSort('grade')">Grade<span class="sort-arrow">↑</span></button>
     <button class="sort-btn"        data-sort="instructor"  onclick="setSort('instructor')">Instructor<span class="sort-arrow">↑</span></button>
@@ -681,9 +681,9 @@ function processClasses(classes) {
   allAnalysed = classes.map(analyseClass);
   allAnalysed.sort((a,b)=>({critical:0,warning:1,healthy:2}[a.health]-{critical:0,warning:1,healthy:2}[b.health]));
   activeFilter = null; sliderActive = false;
-  currentSort = { key:"health", dir:1 };
+  currentSort = { key:"datetime", dir:1 };
   document.querySelectorAll(".sort-btn").forEach(btn => {
-    btn.classList.toggle("active", btn.dataset.sort === "health");
+    btn.classList.toggle("active", btn.dataset.sort === "datetime");
     const arrow = btn.querySelector(".sort-arrow"); if (arrow) arrow.textContent = " ↑";
   });
   const searchInput = document.getElementById("search-input");
@@ -755,7 +755,7 @@ function clearAllFilters() {
 // ════════════════════════════════════════════════════════
 // SORT
 // ════════════════════════════════════════════════════════
-let currentSort = { key:"health", dir:1 };
+let currentSort = { key:"datetime", dir:1 };
 
 const DAY_ORDER = { mon:0, tue:1, wed:2, thu:3, fri:4, sat:5, sun:6 };
 
