@@ -131,10 +131,10 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
   <div id="app" style="display:none;">
     <div class="tabs">
       <button class="tab active" onclick="showTab('my-availability',this)">My availability</button>
-      <button class="tab" onclick="showTab('instructors',this)">All instructors</button>
-      <button class="tab" onclick="showTab('rollup',this)">Scheduling</button>
-      <button class="tab" onclick="showTab('conflicts',this)">Conflicts</button>
-      <button class="tab" onclick="showTab('shadows',this)">Shadow tracker</button>
+      <button class="tab admin-only" onclick="showTab('instructors',this)" style="display:none;">All instructors</button>
+      <button class="tab admin-only" onclick="showTab('rollup',this)" style="display:none;">Scheduling</button>
+      <button class="tab admin-only" onclick="showTab('conflicts',this)" style="display:none;">Conflicts</button>
+      <button class="tab admin-only" onclick="showTab('shadows',this)" style="display:none;">Shadow tracker</button>
     </div>
     <div id="tab-my-availability"></div>
     <div id="tab-instructors" style="display:none;"></div>
@@ -263,7 +263,10 @@ onAuthStateChanged(auth, async user=>{
   draftAvail=clone(currentProfile.availability||{});
   draftDayNotes=clone(currentProfile.dayNotes||{});
   document.getElementById("user-label").textContent=currentProfile.displayName;
-  if (currentProfile.role==="admin") document.getElementById("admin-link").style.display="";
+  if (currentProfile.role==="admin") {
+    document.getElementById("admin-link").style.display="";
+    document.querySelectorAll(".admin-only").forEach(el=>el.style.display="");
+  }
   allClasses=await fetchClasses();
   updateBookLevelsFromClasses(allClasses);
   // Debug helpers — accessible from browser console
@@ -430,7 +433,7 @@ function renderMine(){
   buildGrid("avail-grid-wrap",draftAvail,true);
 }
 
-function buildGrid(wrapperId,avail,editable){
+function buildGrid(wrapperId,avail,editable,targetUid){
   const w=document.getElementById(wrapperId); if(!w) return;
   let h='';
 
@@ -457,7 +460,7 @@ function buildGrid(wrapperId,avail,editable){
       const st=(avail[day]||{})[slot]||'none';
       const timeLabel=`<span style="font-size:12px;color:var(--muted);min-width:42px;display:inline-block;">${slot}</span>`;
       if(editable)
-        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st}" style="width:52px;" title="${TITLES[st]}" data-day="${day}" data-slot="${slot}">${st==='none'?'':LABELS[st]}</div></div>`;
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st}" style="width:52px;" title="${TITLES[st]}" data-day="${day}" data-slot="${slot}" data-uid="${targetUid||''}">${st==='none'?'':LABELS[st]}</div></div>`;
       else
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st} readonly" style="width:52px;" title="${TITLES[st]}">${st==='none'?'':LABELS[st]}</div></div>`;
     });
@@ -490,13 +493,21 @@ window.setDragMode=function(mode){
 
 function applyCell(el){
   if(!el||!el.dataset.day) return;
-  const day=el.dataset.day, slot=el.dataset.slot;
-  if(!draftAvail[day]) draftAvail[day]={};
-  draftAvail[day][slot]=dragMode;
+  const day=el.dataset.day, slot=el.dataset.slot, uid=el.dataset.uid||'';
+  // Write to the correct draft — own profile or admin editing another
+  const draft = uid && uid !== currentUser.uid
+    ? (window._profileDraft = window._profileDraft||{}, window._profileDraft[uid] = window._profileDraft[uid]||{}, window._profileDraft[uid])
+    : draftAvail;
+  if(!draft[day]) draft[day]={};
+  draft[day][slot]=dragMode;
   el.className=`ag-cell ${dragMode}`;
   el.title=TITLES[dragMode];
   el.textContent=dragMode==='none'?'':LABELS[dragMode];
-  unsaved=true; setSS('');
+  if(!uid || uid===currentUser.uid){ unsaved=true; setSS(''); }
+  else {
+    const s=document.getElementById('prof-save-status');
+    if(s){s.textContent='Unsaved changes';s.className='save-status';}
+  }
 }
 
 function attachDragHandlers(wrapperId){
@@ -668,9 +679,32 @@ function renderProfile(el,uid){
           </div>`).join('')}
         </div>`:''}
       </div>
-      <div><div class="card"><div class="section-label">Weekly availability</div><div id="prof-av-grid"></div></div></div>
+      <div>
+        <div class="card">
+          <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
+            Weekly availability
+            ${canEdit&&!isOwn?`<span style="font-size:11px;color:var(--muted);">Admin edit</span>`:''}
+          </div>
+          <div id="prof-av-grid"></div>
+          ${canEdit&&!isOwn?`
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px;">
+            <span class="save-status" id="prof-save-status"></span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="resetProfileDraft('${p.uid}')">Reset</button>
+              <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" id="prof-save-btn" onclick="saveProfileAvail('${p.uid}')">Save</button>
+            </div>
+          </div>`:''}
+        </div>
+      </div>
     </div>`;
-  buildGrid("prof-av-grid",p.availability||{},false);
+  // For admin editing another instructor, use a separate draft object
+  if (canEdit && !isOwn) {
+    window._profileDraft = window._profileDraft || {};
+    window._profileDraft[p.uid] = window._profileDraft[p.uid] || JSON.parse(JSON.stringify(p.availability||{}));
+    buildGrid("prof-av-grid", window._profileDraft[p.uid], true, p.uid);
+  } else {
+    buildGrid("prof-av-grid", p.availability||{}, false);
+  }
 }
 
 // ── ROLLUP ──
@@ -990,6 +1024,37 @@ const ssd=(cid,uid,d)=>{try{localStorage.setItem(`bm_sh_${cid}_${uid}`,JSON.stri
 window.sadj=(cid,uid,eid,delta)=>{const d=gsd(cid,uid);d.sessions=Math.max(0,d.sessions+delta);ssd(cid,uid,d);const e=document.getElementById(`sv-${eid}`);if(e)e.textContent=d.sessions;};
 window.snote=(cid,uid,eid)=>{const ta=document.getElementById(`sn-${eid}`);if(!ta)return;const d=gsd(cid,uid);d.notes=ta.value;ssd(cid,uid,d);};
 window.sclr=(cid,uid,eid,cb)=>{const d=gsd(cid,uid);d.cleared=cb.checked;ssd(cid,uid,d);const l=document.getElementById(`sc-${eid}`);if(l)l.classList.toggle('is-cleared',d.cleared);};
+
+window.saveProfileAvail=async function(uid){
+  const btn=document.getElementById('prof-save-btn');
+  const stat=document.getElementById('prof-save-status');
+  if(btn){btn.disabled=true;btn.textContent='Saving...';}
+  const draft=(window._profileDraft||{})[uid]||{};
+  try{
+    await updateDoc(doc(db,'instructors',uid),{
+      availability:draft,
+      availabilityUpdatedAt:serverTimestamp()
+    });
+    // Update local allProfiles cache
+    const p=allProfiles.find(x=>x.uid===uid);
+    if(p) p.availability=JSON.parse(JSON.stringify(draft));
+    if(stat){stat.textContent='Saved';stat.className='save-status saved';}
+  }catch(e){
+    if(stat){stat.textContent='Error: '+e.message;stat.className='save-status';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='Save';}
+  }
+};
+
+window.resetProfileDraft=function(uid){
+  const p=allProfiles.find(x=>x.uid===uid);
+  if(!p) return;
+  window._profileDraft=window._profileDraft||{};
+  window._profileDraft[uid]=JSON.parse(JSON.stringify(p.availability||{}));
+  buildGrid('prof-av-grid',window._profileDraft[uid],true,uid);
+  const stat=document.getElementById('prof-save-status');
+  if(stat){stat.textContent='Reset to last saved';stat.className='save-status';}
+};
 
 window.doSignOut=async()=>{await fbSignOut(auth);window.location.href="login.html";};
 </script>

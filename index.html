@@ -269,7 +269,8 @@ const CONFIG = {
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="last-updated"></span>
     <button id="refresh-btn" onclick="fetchData()" title="Refresh data">↻</button>
-    <a href="availability.html" class="nav-link">👥 Instructors</a>
+    <a href="availability.html" class="nav-link" id="av-link">👥 Instructors</a>
+    <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
     <button id="export-all-btn" onclick="exportAll()">↓ Export All</button>
     <button id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;">
       ⚙ Filter Classes<span id="active-filter-count"></span>
@@ -1341,6 +1342,14 @@ function buildFilterPanel(analysed) {
     sizeMax: maxSize, needsFilling: false,
   };
 
+  // If a non-admin user is signed in, preset their instructor filter
+  if (window._ccPresetFilter) {
+    const name = window._ccPresetFilter;
+    if (instructors.includes(name)) {
+      classFilters.instructors = [name];
+    }
+  }
+
   const panel = document.getElementById("filter-overlay");
   // Keep header row, rebuild body
   panel.innerHTML = `
@@ -1375,7 +1384,13 @@ function buildFilterPanel(analysed) {
     <div class="flt-section">
       <div class="flt-label">Instructor</div>
       <div class="flt-chips">
-        ${instructors.map(i=>`<button class="flt-chip" data-group="instructors" data-val="${i}" onclick="toggleFltChip(this)">${i}</button>`).join("")}
+        ${(window._ccPresetFilter && !window._ccIsAdmin)
+          ? `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Showing your classes. <a href="#" onclick="clearInstructorPreset(event)" style="color:var(--accent);">Show all classes</a></div>`
+          : ''}
+        ${instructors.map(i=>{
+          const isPreset = window._ccPresetFilter && !window._ccIsAdmin && i===window._ccPresetFilter;
+          return `<button class="flt-chip${isPreset?' active':''}" data-group="instructors" data-val="${i}" onclick="toggleFltChip(this)">${i}</button>`;
+        }).join("")}
       </div>
     </div>` : ""}
 
@@ -1746,6 +1761,20 @@ function runPlacementFilter(){
   updateChartCandidate(currentCandidate());
 }
 
+function clearInstructorPreset(e){
+  if(e) e.preventDefault();
+  window._ccPresetFilter = null;
+  // Deselect all instructor chips and clear filter
+  document.querySelectorAll('.flt-chip[data-group="instructors"]').forEach(c=>{
+    c.classList.remove('active');
+  });
+  classFilters.instructors = [];
+  applyClassFilter();
+  // Hide the "Show all" notice
+  const notice = document.querySelector('.flt-chip[data-group="instructors"]')?.previousElementSibling;
+  if(notice && notice.tagName==='DIV') notice.style.display='none';
+}
+
 document.addEventListener("DOMContentLoaded",function(){
   document.getElementById("p-grade").addEventListener("input",updateSliderDisplay);
   document.getElementById("p-ability").addEventListener("input",updateSliderDisplay);
@@ -1753,16 +1782,47 @@ document.addEventListener("DOMContentLoaded",function(){
   // Apply config
   const dropzone = document.getElementById("dropzone");
   if (CONFIG.dataUrl) {
-    // Hide dropzone unless admin mode requested
     if (!CONFIG.showDropzone) dropzone.style.display = "none";
-    // Show refresh button
     document.getElementById("refresh-btn").classList.add("visible");
-    // Auto-fetch on load
     fetchData();
   } else {
-    // No URL configured — show dropzone as normal
     dropzone.style.display = "";
   }
+
+  // Firebase auth — preset instructor filter for non-admin users
+  try {
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({initializeApp})=>{
+      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({getAuth,onAuthStateChanged})=>{
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({getFirestore,doc,getDoc})=>{
+          import("./firebase-config.js").then(({firebaseConfig})=>{
+            const app  = initializeApp(firebaseConfig,"cc-auth");
+            const auth = getAuth(app);
+            const db   = getFirestore(app);
+            onAuthStateChanged(auth, async user=>{
+              if(!user) return;
+              try{
+                const snap = await getDoc(doc(db,"instructors",user.uid));
+                if(!snap.exists()) return;
+                const profile = snap.data();
+                // Show availability link in header for all signed-in users
+                const avLink = document.getElementById("av-link");
+                if(avLink) avLink.style.display="";
+                // If not admin, preset instructor filter to their own name
+                if(profile.role !== "admin" && profile.displayName){
+                  window._ccUserName = profile.displayName;
+                  window._ccIsAdmin  = false;
+                  // Apply filter once data has loaded (data may not be ready yet)
+                  window._ccPresetFilter = profile.displayName;
+                } else {
+                  window._ccIsAdmin = true;
+                }
+              }catch(e){ console.log("CC auth profile error:",e); }
+            });
+          });
+        });
+      });
+    });
+  } catch(e){ /* Firebase not available — ignore */ }
 });
 </script>
 
