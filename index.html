@@ -874,7 +874,7 @@ function buildCard(cls, idx) {
     : "";
 
   const div = document.createElement("div");
-  div.className = `class-card${cls.health==="critical"?" expanded":""}`;
+  div.className = "class-card";
   div.dataset.health = cls.health;
   div.dataset.idx    = idx;
   div.dataset.day    = (cls.day||"").trim().toLowerCase().slice(0,3);
