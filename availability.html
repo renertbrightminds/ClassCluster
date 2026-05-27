@@ -200,21 +200,6 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/fireba
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig, CLASS_DATA_URL } from "./firebase-config.js";
-// ── THEME ──
-const THEME_KEY = 'bm_theme';
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t||'dark');
-  const btn = document.getElementById('theme-toggle');
-  if(btn) btn.textContent = (t==='light') ? '☀️' : '🌙';
-}
-function toggleTheme(){
-  const current = document.documentElement.getAttribute('data-theme')||'dark';
-  const next = current==='light' ? 'dark' : 'light';
-  applyTheme(next);
-  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
-  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
-}
-(function(){ applyTheme(localStorage.getItem(THEME_KEY)||'dark'); })();
 
 
 const app  = initializeApp(firebaseConfig);
@@ -697,7 +682,7 @@ function renderInstructors(){
     </div>
     <div class="inst-grid" id="inst-grid">
       ${allProfiles.map(p=>{
-        const c=ac(p.displayName);const{lead,shadow}=classesForProfile(p);
+        const c=ac(p.displayName);let lead=[],shadow=[];try{const r=classesForProfile(p);lead=r.lead;shadow=r.shadow;}catch(e){}
         return`<div class="inst-card${p.active===false?' inactive':''}" data-n="${(p.displayName||'').toLowerCase()}" data-a="${p.active!==false}" data-m="${p.maxNew??''}" onclick="openProf('${p.uid}')">
           <div class="inst-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
           <div class="inst-name">${p.displayName||'—'}</div>
