@@ -269,8 +269,9 @@ const CONFIG = {
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="last-updated"></span>
     <button id="refresh-btn" onclick="fetchData()" title="Refresh data">↻</button>
-    <a href="availability.html" class="nav-link" id="av-link">👥 Instructors</a>
+    <a href="availability.html" class="nav-link" id="av-link">👥 Availability & Scheduling</a>
     <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
+    <button id="signout-btn" onclick="ccSignOut()" class="nav-link" style="display:none;">Sign out</button>
     <button id="export-all-btn" onclick="exportAll()">↓ Export All</button>
     <button id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;">
       ⚙ Filter Classes<span id="active-filter-count"></span>
@@ -1803,6 +1804,11 @@ function ccTryApplyPreset(){
   }
 }
 
+function ccSignOut(){
+  try { localStorage.removeItem('bm_session'); } catch(e){}
+  window.location.href = "login.html";
+}
+
 function clearInstructorPreset(e){
   if(e) e.preventDefault();
   window._ccPresetFilter = null;
@@ -1837,6 +1843,9 @@ document.addEventListener("DOMContentLoaded",function(){
     if(session.displayName){
       window._ccIsAdmin      = session.role === 'admin';
       window._ccPresetFilter = session.role === 'admin' ? null : session.displayName;
+      // Show sign out button
+      const soBtn = document.getElementById('signout-btn');
+      if(soBtn) soBtn.style.display = '';
     }
   } catch(e){}
   window._ccAuthReady = true;
