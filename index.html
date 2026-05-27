@@ -58,7 +58,58 @@ const CONFIG = {
     --gold:     #f0a500;
     --purple:   #bc8cff;
   }
-  body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; min-height:100vh; }
+  /* ── LIGHT THEME ── */
+[data-theme="light"]{
+  --bg:#f5f5f0;--surface:#ffffff;--surface2:#f0ede6;
+  --border:#ddd8ce;--text:#1a1a18;--muted:#6b6b66;
+  --accent:#185FA5;--green:#1a6b2e;--amber:#7a4f00;--red:#a32d2d;--purple:#534ab7;
+}
+[data-theme="light"] header{background:#ffffff;}
+[data-theme="light"] .nav-link{color:#6b6b66;}
+[data-theme="light"] .nav-link:hover{color:#185FA5;border-color:#185FA5;}
+[data-theme="light"] .tab.active{color:#185FA5;border-bottom-color:#185FA5;}
+[data-theme="light"] .ag-cell.none{background:#ece9e2;color:#aaa89e;}
+[data-theme="light"] .ag-cell.ip{background:rgba(26,107,46,.15);color:#1a6b2e;border-color:rgba(26,107,46,.3);}
+[data-theme="light"] .ag-cell.online{background:rgba(24,95,165,.12);color:#185FA5;border-color:rgba(24,95,165,.25);}
+[data-theme="light"] .ag-cell.both{background:rgba(83,74,183,.12);color:#534ab7;border-color:rgba(83,74,183,.25);}
+[data-theme="light"] .drag-mode-btn.active-ip{background:rgba(26,107,46,.15);border-color:rgba(26,107,46,.4);color:#1a6b2e;}
+[data-theme="light"] .drag-mode-btn.active-online{background:rgba(24,95,165,.12);border-color:rgba(24,95,165,.3);color:#185FA5;}
+[data-theme="light"] .drag-mode-btn.active-both{background:rgba(83,74,183,.12);border-color:rgba(83,74,183,.3);color:#534ab7;}
+[data-theme="light"] .drag-mode-btn.active-none{background:rgba(107,107,102,.12);border-color:rgba(107,107,102,.3);color:#6b6b66;}
+[data-theme="light"] .inst-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .inst-card:hover{border-color:#185FA5;}
+[data-theme="light"] .metric{background:#f0ede6;border-color:#ddd8ce;}
+[data-theme="light"] .card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .note-box{background:#f5f5f0;border-color:#ddd8ce;}
+[data-theme="light"] .rollup-table td{border-bottom-color:#ece9e2;}
+[data-theme="light"] .rollup-table tr:hover td{background:rgba(0,0,0,.03);}
+[data-theme="light"] .conflict-card{background:#fff5f5;border-color:rgba(163,45,45,.25);}
+[data-theme="light"] .shadow-tracker-card{background:#ffffff;border-color:rgba(83,74,183,.2);}
+[data-theme="light"] .shadow-notes{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+[data-theme="light"] .b-green{background:rgba(26,107,46,.12);color:#1a6b2e;}
+[data-theme="light"] .b-red{background:rgba(163,45,45,.1);color:#a32d2d;}
+[data-theme="light"] .b-amber{background:rgba(122,79,0,.1);color:#7a4f00;}
+[data-theme="light"] .b-purple{background:rgba(83,74,183,.1);color:#534ab7;}
+[data-theme="light"] .b-blue{background:rgba(24,95,165,.1);color:#185FA5;}
+[data-theme="light"] .b-gray{background:rgba(107,107,102,.1);color:#6b6b66;}
+[data-theme="light"] .profile-header{background:#ffffff;border-color:#ddd8ce;}
+/* ClassCluster light overrides */
+[data-theme="light"] .class-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .class-card:hover{border-color:#185FA5;}
+[data-theme="light"] #summary-bar{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .sort-btn{background:#ffffff;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .sort-btn.active{background:rgba(24,95,165,.08);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] #filter-overlay,
+[data-theme="light"] #placement-overlay{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .flt-chip{background:#f0ede6;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .flt-chip.active{background:rgba(24,95,165,.1);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] .alert.danger{background:rgba(163,45,45,.08);border-color:rgba(163,45,45,.2);}
+[data-theme="light"] .alert.warn{background:rgba(122,79,0,.08);border-color:rgba(122,79,0,.2);}
+[data-theme="light"] .alert.info{background:rgba(24,95,165,.06);border-color:rgba(24,95,165,.15);}
+[data-theme="light"] .alert.split{background:rgba(83,74,183,.06);border-color:rgba(83,74,183,.15);}
+[data-theme="light"] input,[data-theme="light"] select,[data-theme="light"] textarea{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+
+body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; font-size:14px; min-height:100vh; }
 
   header { display:flex; align-items:center; justify-content:space-between; padding:20px 40px; border-bottom:1px solid var(--border); }
   header h1 { font-family:'Fraunces',serif; font-size:24px; font-weight:900; color:#e6edf3; }
@@ -272,6 +323,7 @@ const CONFIG = {
     <a href="availability.html" class="nav-link" id="av-link">👥 Availability & Scheduling</a>
     <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
     <button id="signout-btn" onclick="ccSignOut()" class="nav-link" style="display:none;">Sign out</button>
+    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">🌙</button>
     <button id="export-all-btn" onclick="exportAll()">↓ Export All</button>
     <button id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;">
       ⚙ Filter Classes<span id="active-filter-count"></span>
@@ -1810,6 +1862,22 @@ function ccSignOut(){
 }
 
 function clearInstructorPreset(e){
+// ── THEME ──
+const THEME_KEY = 'bm_theme';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t||'dark');
+  const btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = (t==='light') ? '☀️' : '🌙';
+}
+function toggleTheme(){
+  const current = document.documentElement.getAttribute('data-theme')||'dark';
+  const next = current==='light' ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
+}
+(function(){ applyTheme(localStorage.getItem(THEME_KEY)||'dark'); })();
+
   if(e) e.preventDefault();
   window._ccPresetFilter = null;
   // Deselect all instructor chips and clear filter
