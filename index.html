@@ -672,13 +672,13 @@ function parseFile(text, filename) {
 // ════════════════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════════════════
-let allAnalysed  = [];
+let allAnalysed  = []; window.allAnalysed = allAnalysed;
 let activeFilter = null;
 let sliderActive = false;
 let placementActive = false;
 
 function processClasses(classes) {
-  allAnalysed = classes.map(analyseClass);
+  allAnalysed = classes.map(analyseClass); window.allAnalysed = allAnalysed;
   allAnalysed.sort((a,b)=>({critical:0,warning:1,healthy:2}[a.health]-{critical:0,warning:1,healthy:2}[b.health]));
   activeFilter = null; sliderActive = false;
   currentSort = { key:"health", dir:1 };
@@ -689,13 +689,20 @@ function processClasses(classes) {
   const searchInput = document.getElementById("search-input");
   if (searchInput) { searchInput.value = ""; document.getElementById("search-clear").classList.remove("visible"); }
   renderSummary(allAnalysed);
-  renderCards(allAnalysed);
+  buildFilterPanel(allAnalysed);
+
+  // If a non-admin instructor is signed in, apply their filter immediately
+  // regardless of whether the filter panel has been opened
+  if (window._ccPresetFilter && !window._ccIsAdmin) {
+    classFilters.instructors = [window._ccPresetFilter];
+  }
+
+  applyClassFilter();
   document.getElementById("export-all-btn").style.display="block";
   document.getElementById("filter-toggle-btn").style.display="block";
   document.getElementById("placement-toggle-btn").style.display="block";
   document.getElementById("search-bar").classList.add("visible");
   document.getElementById("sort-bar").classList.add("visible");
-  buildFilterPanel(allAnalysed);
 }
 
 function renderSummary(a) {
@@ -1809,12 +1816,17 @@ document.addEventListener("DOMContentLoaded",function(){
                 if(avLink) avLink.style.display="";
                 // If not admin, preset instructor filter to their own name
                 if(profile.role !== "admin" && profile.displayName){
-                  window._ccUserName = profile.displayName;
-                  window._ccIsAdmin  = false;
-                  // Apply filter once data has loaded (data may not be ready yet)
+                  window._ccUserName     = profile.displayName;
+                  window._ccIsAdmin      = false;
                   window._ccPresetFilter = profile.displayName;
+                  // If data already loaded, apply filter now
+                  if(window.allAnalysed && window.allAnalysed.length){
+                    classFilters.instructors = [profile.displayName];
+                    applyClassFilter();
+                  }
                 } else {
-                  window._ccIsAdmin = true;
+                  window._ccIsAdmin      = true;
+                  window._ccPresetFilter = null;
                 }
               }catch(e){ console.log("CC auth profile error:",e); }
             });
