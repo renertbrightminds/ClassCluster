@@ -672,13 +672,13 @@ function parseFile(text, filename) {
 // ════════════════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════════════════
-let allAnalysed  = []; window.allAnalysed = allAnalysed;
+let allAnalysed  = [];
 let activeFilter = null;
 let sliderActive = false;
 let placementActive = false;
 
 function processClasses(classes) {
-  allAnalysed = classes.map(analyseClass); window.allAnalysed = allAnalysed;
+  allAnalysed = classes.map(analyseClass);
   allAnalysed.sort((a,b)=>({critical:0,warning:1,healthy:2}[a.health]-{critical:0,warning:1,healthy:2}[b.health]));
   activeFilter = null; sliderActive = false;
   currentSort = { key:"health", dir:1 };
@@ -1830,41 +1830,15 @@ document.addEventListener("DOMContentLoaded",function(){
     dropzone.style.display = "";
   }
 
-  // Firebase auth — preset instructor filter for non-admin users
+  // Read user session written by availability.html on login
   try {
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({initializeApp})=>{
-      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({getAuth,onAuthStateChanged})=>{
-        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({getFirestore,doc,getDoc})=>{
-          import("./firebase-config.js").then(({firebaseConfig})=>{
-            const app  = initializeApp(firebaseConfig,"cc-auth");
-            const auth = getAuth(app);
-            const db   = getFirestore(app);
-            onAuthStateChanged(auth, async user=>{
-              if(!user) return;
-              try{
-                const snap = await getDoc(doc(db,"instructors",user.uid));
-                if(!snap.exists()) return;
-                const profile = snap.data();
-                // Show availability link in header for all signed-in users
-                const avLink = document.getElementById("av-link");
-                if(avLink) avLink.style.display="";
-                // If not admin, preset instructor filter to their own name
-                if(profile.role !== "admin" && profile.displayName){
-                  window._ccIsAdmin      = false;
-                  window._ccPresetFilter = profile.displayName;
-                } else {
-                  window._ccIsAdmin      = true;
-                  window._ccPresetFilter = null;
-                }
-                window._ccAuthReady = true;
-                ccTryApplyPreset();
-              }catch(e){ console.log("CC auth profile error:",e); }
-            });
-          });
-        });
-      });
-    });
-  } catch(e){ /* Firebase not available — ignore */ }
+    const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
+    if(session.displayName){
+      window._ccIsAdmin      = session.role === 'admin';
+      window._ccPresetFilter = session.role === 'admin' ? null : session.displayName;
+    }
+  } catch(e){}
+  window._ccAuthReady = true;
 });
 </script>
 

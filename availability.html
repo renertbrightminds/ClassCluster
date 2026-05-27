@@ -259,6 +259,13 @@ onAuthStateChanged(auth, async user=>{
     return;
   }
   currentProfile={uid:user.uid,...ps.data()};
+  // Write session for ClassCluster to read (no Firebase needed there)
+  try {
+    localStorage.setItem('bm_session', JSON.stringify({
+      displayName: currentProfile.displayName,
+      role:        currentProfile.role || 'instructor',
+    }));
+  } catch(e){}
   allProfiles=all.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(a.displayName||"").localeCompare(b.displayName||""));
   draftAvail=clone(currentProfile.availability||{});
   draftDayNotes=clone(currentProfile.dayNotes||{});
@@ -1056,7 +1063,11 @@ window.resetProfileDraft=function(uid){
   if(stat){stat.textContent='Reset to last saved';stat.className='save-status';}
 };
 
-window.doSignOut=async()=>{await fbSignOut(auth);window.location.href="login.html";};
+window.doSignOut=async()=>{
+  try { localStorage.removeItem('bm_session'); } catch(e){}
+  await fbSignOut(auth);
+  window.location.href="login.html";
+};
 </script>
 </body>
 </html>
