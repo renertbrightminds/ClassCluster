@@ -672,13 +672,13 @@ function parseFile(text, filename) {
 // ════════════════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════════════════
-let allAnalysed  = []; window.allAnalysed = allAnalysed;
+let allAnalysed  = [];
 let activeFilter = null;
 let sliderActive = false;
 let placementActive = false;
 
 function processClasses(classes) {
-  allAnalysed = classes.map(analyseClass); window.allAnalysed = allAnalysed;
+  allAnalysed = classes.map(analyseClass);
   allAnalysed.sort((a,b)=>({critical:0,warning:1,healthy:2}[a.health]-{critical:0,warning:1,healthy:2}[b.health]));
   activeFilter = null; sliderActive = false;
   currentSort = { key:"health", dir:1 };
@@ -689,20 +689,16 @@ function processClasses(classes) {
   const searchInput = document.getElementById("search-input");
   if (searchInput) { searchInput.value = ""; document.getElementById("search-clear").classList.remove("visible"); }
   renderSummary(allAnalysed);
+  renderCards(allAnalysed);
   buildFilterPanel(allAnalysed);
-
-  // If a non-admin instructor is signed in, apply their filter immediately
-  // regardless of whether the filter panel has been opened
-  if (window._ccPresetFilter && !window._ccIsAdmin) {
-    classFilters.instructors = [window._ccPresetFilter];
-  }
-
-  applyClassFilter();
   document.getElementById("export-all-btn").style.display="block";
   document.getElementById("filter-toggle-btn").style.display="block";
   document.getElementById("placement-toggle-btn").style.display="block";
   document.getElementById("search-bar").classList.add("visible");
   document.getElementById("sort-bar").classList.add("visible");
+  // Apply instructor preset after cards are rendered
+  window._ccDataReady = true;
+  ccTryApplyPreset();
 }
 
 function renderSummary(a) {
@@ -1768,6 +1764,44 @@ function runPlacementFilter(){
   updateChartCandidate(currentCandidate());
 }
 
+// Called when either auth or data finishes loading.
+// Only applies the preset once both are ready.
+function ccTryApplyPreset(){
+  if(!window._ccAuthReady || !window._ccDataReady) return;
+  if(!window._ccPresetFilter || window._ccIsAdmin) return;
+
+  const name = window._ccPresetFilter;
+
+  // Find the best matching instructor name in the CSV
+  // (CSV may use full name like "Alice Schroeder", profile has "Alice")
+  const csvInstructors = [...new Set(allAnalysed.map(c=>(c.instructor||"").trim()).filter(Boolean))];
+  const firstName = name.split(" ")[0].toLowerCase();
+  const match = csvInstructors.find(n => n.toLowerCase() === name.toLowerCase()) ||
+                csvInstructors.find(n => n.split(" ")[0].toLowerCase() === firstName);
+
+  if(!match){
+    // Name not found in CSV — show all classes rather than nothing
+    console.log("CC preset: no CSV match for", name, "— showing all");
+    return;
+  }
+
+  classFilters.instructors = [match];
+  applyClassFilter();
+
+  // Show a banner so the instructor knows they're filtered
+  const banner = document.getElementById("cc-user-banner");
+  if(banner){
+    banner.textContent = "Showing your classes — ";
+    banner.style.display = "";
+    const link = document.createElement("a");
+    link.href = "#";
+    link.textContent = "show all";
+    link.style.color = "var(--accent)";
+    link.onclick = e => { e.preventDefault(); clearInstructorPreset(); };
+    banner.appendChild(link);
+  }
+}
+
 function clearInstructorPreset(e){
   if(e) e.preventDefault();
   window._ccPresetFilter = null;
@@ -1777,9 +1811,9 @@ function clearInstructorPreset(e){
   });
   classFilters.instructors = [];
   applyClassFilter();
-  // Hide the "Show all" notice
-  const notice = document.querySelector('.flt-chip[data-group="instructors"]')?.previousElementSibling;
-  if(notice && notice.tagName==='DIV') notice.style.display='none';
+  // Hide banner
+  const banner = document.getElementById("cc-user-banner");
+  if(banner) banner.style.display = "none";
 }
 
 document.addEventListener("DOMContentLoaded",function(){
@@ -1796,45 +1830,15 @@ document.addEventListener("DOMContentLoaded",function(){
     dropzone.style.display = "";
   }
 
-  // Firebase auth — preset instructor filter for non-admin users
+  // Read user session written by availability.html on login
   try {
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({initializeApp})=>{
-      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({getAuth,onAuthStateChanged})=>{
-        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({getFirestore,doc,getDoc})=>{
-          import("./firebase-config.js").then(({firebaseConfig})=>{
-            const app  = initializeApp(firebaseConfig,"cc-auth");
-            const auth = getAuth(app);
-            const db   = getFirestore(app);
-            onAuthStateChanged(auth, async user=>{
-              if(!user) return;
-              try{
-                const snap = await getDoc(doc(db,"instructors",user.uid));
-                if(!snap.exists()) return;
-                const profile = snap.data();
-                // Show availability link in header for all signed-in users
-                const avLink = document.getElementById("av-link");
-                if(avLink) avLink.style.display="";
-                // If not admin, preset instructor filter to their own name
-                if(profile.role !== "admin" && profile.displayName){
-                  window._ccUserName     = profile.displayName;
-                  window._ccIsAdmin      = false;
-                  window._ccPresetFilter = profile.displayName;
-                  // If data already loaded, apply filter now
-                  if(window.allAnalysed && window.allAnalysed.length){
-                    classFilters.instructors = [profile.displayName];
-                    applyClassFilter();
-                  }
-                } else {
-                  window._ccIsAdmin      = true;
-                  window._ccPresetFilter = null;
-                }
-              }catch(e){ console.log("CC auth profile error:",e); }
-            });
-          });
-        });
-      });
-    });
-  } catch(e){ /* Firebase not available — ignore */ }
+    const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
+    if(session.displayName){
+      window._ccIsAdmin      = session.role === 'admin';
+      window._ccPresetFilter = session.role === 'admin' ? null : session.displayName;
+    }
+  } catch(e){}
+  window._ccAuthReady = true;
 });
 </script>
 
