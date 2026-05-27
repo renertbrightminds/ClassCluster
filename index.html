@@ -4,6 +4,25 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>ClassCluster</title>
+<style>
+  .nav-link { background:transparent; border:1px solid var(--border); color:var(--muted); padding:8px 18px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
+  .nav-link:hover { border-color:var(--accent); color:var(--accent); }
+  .shadow-badge { font-size:10px; font-weight:600; padding:1px 7px; border-radius:8px; margin-left:6px; vertical-align:middle; background:rgba(188,140,255,.15); color:#d2a8ff; }
+  .shadow-section { margin-top:18px; border-top:1px solid var(--border); padding-top:16px; }
+  .shadow-instructor-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid #0a0f18; }
+  .shadow-instructor-row:last-child { border-bottom:none; }
+  .shadow-name { font-weight:600; font-size:13px; min-width:110px; color:#d2a8ff; }
+  .shadow-controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1; }
+  .shadow-counter { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+  .shadow-count-btn { background:var(--surface2); border:1px solid var(--border); color:var(--text); width:22px; height:22px; border-radius:4px; cursor:pointer; font-size:14px; line-height:1; display:flex; align-items:center; justify-content:center; font-family:inherit; }
+  .shadow-count-btn:hover { border-color:var(--muted); }
+  .shadow-count-val { font-weight:700; color:var(--text); min-width:20px; text-align:center; }
+  .shadow-notes-input { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); font-family:inherit; font-size:12px; padding:5px 8px; resize:none; width:100%; margin-top:4px; outline:none; }
+  .shadow-notes-input:focus { border-color:var(--purple); }
+  .shadow-cleared { display:flex; align-items:center; gap:5px; font-size:11px; color:var(--muted); cursor:pointer; user-select:none; }
+  .shadow-cleared input { accent-color:#bc8cff; cursor:pointer; }
+  .shadow-cleared.is-cleared { color:#bc8cff; font-weight:600; }
+</style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
 // ════════════════════════════════════════════════════════
@@ -216,9 +235,9 @@ const CONFIG = {
     padding:4px 10px; cursor:pointer; transition:all .15s; user-select:none; }
   .flt-chip.active { border-color:#e3b341; color:#e3b341; background:rgba(227,179,65,.1); }
   .flt-range-row { display:flex; align-items:center; gap:8px; font-size:11px; color:var(--muted); }
-  .flt-range-val { font-weight:700; color:var(--text); font-size:11px; width:112px; flex-shrink:0; font-family:'Courier New',monospace; }
+  .flt-range-val { font-weight:700; color:var(--text); font-size:12px; min-width:68px; }
   .flt-range-val.right { text-align:right; }
-  .flt-range-slider { flex:1; min-width:0; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--border); outline:none; cursor:pointer; }
+  .flt-range-slider { flex:1; -webkit-appearance:none; appearance:none; height:4px; border-radius:2px; background:var(--border); outline:none; cursor:pointer; }
   .flt-range-slider::-webkit-slider-thumb { -webkit-appearance:none; width:16px; height:16px; border-radius:50%; background:#e3b341; cursor:pointer; }
   .flt-range-slider::-moz-range-thumb { width:16px; height:16px; border-radius:50%; background:#e3b341; border:none; cursor:pointer; }
   .flt-range-slider::-moz-range-track { height:4px; border-radius:2px; background:var(--border); }
@@ -250,6 +269,8 @@ const CONFIG = {
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="last-updated"></span>
     <button id="refresh-btn" onclick="fetchData()" title="Refresh data">↻</button>
+    <a href="availability.html" class="nav-link" id="av-link">👥 Instructors</a>
+    <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
     <button id="export-all-btn" onclick="exportAll()">↓ Export All</button>
     <button id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;">
       ⚙ Filter Classes<span id="active-filter-count"></span>
@@ -266,7 +287,7 @@ const CONFIG = {
     <div class="icon">📂</div>
     <div class="label">Drop a CSV or JSON file here, or click to browse</div>
     <div class="sub">
-      CSV columns: <code>ClassID, Name, Grade, Level, Day, Time, Instructor, Delivery, Comment</code><br/>
+      CSV columns: <code>ClassID, Name, Grade, Level, Day, Time, Instructor, Shadows, Delivery, Comment</code><br/>
       JSON: array of <code>{"className":"…","day":"Monday","time":"16:00","students":[{"name","grade","ability"}]}</code>
     </div>
     <button id="sample-btn" onclick="event.stopPropagation();loadSample()">Load sample data</button>
@@ -399,23 +420,21 @@ const SIZE_CRIT  = 12;
 const SIZE_SMALL = 3;
 
 // Hard maximum grade spread by mean ability
-// ability < 4  = books KJ–2D  → danger at spread ≥ 3
-// ability 4–8  = books 3A–4B  → danger at spread ≥ 4
-// ability ≥ 8  = book 5+      → danger at spread ≥ 5
 function maxGradeSpread(meanAbility) {
-  if (meanAbility >= 8) return 5;
-  if (meanAbility >= 4) return 4;
-  return 3;
+  if (meanAbility >= 6) return 5;  // warn at 5, hard at 6 — but spread > 5 is the violation
+  if (meanAbility >= 5) return 4;
+  if (meanAbility >= 2) return 3;
+  return 2;
 }
 
-// Warning threshold — fires one below the hard limit
-// ability < 4  → warn at spread 2
-// ability 4–8  → warn at spread 3
-// ability ≥ 8  → warn at spread 4
+// Warning threshold — spread at or above this triggers a warning even if under hard limit.
+// For all tiers, warn when spread equals the hard limit (at the edge).
+// For level 6+, also warn at 5 (one below the hard limit of 6).
 function warnGradeSpread(meanAbility) {
-  if (meanAbility >= 8) return 4;
-  if (meanAbility >= 4) return 3;
-  return 2;
+  if (meanAbility >= 6) return 5;   // hard limit is 6, warn at 5
+  if (meanAbility >= 5) return 4;   // hard limit is 5 (i.e. spread>=5 = danger), warn at 4
+  if (meanAbility >= 2) return 3;   // hard limit is 4, warn at 3
+  return 2;                          // hard limit is 3, warn at 2
 }
 
 function isPrecocious(student, meanGrade, meanAbility) {
@@ -618,6 +637,7 @@ function parseFile(text, filename) {
   const di  = hdr.indexOf("day"),   ti=hdr.indexOf("time");
   const ii  = hdr.indexOf("instructor"), oi=hdr.indexOf("comment");
   const deli= hdr.indexOf("delivery");
+  const shi = hdr.indexOf("shadows");
   if ([ci,ni,gi,bi].includes(-1)) throw new Error("CSV must have columns: ClassID (or class), name, grade, ability (or level)");
   const map={};
   const classMeta={};
@@ -631,6 +651,7 @@ function parseFile(text, filename) {
       day:        di>=0   ? c[di]   : "",
       time:       ti>=0   ? c[ti]   : "",
       instructor: ii>=0   ? c[ii]   : "",
+      shadows:    shi>=0  ? c[shi].split(";").map(s=>s.trim()).filter(Boolean) : [],
       comment:    oi>=0   ? c[oi]   : "",
       delivery:   deli>=0 ? (/on[il]{2,3}ne/i.test(c[deli].trim()) || c[deli].trim().toLowerCase().includes('online') ? 'online' : 'in-person') : "",
     }; }
@@ -642,6 +663,7 @@ function parseFile(text, filename) {
     day:        classMeta[className].day,
     time:       classMeta[className].time,
     instructor: classMeta[className].instructor,
+    shadows:    classMeta[className].shadows,
     comment:    classMeta[className].comment,
     delivery:   classMeta[className].delivery,
   }));
@@ -650,13 +672,13 @@ function parseFile(text, filename) {
 // ════════════════════════════════════════════════════════
 // RENDER
 // ════════════════════════════════════════════════════════
-let allAnalysed  = [];
+let allAnalysed  = []; window.allAnalysed = allAnalysed;
 let activeFilter = null;
 let sliderActive = false;
 let placementActive = false;
 
 function processClasses(classes) {
-  allAnalysed = classes.map(analyseClass);
+  allAnalysed = classes.map(analyseClass); window.allAnalysed = allAnalysed;
   allAnalysed.sort((a,b)=>({critical:0,warning:1,healthy:2}[a.health]-{critical:0,warning:1,healthy:2}[b.health]));
   activeFilter = null; sliderActive = false;
   currentSort = { key:"health", dir:1 };
@@ -667,13 +689,20 @@ function processClasses(classes) {
   const searchInput = document.getElementById("search-input");
   if (searchInput) { searchInput.value = ""; document.getElementById("search-clear").classList.remove("visible"); }
   renderSummary(allAnalysed);
-  renderCards(allAnalysed);
+  buildFilterPanel(allAnalysed);
+
+  // If a non-admin instructor is signed in, apply their filter immediately
+  // regardless of whether the filter panel has been opened
+  if (window._ccPresetFilter && !window._ccIsAdmin) {
+    classFilters.instructors = [window._ccPresetFilter];
+  }
+
+  applyClassFilter();
   document.getElementById("export-all-btn").style.display="block";
   document.getElementById("filter-toggle-btn").style.display="block";
   document.getElementById("placement-toggle-btn").style.display="block";
   document.getElementById("search-bar").classList.add("visible");
   document.getElementById("sort-bar").classList.add("visible");
-  buildFilterPanel(allAnalysed);
 }
 
 function renderSummary(a) {
@@ -839,7 +868,7 @@ function buildCard(cls, idx) {
   const schedStr = (cls.day || cls.time)
     ? ` &nbsp;·&nbsp; ${[cls.day, cls.time].filter(Boolean).join(" ")}`
     : "";
-  const instructorStr = cls.instructor ? ` &nbsp;·&nbsp; ${cls.instructor}` : "";
+  const instructorStr = cls.instructor ? ` &nbsp;·&nbsp; ${cls.instructor}${(cls.shadows&&cls.shadows.length)?`<span class="shadow-badge">+${cls.shadows.length} shadow${cls.shadows.length>1?'s':''}</span>`:''}` : "";
   const commentShort  = cls.comment
     ? `<div class="card-header-comment">${cls.comment.length > 60 ? cls.comment.slice(0,57)+"…" : cls.comment}</div>`
     : "";
@@ -906,6 +935,7 @@ function buildCard(cls, idx) {
       <div style="margin-top:14px;text-align:right">
         <button class="card-export-btn" onclick="exportClass(${idx})">↓ Export CSV</button>
       </div>
+      ${buildShadowSection(cls)}
     </div>`;
 
   if (cls.health==="critical") {
@@ -913,6 +943,71 @@ function buildCard(cls, idx) {
     setTimeout(()=>buildChart(idx, cls, currentCandidate()), 0);
   }
   return div;
+}
+
+// ════════════════════════════════════════════════════════
+// SHADOW INSTRUCTOR TRACKING
+// ════════════════════════════════════════════════════════
+function shadowKey(classId, name) {
+  return `bm_shadow_${classId}_${name.replace(/\s+/g,'_')}`;
+}
+function getShadowData(classId, name) {
+  try { return JSON.parse(localStorage.getItem(shadowKey(classId,name))) || {sessions:0,notes:'',cleared:false}; }
+  catch { return {sessions:0,notes:'',cleared:false}; }
+}
+function saveShadowData(classId, name, data) {
+  try { localStorage.setItem(shadowKey(classId,name), JSON.stringify(data)); } catch {}
+}
+function adjustShadowSessions(classId, name, delta) {
+  const d = getShadowData(classId, name);
+  d.sessions = Math.max(0, d.sessions + delta);
+  saveShadowData(classId, name, d);
+  const el = document.getElementById(`shadow-count-${classId}-${name.replace(/\s+/g,'_')}`);
+  if (el) el.textContent = d.sessions;
+}
+function saveShadowNotes(classId, name, notes) {
+  const d = getShadowData(classId, name);
+  d.notes = notes;
+  saveShadowData(classId, name, d);
+}
+function toggleShadowCleared(classId, name, checkbox) {
+  const d = getShadowData(classId, name);
+  d.cleared = checkbox.checked;
+  saveShadowData(classId, name, d);
+  const row = checkbox.closest('.shadow-instructor-row');
+  if (row) row.querySelector('.shadow-cleared').classList.toggle('is-cleared', d.cleared);
+}
+function buildShadowSection(cls) {
+  if (!cls.shadows || cls.shadows.length === 0) return '';
+  const rows = cls.shadows.map(name => {
+    const d = getShadowData(cls.classId || cls.className, name);
+    const safeId = (cls.classId||cls.className).replace(/[^a-z0-9]/gi,'_');
+    const safeName = name.replace(/\s+/g,'_');
+    return `<div class="shadow-instructor-row">
+      <span class="shadow-name">${name}</span>
+      <div style="flex:1;">
+        <div class="shadow-controls">
+          <div class="shadow-counter">
+            <button class="shadow-count-btn" onclick="adjustShadowSessions('${safeId}','${name}',-1)">−</button>
+            <span class="shadow-count-val" id="shadow-count-${safeId}-${safeName}">${d.sessions}</span>
+            <button class="shadow-count-btn" onclick="adjustShadowSessions('${safeId}','${name}',1)">+</button>
+            <span style="color:var(--muted);font-size:11px;">sessions</span>
+          </div>
+          <label class="shadow-cleared${d.cleared?' is-cleared':''}">
+            <input type="checkbox" ${d.cleared?'checked':''} onchange="toggleShadowCleared('${safeId}','${name}',this)"/>
+            cleared to lead
+          </label>
+        </div>
+        <textarea class="shadow-notes-input" rows="2" placeholder="Notes for ${name}…"
+          onchange="saveShadowNotes('${safeId}','${name}',this.value)"
+          oninput="saveShadowNotes('${safeId}','${name}',this.value)">${d.notes}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+  return `<div class="shadow-section">
+    <div class="section-label" style="margin-bottom:10px;">Shadow instructors <span class="shadow-badge" style="vertical-align:middle;">${cls.shadows.length}</span></div>
+    ${rows}
+  </div>`;
 }
 
 function toggleCard(headerRow) {
@@ -1147,14 +1242,14 @@ function loadSample(){
   showError(null);showSpinner(true);
   setTimeout(()=>{
     processClasses([
-      { className:"Group A — Beginners", day:"Mon", time:"16:00", instructor:"Ms. Chen", delivery:"in-person", comment:"Lively group, responds well to games. Room 3.", students:[
+      { className:"Group A — Beginners", day:"Mon", time:"16:00", instructor:"Ms. Chen", shadows:["Cameron"], delivery:"in-person", comment:"Lively group, responds well to games. Room 3.", students:[
         {name:"Alice", grade:1, ability:1.5},
         {name:"Bob",   grade:2, ability:2.0},
         {name:"Carol", grade:1, ability:1.0},
         {name:"Dan",   grade:2, ability:2.5},
         {name:"Eve",   grade:3, ability:1.5},
       ]},
-      { className:"Group B — Mid Level", day:"Wed", time:"15:30", instructor:"Mr. Patel", delivery:"online", comment:"Strong group overall. Kira is pulling ahead — monitor for move.", students:[
+      { className:"Group B — Mid Level", day:"Wed", time:"15:30", instructor:"Mr. Patel", shadows:[], delivery:"online", comment:"Strong group overall. Kira is pulling ahead — monitor for move.", students:[
         {name:"Frank", grade:4, ability:5.0},
         {name:"Grace", grade:5, ability:5.5},
         {name:"Henry", grade:4, ability:6.0},
@@ -1165,7 +1260,7 @@ function loadSample(){
         {name:"Mia",   grade:5, ability:5.5},
         {name:"Ned",   grade:5, ability:6.0},
       ]},
-      { className:"Group C — Advanced", day:"Sat", time:"10:00", instructor:"Ms. Chen", delivery:"in-person", comment:"Uma is exceptional — precocious placement working well so far.", students:[
+      { className:"Group C — Advanced", day:"Sat", time:"10:00", instructor:"Ms. Chen", shadows:["Jordan","Alex"], delivery:"in-person", comment:"Uma is exceptional — precocious placement working well so far.", students:[
         {name:"Olivia", grade:5,  ability:10.0},
         {name:"Pete",   grade:8,  ability:11.0},
         {name:"Quinn",  grade:9,  ability:10.5},
@@ -1239,7 +1334,9 @@ let classFilters = {}; // current active filter state
 function buildFilterPanel(analysed) {
   // Collect unique values
   const days        = [...new Set(analysed.map(c=>(c.day||"").trim()).filter(Boolean))];
-  const instructors = [...new Set(analysed.map(c=>(c.instructor||"").trim()).filter(Boolean))].sort();
+  const leadInstructors = [...new Set(analysed.map(c=>(c.instructor||"").trim()).filter(Boolean))].sort();
+  const shadowInstructors = [...new Set(analysed.flatMap(c=>c.shadows||[]).map(s=>s.trim()).filter(Boolean))].sort();
+  const instructors = [...new Set([...leadInstructors, ...shadowInstructors])].sort();
   const deliveries  = [...new Set(analysed.map(c=>(c.delivery||"").trim().toLowerCase()).filter(Boolean))];
   const maxSize     = Math.max(...analysed.map(c=>c.stats.n||0), SIZE_CRIT);
 
@@ -1251,6 +1348,14 @@ function buildFilterPanel(analysed) {
     gradeMin: -1, gradeMax: 12,
     sizeMax: maxSize, needsFilling: false,
   };
+
+  // If a non-admin user is signed in, preset their instructor filter
+  if (window._ccPresetFilter) {
+    const name = window._ccPresetFilter;
+    if (instructors.includes(name)) {
+      classFilters.instructors = [name];
+    }
+  }
 
   const panel = document.getElementById("filter-overlay");
   // Keep header row, rebuild body
@@ -1286,7 +1391,13 @@ function buildFilterPanel(analysed) {
     <div class="flt-section">
       <div class="flt-label">Instructor</div>
       <div class="flt-chips">
-        ${instructors.map(i=>`<button class="flt-chip" data-group="instructors" data-val="${i}" onclick="toggleFltChip(this)">${i}</button>`).join("")}
+        ${(window._ccPresetFilter && !window._ccIsAdmin)
+          ? `<div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Showing your classes. <a href="#" onclick="clearInstructorPreset(event)" style="color:var(--accent);">Show all classes</a></div>`
+          : ''}
+        ${instructors.map(i=>{
+          const isPreset = window._ccPresetFilter && !window._ccIsAdmin && i===window._ccPresetFilter;
+          return `<button class="flt-chip${isPreset?' active':''}" data-group="instructors" data-val="${i}" onclick="toggleFltChip(this)">${i}</button>`;
+        }).join("")}
       </div>
     </div>` : ""}
 
@@ -1408,8 +1519,12 @@ function applyClassFilter() {
     // Day
     const clsDay = (cls.day||"").trim().toLowerCase().slice(0,3);
     if (f.days.length && !f.days.includes(clsDay)) { card.classList.add("filtered-out"); return; }
-    // Instructor
-    if (f.instructors.length && !f.instructors.includes(cls.instructor||"")) { card.classList.add("filtered-out"); return; }
+    // Instructor (lead or shadow)
+    if (f.instructors.length) {
+      const isLead = f.instructors.includes(cls.instructor||"");
+      const isShadow = (cls.shadows||[]).some(s=>f.instructors.includes(s));
+      if (!isLead && !isShadow) { card.classList.add("filtered-out"); return; }
+    }
     // Delivery
     if (f.delivery.length && !f.delivery.includes((cls.delivery||"").toLowerCase())) { card.classList.add("filtered-out"); return; }
     // Level range — class accepted level range must overlap filter range
@@ -1653,6 +1768,20 @@ function runPlacementFilter(){
   updateChartCandidate(currentCandidate());
 }
 
+function clearInstructorPreset(e){
+  if(e) e.preventDefault();
+  window._ccPresetFilter = null;
+  // Deselect all instructor chips and clear filter
+  document.querySelectorAll('.flt-chip[data-group="instructors"]').forEach(c=>{
+    c.classList.remove('active');
+  });
+  classFilters.instructors = [];
+  applyClassFilter();
+  // Hide the "Show all" notice
+  const notice = document.querySelector('.flt-chip[data-group="instructors"]')?.previousElementSibling;
+  if(notice && notice.tagName==='DIV') notice.style.display='none';
+}
+
 document.addEventListener("DOMContentLoaded",function(){
   document.getElementById("p-grade").addEventListener("input",updateSliderDisplay);
   document.getElementById("p-ability").addEventListener("input",updateSliderDisplay);
@@ -1660,16 +1789,52 @@ document.addEventListener("DOMContentLoaded",function(){
   // Apply config
   const dropzone = document.getElementById("dropzone");
   if (CONFIG.dataUrl) {
-    // Hide dropzone unless admin mode requested
     if (!CONFIG.showDropzone) dropzone.style.display = "none";
-    // Show refresh button
     document.getElementById("refresh-btn").classList.add("visible");
-    // Auto-fetch on load
     fetchData();
   } else {
-    // No URL configured — show dropzone as normal
     dropzone.style.display = "";
   }
+
+  // Firebase auth — preset instructor filter for non-admin users
+  try {
+    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(({initializeApp})=>{
+      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(({getAuth,onAuthStateChanged})=>{
+        import("https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js").then(({getFirestore,doc,getDoc})=>{
+          import("./firebase-config.js").then(({firebaseConfig})=>{
+            const app  = initializeApp(firebaseConfig,"cc-auth");
+            const auth = getAuth(app);
+            const db   = getFirestore(app);
+            onAuthStateChanged(auth, async user=>{
+              if(!user) return;
+              try{
+                const snap = await getDoc(doc(db,"instructors",user.uid));
+                if(!snap.exists()) return;
+                const profile = snap.data();
+                // Show availability link in header for all signed-in users
+                const avLink = document.getElementById("av-link");
+                if(avLink) avLink.style.display="";
+                // If not admin, preset instructor filter to their own name
+                if(profile.role !== "admin" && profile.displayName){
+                  window._ccUserName     = profile.displayName;
+                  window._ccIsAdmin      = false;
+                  window._ccPresetFilter = profile.displayName;
+                  // If data already loaded, apply filter now
+                  if(window.allAnalysed && window.allAnalysed.length){
+                    classFilters.instructors = [profile.displayName];
+                    applyClassFilter();
+                  }
+                } else {
+                  window._ccIsAdmin      = true;
+                  window._ccPresetFilter = null;
+                }
+              }catch(e){ console.log("CC auth profile error:",e); }
+            });
+          });
+        });
+      });
+    });
+  } catch(e){ /* Firebase not available — ignore */ }
 });
 </script>
 
