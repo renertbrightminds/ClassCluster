@@ -688,17 +688,18 @@ function processClasses(classes) {
   });
   const searchInput = document.getElementById("search-input");
   if (searchInput) { searchInput.value = ""; document.getElementById("search-clear").classList.remove("visible"); }
-  renderSummary(allAnalysed);
-  renderCards(allAnalysed);
-  buildFilterPanel(allAnalysed);
-  document.getElementById("export-all-btn").style.display="block";
-  document.getElementById("filter-toggle-btn").style.display="block";
-  document.getElementById("placement-toggle-btn").style.display="block";
-  document.getElementById("search-bar").classList.add("visible");
-  document.getElementById("sort-bar").classList.add("visible");
-  // Apply instructor preset after cards are rendered
-  window._ccDataReady = true;
-  ccTryApplyPreset();
+  setTimeout(function(){
+    renderSummary(allAnalysed);
+    renderCards(allAnalysed);
+    buildFilterPanel(allAnalysed);
+    document.getElementById("export-all-btn").style.display="block";
+    document.getElementById("filter-toggle-btn").style.display="block";
+    document.getElementById("placement-toggle-btn").style.display="block";
+    document.getElementById("search-bar").classList.add("visible");
+    document.getElementById("sort-bar").classList.add("visible");
+    window._ccDataReady = true;
+    ccTryApplyPreset();
+  }, 0);
 }
 
 function renderSummary(a) {
