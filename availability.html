@@ -171,7 +171,7 @@ var THEME_KEY = 'bm_theme';
 function applyTheme(t){
   document.documentElement.setAttribute('data-theme', t||'dark');
   var btn = document.getElementById('theme-toggle');
-  if(btn) btn.textContent = (t==='light') ? 'Light' : 'Dark';
+  if(btn) btn.textContent = (t==='light') ? '☀' : '☽';
 }
 function toggleTheme(){
   var current = document.documentElement.getAttribute('data-theme')||'dark';
@@ -191,7 +191,7 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
     <a href="index.html" class="nav-link">← Classes</a>
     <a id="admin-link" href="admin.html" class="nav-link" style="display:none;">Admin</a>
     <button onclick="doSignOut()" class="nav-link">Sign out</button>
-    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">🌙</button>
+    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
   </div>
 </header>
 <main>
