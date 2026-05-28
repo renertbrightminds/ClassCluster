@@ -25,6 +25,23 @@
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 <script>
+var THEME_KEY = 'bm_theme';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t||'dark');
+  var btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = (t==='light') ? 'Light' : 'Dark';
+}
+function toggleTheme(){
+  var current = document.documentElement.getAttribute('data-theme')||'dark';
+  var next = current==='light' ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
+}
+applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+</script>
+
+<script>
 // ════════════════════════════════════════════════════════
 // CONFIGURATION — edit these values to deploy
 // ════════════════════════════════════════════════════════

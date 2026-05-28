@@ -166,6 +166,22 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
 .dot-spin{display:inline-block;animation:spin .9s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 </style>
+<script>
+var THEME_KEY = 'bm_theme';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t||'dark');
+  var btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = (t==='light') ? 'Light' : 'Dark';
+}
+function toggleTheme(){
+  var current = document.documentElement.getAttribute('data-theme')||'dark';
+  var next = current==='light' ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
+}
+applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+</script>
 </head>
 <body>
 <header>
@@ -195,22 +211,7 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
     <div id="tab-shadows" style="display:none;"></div>
   </div>
 </main>
-<script>
-var THEME_KEY = 'bm_theme';
-function applyTheme(t){
-  document.documentElement.setAttribute('data-theme', t||'dark');
-  var btn = document.getElementById('theme-toggle');
-  if(btn) btn.textContent = (t==='light') ? '☀️' : '🌙';
-}
-function toggleTheme(){
-  var current = document.documentElement.getAttribute('data-theme')||'dark';
-  var next = current==='light' ? 'dark' : 'light';
-  applyTheme(next);
-  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
-  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
-}
-applyTheme(localStorage.getItem(THEME_KEY)||'dark');
-</script>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -520,16 +521,17 @@ function renderMine(){
 
 function buildGrid(wrapperId,avail,editable,targetUid){
   const w=document.getElementById(wrapperId); if(!w) return;
+  const pfx = targetUid ? targetUid.slice(0,6)+'_' : '';
   let h='';
 
   // Drag-mode toolbar (editable only)
   if(editable){
     h+=`<div class="drag-mode-bar">
       <span>Draw mode:</span>
-      <button class="drag-mode-btn active-ip" id="dm-ip"   onclick="setDragMode('ip')"    >IP</button>
-      <button class="drag-mode-btn"           id="dm-online" onclick="setDragMode('online')">Online</button>
-      <button class="drag-mode-btn"           id="dm-both"   onclick="setDragMode('both')"  >Both</button>
-      <button class="drag-mode-btn"           id="dm-none"   onclick="setDragMode('none')"  >Clear</button>
+      <button class="drag-mode-btn active-ip" id="${pfx}dm-ip"   onclick="setDragMode('ip','${pfx}')"    >IP</button>
+      <button class="drag-mode-btn"           id="${pfx}dm-online" onclick="setDragMode('online','${pfx}')">Online</button>
+      <button class="drag-mode-btn"           id="${pfx}dm-both"   onclick="setDragMode('both','${pfx}')"  >Both</button>
+      <button class="drag-mode-btn"           id="${pfx}dm-none"   onclick="setDragMode('none','${pfx}')"  >Clear</button>
       <span style="color:var(--border);margin:0 4px;">|</span>
       <span style="font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">Click a cell or click &amp; drag to fill a range</span>
     </div>`;
@@ -567,10 +569,11 @@ function buildGrid(wrapperId,avail,editable,targetUid){
 let dragMode='ip';   // current draw mode
 let isDragging=false;
 
-window.setDragMode=function(mode){
+window.setDragMode=function(mode,pfx){
   dragMode=mode;
+  pfx=pfx||'';
   ['ip','online','both','none'].forEach(m=>{
-    const btn=document.getElementById('dm-'+m);
+    const btn=document.getElementById(pfx+'dm-'+m);
     if(!btn) return;
     btn.className='drag-mode-btn'+(mode===m?' active-'+m:'');
   });
