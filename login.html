@@ -81,6 +81,8 @@ input:focus{border-color:var(--accent);}
 .spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(5,8,15,.4);border-top-color:#05080f;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .reset-msg{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;color:#79c0ff;font-size:13px;padding:10px 14px;margin-top:16px;display:none;}
+
+</style>
 <script>
 // Theme — plain script (not module) so onclick attrs can call these functions
 var THEME_KEY = 'bm_theme';
@@ -99,12 +101,8 @@ function toggleTheme(){
 // Apply immediately to avoid flash of wrong theme
 applyTheme(localStorage.getItem(THEME_KEY)||'dark');
 </script>
-</style>
 </head>
 <body>
-<div style="position:fixed;top:16px;right:16px;z-index:100;">
-  <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">🌙</button>
-</div>
 <div class="card">
   <div class="logo">Bright Minds</div>
   <div class="subtitle">Instructor scheduling — sign in to continue</div>
