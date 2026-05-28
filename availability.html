@@ -342,10 +342,15 @@ onAuthStateChanged(auth, async user=>{
       role:        currentProfile.role || 'instructor',
     }));
   } catch(e){}
-  // Apply saved theme preference from Firestore (overrides localStorage)
-  if(currentProfile.theme){
+  // Apply theme: localStorage wins (most recently set by user),
+  // fall back to Firestore preference if localStorage has nothing
+  const localTheme = localStorage.getItem('bm_theme');
+  if(!localTheme && currentProfile.theme){
     try{ localStorage.setItem('bm_theme', currentProfile.theme); }catch(e){}
     applyTheme(currentProfile.theme);
+  } else if(localTheme && currentProfile.theme && localTheme !== currentProfile.theme){
+    // localStorage differs from Firestore — update Firestore to match
+    try{ await updateDoc(doc(db,'instructors',currentUser.uid),{theme:localTheme}); }catch(e){}
   }
   // Allow theme toggle to save back to Firestore
   window._saveThemePref = async function(t){
