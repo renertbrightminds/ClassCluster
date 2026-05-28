@@ -320,6 +320,12 @@ const ac=n=>AVG[(n||" ").charCodeAt(0)%AVG.length];
 const ini=n=>(n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const clone=o=>JSON.parse(JSON.stringify(o||{}));
 
+// Handle sign-out redirect from ClassCluster
+if(new URLSearchParams(window.location.search).get('signout')==='1'){
+  try{ localStorage.removeItem('bm_session'); }catch(e){}
+  fbSignOut(auth).finally(()=>{ window.location.href='login.html'; });
+}
+
 onAuthStateChanged(auth, async user=>{
   if (!user){window.location.href="login.html";return;}
   currentUser=user;

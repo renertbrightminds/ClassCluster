@@ -337,15 +337,15 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="last-updated"></span>
     <button id="refresh-btn" onclick="fetchData()" title="Refresh data">↻</button>
-    <a href="availability.html" class="nav-link" id="av-link">👥 Availability & Scheduling</a>
-    <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
-    <button id="signout-btn" onclick="ccSignOut()" class="nav-link">Sign out</button>
-    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">🌙</button>
     <button id="export-all-btn" onclick="exportAll()">↓ Export All</button>
     <button id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;">
       ⚙ Filter Classes<span id="active-filter-count"></span>
     </button>
     <button id="placement-toggle-btn" onclick="togglePlacementPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">🔍 Place Student</button>
+    <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
+    <a href="availability.html" class="nav-link" id="av-link">👥 Availability & Scheduling</a>
+    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">🌙</button>
+    <button id="signout-btn" onclick="ccSignOut()" class="nav-link">Sign out</button>
   </div>
 </header>
 
@@ -1874,22 +1874,10 @@ function ccTryApplyPreset(){
 }
 
 function ccSignOut(){
+  // Clear session then delegate actual Firebase sign out to availability.html
+  // which already has Firebase initialised. Pass a signout flag in the URL.
   try { localStorage.removeItem('bm_session'); } catch(e){}
-  // Sign out of Firebase too so availability.html doesn't redirect back
-  try {
-    import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js").then(function(m){
-      import("https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js").then(function(a){
-        import("./firebase-config.js").then(function(cfg){
-          var app = m.initializeApp(cfg.firebaseConfig, "cc-signout-"+Date.now());
-          a.signOut(a.getAuth(app)).finally(function(){
-            window.location.href = "login.html";
-          });
-        });
-      });
-    });
-  } catch(e){
-    window.location.href = "login.html";
-  }
+  window.location.href = "availability.html?signout=1";
 }
 
 function clearInstructorPreset(e){
