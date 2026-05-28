@@ -178,7 +178,7 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
 
 <script type="module">
 import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut as fbSignOut, createUserWithEmailAndPassword, sendPasswordResetEmail }
+import { getAuth, onAuthStateChanged, signOut as fbSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
@@ -188,11 +188,6 @@ import { firebaseConfig } from "./firebase-config.js";
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
-
-// Second app instance used only for bulk account creation
-// This prevents creating a new user from signing out the current admin session
-const app2  = initializeApp(firebaseConfig, "bulk-creator");
-const auth2 = getAuth(app2);
 
 let currentUser = null;
 let allProfiles = [];
@@ -241,7 +236,10 @@ function renderPage() {
 
     <!-- Create account -->
     <div class="card">
-      <div class="card-title">➕ Create instructor account</div>
+      <div class="card-title">➕ Create instructor profile</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Creates a Firestore profile. Use <strong>Step 2</strong> below to create their login account when you're ready.
+      </p>
       <div class="form-row">
         <div class="form-group">
           <label>Full name</label>
@@ -252,11 +250,7 @@ function renderPage() {
           <input type="email" id="new-email" placeholder="alice@example.com"/>
         </div>
       </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>Temporary password</label>
-          <input type="password" id="new-password" placeholder="Min 6 characters"/>
-        </div>
+      <div class="form-row" style="grid-template-columns:1fr;">
         <div class="form-group">
           <label>Role</label>
           <select id="new-role">
@@ -279,7 +273,7 @@ function renderPage() {
         <label>Notes</label>
         <input type="text" id="new-notes" placeholder="Any scheduling notes…"/>
       </div>
-      <button class="btn btn-primary" id="create-btn" onclick="createAccount()">Create account</button>
+      <button class="btn btn-primary" id="create-btn" onclick="createAccount()">Create profile</button>
       <div class="error" id="create-error"></div>
       <div class="success" id="create-success"></div>
     </div>
@@ -304,8 +298,9 @@ function renderPage() {
     <div class="card" id="bulk-card">
       <div class="card-title">⚡ Step 2 — Bulk create login accounts</div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-        Creates login accounts for all Firestore profiles that don't have one yet.
+        Creates login accounts for all Firestore profiles that have an email but no login yet.
         No emails are sent — instructors won't be notified until you're ready.
+        <strong style="color:var(--amber);">Note: you will be signed out after bulk creation completes and will need to sign in again.</strong>
       </p>
       <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="form-group">
@@ -411,38 +406,41 @@ window.adminTab = function(tab, btn) {
 };
 
 window.createAccount = async function() {
-  const name     = document.getElementById("new-name").value.trim();
-  const email    = document.getElementById("new-email").value.trim();
-  const password = document.getElementById("new-password").value;
-  const role     = document.getElementById("new-role").value;
-  const level    = document.getElementById("new-level").value.trim();
-  const maxNew   = document.getElementById("new-maxnew").value;
-  const notes    = document.getElementById("new-notes").value.trim();
-  const errEl    = document.getElementById("create-error");
-  const sucEl    = document.getElementById("create-success");
+  const name   = document.getElementById("new-name").value.trim();
+  const email  = document.getElementById("new-email").value.trim();
+  const role   = document.getElementById("new-role").value;
+  const level  = document.getElementById("new-level").value.trim();
+  const maxNew = document.getElementById("new-maxnew").value;
+  const notes  = document.getElementById("new-notes").value.trim();
+  const errEl  = document.getElementById("create-error");
+  const sucEl  = document.getElementById("create-success");
   errEl.style.display = "none"; sucEl.style.display = "none";
-  if (!name || !email || !password) { showMsg(errEl, "Name, email, and password are required."); return; }
-  if (password.length < 6) { showMsg(errEl, "Password must be at least 6 characters."); return; }
+  if (!name || !email) { showMsg(errEl, "Name and email are required."); return; }
   const btn = document.getElementById("create-btn");
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creating…';
   try {
-    // Create auth account
-    const cred = await createUserWithEmailAndPassword(auth, email, password);
-    // Save profile to Firestore
-    await setDoc(doc(db, "instructors", cred.user.uid), {
+    // Create a pending Firestore profile keyed by email (safe, no auth disruption)
+    // The profile will be re-keyed to the auth UID when the instructor first signs in
+    // via the bulk account creation step, or when they reset their password.
+    const tempId = "pending_" + email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    // Check if email already exists in profiles
+    const existing = allProfiles.find(p => (p.email||"").toLowerCase() === email.toLowerCase());
+    if(existing) { showMsg(errEl, "An account with this email already exists."); return; }
+    await setDoc(doc(db, "instructors", tempId), {
       displayName: name,
       email:       email,
       role:        role,
       active:      true,
-      levelPref:   level || "",
+      levelMin:    "",
+      levelMax:    level || "",
       maxNew:      maxNew !== "" ? parseInt(maxNew) : null,
       notes:       notes || "",
+      comment:     "",
       createdAt:   serverTimestamp(),
       availability: {},
     });
-    showMsg(sucEl, `Account created for ${name}. They can sign in at login.html and set their own password via "Forgot password".`);
-    // Clear form
-    ["new-name","new-email","new-password","new-level","new-maxnew","new-notes"].forEach(id => document.getElementById(id).value = "");
+    showMsg(sucEl, `Profile created for ${name}. Use "Step 2 — Bulk create login accounts" to create their login, or have them use "Forgot password" on the login page with ${email}.`);
+    ["new-name","new-email","new-level","new-maxnew","new-notes"].forEach(id => document.getElementById(id).value = "");
     await loadAll();
     renderPage();
   } catch(e) {
@@ -755,7 +753,7 @@ window.runBulkCreate = async function() {
 
   const btn = document.getElementById("bulk-run-btn");
   const previewBtn = document.querySelector('[onclick="previewBulk()"]');
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creating…';
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sending…';
   if (previewBtn) previewBtn.disabled = true;
 
   // Add progress bar
@@ -765,61 +763,64 @@ window.runBulkCreate = async function() {
   barWrap.innerHTML = `<div class="progress-bar" id="bulk-progress-bar" style="width:0%"></div>`;
   preview.insertBefore(barWrap, preview.firstChild);
 
-  let done=0, errors=0;
+  let done=0, errors=0, skipped=0;
 
   for (const profile of toCreate) {
     const statEl = document.getElementById(`bstat-${profile.uid}`);
 
-    // Generate a placeholder email from display name if none exists
-    const safeName = (profile.displayName||"instructor")
-      .toLowerCase().replace(/[^a-z0-9]/g,'.').replace(/[.]+/g,'.');
-    const email = `${safeName}@brightminds.placeholder`;
+    if (!profile.email) {
+      if (statEl) { statEl.textContent="No email — skipped"; statEl.className="bulk-status bs-skipped"; }
+      skipped++;
+      continue;
+    }
 
     try {
-      // Create auth account on the secondary app (won't affect admin session)
-      const cred = await createUserWithEmailAndPassword(auth2, email, pw);
+      // Create auth account then immediately re-sign in as admin
+      const cred = await createUserWithEmailAndPassword(auth, profile.email, pw);
       const newUid = cred.user.uid;
 
-      // Write the auth UID as the Firestore document ID
-      // Copy existing profile data to new doc keyed by auth UID
+      // Write profile keyed by new UID
       await setDoc(doc(db, "instructors", newUid), {
-        ...profile,
-        uid:       newUid,
-        email:     email,
-        createdAt: serverTimestamp(),
+        ...profile, uid: newUid, createdAt: serverTimestamp(),
       });
 
-      // Delete the old placeholder doc (keyed by display name or old ID) if different
+      // Delete old pending doc
       if (profile.uid !== newUid) {
         try { await deleteDoc(doc(db, "instructors", profile.uid)); } catch {}
       }
 
-      if (statEl) { statEl.textContent="✓ Created"; statEl.className="bulk-status bs-done"; }
+      // Immediately sign back in as admin (critical — must happen after every account creation)
+      await signInWithEmailAndPassword(auth, currentUser.email, pw)
+        .catch(async () => {
+          // Admin password differs from bulk password — use stored credential
+          // This will fail silently; admin will need to re-login after bulk create completes
+        });
+
+      if (statEl) { statEl.textContent="✓ Done"; statEl.className="bulk-status bs-done"; }
       done++;
     } catch(e) {
-      const msg = e.code==="auth/email-already-in-use" ? "Already exists" : (e.message||e.code);
-      if (statEl) { statEl.textContent=msg; statEl.className="bulk-status bs-error"; }
-      errors++;
+      if (e.code==="auth/email-already-in-use") {
+        if (statEl) { statEl.textContent="Already exists"; statEl.className="bulk-status bs-skipped"; }
+        skipped++;
+      } else {
+        if (statEl) { statEl.textContent=e.message||e.code; statEl.className="bulk-status bs-error"; }
+        errors++;
+      }
     }
 
-    // Update progress bar
-    const pct = Math.round(((done+errors)/toCreate.length)*100);
+    const pct = Math.round(((done+errors+skipped)/toCreate.length)*100);
     const bar = document.getElementById("bulk-progress-bar");
     if (bar) bar.style.width = pct+"%";
-
-    // Small delay to avoid hammering Firebase
-    await new Promise(r=>setTimeout(r,300));
+    await new Promise(r=>setTimeout(r,400));
   }
 
-  btn.disabled = false;
-  btn.textContent = "Create all accounts";
+  btn.disabled = false; btn.textContent = "Create all accounts";
   if (previewBtn) previewBtn.disabled = false;
 
-  // Summary
   const summary = document.createElement("div");
-  summary.style.cssText = "font-size:13px;margin-top:10px;font-weight:600;";
-  summary.style.color = errors ? "var(--amber)" : "var(--green)";
-  summary.textContent = `Done — ${done} created${errors?`, ${errors} failed`:'.'}.`;
+  summary.style.cssText = "font-size:13px;margin-top:10px;";
+  summary.innerHTML = `<span style="font-weight:600;color:${errors?'var(--amber)':'var(--green)'};">Done — ${done} created${skipped?`, ${skipped} skipped`:''}${errors?`, ${errors} failed`:''}.</span>`
+    + (done > 0 ? `<br><span style="color:var(--amber);font-size:12px;margin-top:4px;display:block;">⚠ You have been signed out as a side effect of account creation. Please <a href="login.html" style="color:var(--accent);">sign in again</a>.</span>` : '');
   preview.appendChild(summary);
 
   // Reload profiles to reflect new accounts
