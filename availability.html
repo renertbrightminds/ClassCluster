@@ -307,7 +307,7 @@ const STATES = ['none','ip','online','both'];
 const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
 const TITLES = {none:'Unavailable',ip:'In-person only',online:'Online only',both:'Both IP & online'};
 
-let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[];
+let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], hwSessions=[];
 let draftAvail={}, draftDayNotes={}, activeTab='my-availability', selectedInst=null, unsaved=false;
 
 const AVG=[
@@ -365,6 +365,10 @@ onAuthStateChanged(auth, async user=>{
     document.querySelectorAll(".admin-only").forEach(el=>el.style.display="");
   }
   allClasses=await fetchClasses();
+  try{
+    const hwSnap=await getDocs(collection(db,'hwSessions'));
+    hwSessions=hwSnap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ hwSessions=[]; }
   updateBookLevelsFromClasses(allClasses);
   // Debug helpers — accessible from browser console
   window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
@@ -816,20 +820,57 @@ function assignedSlotsForProfile(profile) {
   [...lead, ...shadow].forEach(cls => {
     const day = DAYS.find(d => (cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
     if (!day || !cls.time) return;
-    // Parse class start time
     const m = cls.time.match(/(\d+):(\d+)/);
     if (!m) return;
     let mins = parseInt(m[1])*60 + parseInt(m[2]);
-    // Block 4 slots (60 min at 15-min granularity)
     for (let i=0; i<4; i++) {
       const h = Math.floor(mins/60);
       const mn = mins%60;
-      const key = `${day}|${h}:${mn.toString().padStart(2,'0')}`;
-      blocked.add(key);
+      blocked.add(`${day}|${h}:${mn.toString().padStart(2,'0')}`);
+      mins += 15;
+    }
+  });
+  // Also block HW support session slots for this instructor
+  hwSessions.forEach(s => {
+    const inst = (s.instructors||[]).find(i => i.uid === profile.uid);
+    if (!inst) return;
+    const day = DAYS.find(d => (s.day||'').toLowerCase().startsWith(d.toLowerCase()));
+    if (!day) return;
+    const sm = inst.start.match(/(\d+):(\d+)/);
+    const em = inst.end.match(/(\d+):(\d+)/);
+    if (!sm || !em) return;
+    let mins = parseInt(sm[1])*60 + parseInt(sm[2]);
+    const endMins = parseInt(em[1])*60 + parseInt(em[2]);
+    while (mins < endMins) {
+      const h = Math.floor(mins/60);
+      const mn = mins%60;
+      blocked.add(`${day}|${h}:${mn.toString().padStart(2,'0')}`);
       mins += 15;
     }
   });
   return blocked;
+}
+
+// Returns HW session info for a profile at a given day|slot key
+function hwSessionForSlot(profile, key) {
+  for (const s of hwSessions) {
+    const inst = (s.instructors||[]).find(i => i.uid === profile.uid);
+    if (!inst) continue;
+    const day = DAYS.find(d => (s.day||'').toLowerCase().startsWith(d.toLowerCase()));
+    if (!day) continue;
+    const sm = inst.start.match(/(\d+):(\d+)/);
+    const em = inst.end.match(/(\d+):(\d+)/);
+    if (!sm || !em) continue;
+    let mins = parseInt(sm[1])*60 + parseInt(sm[2]);
+    const endMins = parseInt(em[1])*60 + parseInt(em[2]);
+    while (mins < endMins) {
+      const h = Math.floor(mins/60);
+      const mn = mins%60;
+      if (`${day}|${h}:${mn.toString().padStart(2,'0')}` === key) return s;
+      mins += 15;
+    }
+  }
+  return null;
 }
 
 function slotStatus(profile, day, slot, blockedCache) {
@@ -971,23 +1012,31 @@ window.buildRollup=function(){
     } else {
       daySlots.forEach(slot=>{
         const freeInsts=insts.filter(p=>isFree(p,day,slot));
+        const hwInsts=insts.filter(p=>{
+          const key=`${day}|${slot}`;
+          return !isFree(p,day,slot) && !!hwSessionForSlot(p,key);
+        });
 
-        // Cell background tinted if anyone is free
-        const bg=freeInsts.length>0?accentBg:"transparent";
+        const bg=freeInsts.length>0?accentBg:hwInsts.length>0?"rgba(240,165,0,.05)":"transparent";
         const border=freeInsts.length>0
           ? (scheduleMode==="online"?"rgba(88,166,255,.2)":"rgba(63,185,80,.2)")
-          : "var(--border)";
+          : hwInsts.length>0?"rgba(240,165,0,.2)":"var(--border)";
 
         html+=`<div style="display:flex;gap:5px;margin-bottom:3px;align-items:flex-start;">`;
-        // Time label
         html+=`<span style="font-size:11px;color:var(--muted);min-width:42px;padding-top:4px;flex-shrink:0;">${slot}</span>`;
-        // Cell
         html+=`<div style="flex:1;min-height:26px;border-radius:5px;border:1px solid ${border};background:${bg};padding:3px 5px;">`;
         if(freeInsts.length){
           html+=freeInsts.map(p=>
             `<div style="font-size:10px;font-weight:600;color:${accentColor};line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;"
               onclick="showTab('instructors');openProf('${p.uid}')" title="${p.displayName}">${p.displayName}</div>`
           ).join("");
+        }
+        if(hwInsts.length){
+          html+=hwInsts.map(p=>{
+            const s=hwSessionForSlot(p,`${day}|${slot}`);
+            return `<div style="font-size:10px;color:#e3b341;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;"
+              onclick="showTab('instructors');openProf('${p.uid}')" title="${p.displayName} — ${s?s.name:'HW Support'}">HW ${p.displayName}</div>`;
+          }).join("");
         }
         html+=`</div></div>`;
       });

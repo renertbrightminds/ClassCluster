@@ -16,11 +16,18 @@ service cloud.firestore {
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['availability', 'availabilityUpdatedAt', 'dayNotes',
-                                   'gradeMin', 'gradeMax', 'levelMin', 'levelMax', 'comment']);
+                                   'gradeMin', 'gradeMax', 'levelMin', 'levelMax', 'comment', 'theme']);
 
       // Admins (role == "admin") can read and write anything, including delete
       allow write, delete: if request.auth != null
                    && get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == "admin";
+    }
+
+    // HW Support sessions — all authenticated users can read, admins can write
+    match /hwSessions/{sessionId} {
+      allow read: if request.auth != null;
+      allow write, delete: if request.auth != null
+        && get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == "admin";
     }
 
     // Deny everything else by default
