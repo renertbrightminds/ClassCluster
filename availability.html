@@ -448,6 +448,13 @@ function renderMine(){
   const el=document.getElementById("tab-my-availability");
   const p=currentProfile, c=ac(p.displayName);
   const {lead,shadow}=classesForProfile(p);
+  const myHwSessions=hwSessions
+    .map(s=>({session:s, inst:(s.instructors||[]).find(i=>i.uid===p.uid)}))
+    .filter(x=>x.inst)
+    .sort((a,b)=>{
+      const d={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5};
+      return (d[a.session.day]??9)-(d[b.session.day]??9);
+    });
 
   const gradeOpts=GRADES.map(g=>`<option value="${g}" ${(p.gradeMin||'')===(g)?'selected':''}>${g}</option>`).join('');
   const gradeOptsMax=GRADES.map(g=>`<option value="${g}" ${(p.gradeMax||'')===(g)?'selected':''}>${g}</option>`).join('');
@@ -517,8 +524,8 @@ function renderMine(){
       </div>
     </div>
 
-    ${lead.length||shadow.length?`<div class="card">
-      <div class="section-label">Your assigned classes</div>
+    ${lead.length||shadow.length||myHwSessions.length?`<div class="card">
+      <div class="section-label">Your assigned classes & sessions</div>
       ${lead.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
         <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
         <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
@@ -529,6 +536,12 @@ function renderMine(){
         <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
         <span class="pip pip-shadow">Shadow</span>
         ${cls.instructor?`<span style="color:var(--muted);font-size:11px;">Lead: ${cls.instructor}</span>`:''}
+      </div>`).join('')}
+      ${myHwSessions.map(({session,inst})=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
+        <span style="font-weight:600;color:#e3b341;">${session.name}</span>
+        <span style="color:var(--muted);">${session.day} · ${inst.start}–${inst.end}</span>
+        <span class="pip" style="background:rgba(240,165,0,.15);color:#e3b341;">${inst.host?'Host':'HW Support'}</span>
+        <span class="pip ${session.delivery==='online'?'pip-online':'pip-ip'}">${session.delivery==='online'?'🌐':'🏫'}</span>
       </div>`).join('')}
     </div>`:''}`;
   buildGrid("avail-grid-wrap",draftAvail,true);
@@ -1012,15 +1025,11 @@ window.buildRollup=function(){
     } else {
       daySlots.forEach(slot=>{
         const freeInsts=insts.filter(p=>isFree(p,day,slot));
-        const hwInsts=insts.filter(p=>{
-          const key=`${day}|${slot}`;
-          return !isFree(p,day,slot) && !!hwSessionForSlot(p,key);
-        });
 
-        const bg=freeInsts.length>0?accentBg:hwInsts.length>0?"rgba(240,165,0,.05)":"transparent";
+        const bg=freeInsts.length>0?accentBg:"transparent";
         const border=freeInsts.length>0
           ? (scheduleMode==="online"?"rgba(88,166,255,.2)":"rgba(63,185,80,.2)")
-          : hwInsts.length>0?"rgba(240,165,0,.2)":"var(--border)";
+          : "var(--border)";
 
         html+=`<div style="display:flex;gap:5px;margin-bottom:3px;align-items:flex-start;">`;
         html+=`<span style="font-size:11px;color:var(--muted);min-width:42px;padding-top:4px;flex-shrink:0;">${slot}</span>`;
@@ -1030,13 +1039,6 @@ window.buildRollup=function(){
             `<div style="font-size:10px;font-weight:600;color:${accentColor};line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;"
               onclick="showTab('instructors');openProf('${p.uid}')" title="${p.displayName}">${p.displayName}</div>`
           ).join("");
-        }
-        if(hwInsts.length){
-          html+=hwInsts.map(p=>{
-            const s=hwSessionForSlot(p,`${day}|${slot}`);
-            return `<div style="font-size:10px;color:#e3b341;line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;"
-              onclick="showTab('instructors');openProf('${p.uid}')" title="${p.displayName} — ${s?s.name:'HW Support'}">HW ${p.displayName}</div>`;
-          }).join("");
         }
         html+=`</div></div>`;
       });
