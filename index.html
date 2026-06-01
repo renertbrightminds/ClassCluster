@@ -660,6 +660,7 @@ function findAlternativeClasses(student, currentCls, allClasses) {
   for (const cls of allClasses) {
     if (cls.classId === currentCls.classId) continue;
     if (!cls.stats || cls.stats.n === 0) continue;
+    if ((cls.delivery || "") !== (currentCls.delivery || "")) continue;
 
     const fit = scorePlacement(cls, student.grade, student.ability);
     if (!fit) continue;
