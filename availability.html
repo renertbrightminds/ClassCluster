@@ -791,6 +791,11 @@ window.saveAvail=async function(){
 function setSS(msg,ok){const e=document.getElementById("save-status");if(!e)return;e.textContent=msg;e.className="save-status"+(ok?" saved":"");}
 
 // ── ALL INSTRUCTORS ──
+window.goBackToInstructors=function(){
+  selectedInst=null;
+  renderInstructors();
+  history.pushState({tab:'instructors',inst:null},'',location.pathname+'#instructors');
+};
 window.renderInstructors=function renderInstructors(){
   const el=document.getElementById("tab-instructors");
   if(selectedInst){renderProfile(el,selectedInst);return;}
@@ -847,7 +852,7 @@ function renderProfile(el,uid){
     .filter(x=>x.inst)
     .sort((a,b)=>({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[a.session.day]??9)-({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[b.session.day]??9));
   el.innerHTML=`
-    <button class="back-btn" onclick="selectedInst=null;renderInstructors();history.pushState({tab:'instructors',inst:null},'',location.pathname+'#instructors');">← All instructors</button>
+    <button class="back-btn" onclick="goBackToInstructors()">← All instructors</button>
     <div class="profile-header">
       <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
       <div><div class="profile-name">${p.displayName}</div>
