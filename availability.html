@@ -113,6 +113,10 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
 .ag-cell.online{background:rgba(88,166,255,.22);color:#79c0ff;border-color:rgba(88,166,255,.35);}
 .ag-cell.both{background:rgba(188,140,255,.22);color:#d2a8ff;border-color:rgba(188,140,255,.35);}
 .ag-cell.readonly{cursor:default;}
+.ag-cell.assigned{background:rgba(210,153,34,.25);color:#e3b341;border-color:rgba(210,153,34,.4);cursor:default;}
+.ag-cell.hw{background:rgba(188,140,255,.2);color:#d2a8ff;border-color:rgba(188,140,255,.35);cursor:default;}
+[data-theme="light"] .ag-cell.assigned{background:rgba(122,79,0,.15);color:#7a4f00;border-color:rgba(122,79,0,.3);}
+[data-theme="light"] .ag-cell.hw{background:rgba(83,74,183,.12);color:#534ab7;border-color:rgba(83,74,183,.25);}
 .ag-cell.drag-preview{opacity:.6;transform:scale(.97);}
 .ag-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
 .ag-day-btn{background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--muted);font-family:inherit;font-size:10px;font-weight:600;padding:2px 6px;cursor:pointer;white-space:nowrap;}
@@ -509,9 +513,11 @@ function renderMine(){
       <div class="section-label">Weekly availability</div>
       <div id="avail-grid-wrap"></div>
       <div class="avail-legend">
-        <span><span class="legend-dot" style="background:rgba(63,185,80,.35)"></span>In-person only</span>
-        <span><span class="legend-dot" style="background:rgba(88,166,255,.35)"></span>Online only</span>
-        <span><span class="legend-dot" style="background:rgba(188,140,255,.35)"></span>Both</span>
+        <span><span class="legend-dot" style="background:rgba(63,185,80,.35)"></span>In-person free</span>
+        <span><span class="legend-dot" style="background:rgba(88,166,255,.35)"></span>Online free</span>
+        <span><span class="legend-dot" style="background:rgba(188,140,255,.35)"></span>Both free</span>
+        <span><span class="legend-dot" style="background:rgba(210,153,34,.35)"></span>Class assigned</span>
+        <span><span class="legend-dot" style="background:rgba(188,140,255,.25)"></span>HW Support</span>
         <span><span class="legend-dot" style="background:var(--surface2);border:1px solid #1c2333;"></span>Unavailable</span>
       </div>
     </div>
@@ -565,6 +571,46 @@ function buildGrid(wrapperId,avail,editable,targetUid){
     </div>`;
   }
 
+  // Pre-compute assigned/HW slots for the profile being displayed
+  // Only applies when showing own profile (editable) or reading a profile (readonly)
+  const profileUid = targetUid || (typeof currentUser !== 'undefined' ? currentUser.uid : null);
+  const blockedSlots = profileUid ? (()=>{
+    const profile = allProfiles.find(p=>p.uid===profileUid) || currentProfile;
+    if(!profile) return {assigned:new Set(), hw:new Set()};
+    const assigned = new Set();
+    const hw = new Set();
+    // Classes
+    try {
+      const {lead, shadow} = classesForProfile(profile);
+      [...lead, ...shadow].forEach(cls=>{
+        const day=DAYS.find(d=>(cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
+        if(!day||!cls.time) return;
+        const m=cls.time.match(/(\d+):(\d+)/); if(!m) return;
+        let mins=parseInt(m[1])*60+parseInt(m[2]);
+        for(let i=0;i<4;i++){
+          assigned.add(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`);
+          mins+=15;
+        }
+      });
+    } catch(e){}
+    // HW sessions
+    (hwSessions||[]).forEach(s=>{
+      const inst=(s.instructors||[]).find(i=>i.uid===profileUid);
+      if(!inst) return;
+      const day=DAYS.find(d=>(s.day||'').toLowerCase().startsWith(d.toLowerCase()));
+      if(!day) return;
+      const sm=inst.start.match(/(\d+):(\d+)/), em=inst.end.match(/(\d+):(\d+)/);
+      if(!sm||!em) return;
+      let mins=parseInt(sm[1])*60+parseInt(sm[2]);
+      const end=parseInt(em[1])*60+parseInt(em[2]);
+      while(mins<end){
+        hw.add(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`);
+        mins+=15;
+      }
+    });
+    return {assigned, hw};
+  })() : {assigned:new Set(), hw:new Set()};
+
   // Per-day columns
   h+=`<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;" id="${wrapperId}-cols">`;
   DAYS.forEach(day=>{
@@ -572,12 +618,20 @@ function buildGrid(wrapperId,avail,editable,targetUid){
     h+=`<div style="flex-shrink:0;min-width:90px;">`;
     h+=`<div class="ag-header">${day}</div>`;
     slots.forEach(slot=>{
+      const key=`${day}|${slot}`;
+      const isAssigned=blockedSlots.assigned.has(key);
+      const isHw=!isAssigned&&blockedSlots.hw.has(key);
       const st=(avail[day]||{})[slot]||'none';
       const timeLabel=`<span style="font-size:12px;color:var(--muted);min-width:42px;display:inline-block;">${slot}</span>`;
-      if(editable)
+      if(isAssigned){
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned readonly" style="width:52px;" title="Class assigned">📚</div></div>`;
+      } else if(isHw){
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;" title="HW Support">HW</div></div>`;
+      } else if(editable){
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st}" style="width:52px;" title="${TITLES[st]}" data-day="${day}" data-slot="${slot}" data-uid="${targetUid||''}">${st==='none'?'':LABELS[st]}</div></div>`;
-      else
+      } else {
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st} readonly" style="width:52px;" title="${TITLES[st]}">${st==='none'?'':LABELS[st]}</div></div>`;
+      }
     });
     if(editable){
       const dayNote=(typeof draftDayNotes!=='undefined'?draftDayNotes[day]:'') || '';
