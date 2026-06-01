@@ -546,12 +546,11 @@ function analyseClass(cls) {
     if (precocious) {
       flags.push({ type:"precocious", msg:"Young high-achiever — grade exception applies at this level" });
     } else {
-      const spreadViolated = gradeSpread >= allowedSpread;
+      const spreadViolated = gradeSpread > allowedSpread;
       if (spreadViolated) {
         const others = students.filter(o=>o!==s).map(o=>o.grade);
         const spreadWithout = others.length ? Math.max(...others)-Math.min(...others) : 0;
-        const threshold = gradeSpread < allowedSpread ? warnSpread : allowedSpread;
-        if (spreadWithout < threshold) {
+        if (spreadWithout < allowedSpread) {
           const dir = s.grade===maxGrade ? "Highest grade" : s.grade===minGrade ? "Lowest grade" : null;
           if (dir) flags.push({ type:"warn",
             msg:`${dir} student — removing them would bring grade spread within guidelines` });
@@ -649,7 +648,44 @@ function scorePlacement(cls, studentGrade, studentAbility) {
 }
 
 // ════════════════════════════════════════════════════════
-// SPLIT RECOMMENDATION
+// ALTERNATIVE CLASS RECOMMENDATIONS
+// For a flagged student, find other classes that are:
+//   (a) perfect fit regardless of day/time, OR
+//   (b) any fit on the same day within 30 minutes
+// ════════════════════════════════════════════════════════
+function findAlternativeClasses(student, currentCls, allClasses) {
+  const results = [];
+  const curMins = timeToMins(currentCls.time || "");
+
+  for (const cls of allClasses) {
+    if (cls.classId === currentCls.classId) continue;
+    if (!cls.stats || cls.stats.n === 0) continue;
+
+    const fit = scorePlacement(cls, student.grade, student.ability);
+    if (!fit) continue;
+
+    const sameDay = (cls.day || "").toLowerCase() === (currentCls.day || "").toLowerCase();
+    const clsMins = timeToMins(cls.time || "");
+    const timeDiff = Math.abs(clsMins - curMins);
+    const within30 = sameDay && timeDiff <= 30;
+    const isPerfect = fit === "perfect";
+
+    if (isPerfect || within30) {
+      results.push({ cls, fit, sameDay, timeDiff });
+    }
+  }
+
+  // Sort: perfect fits first, then by time proximity
+  results.sort((a, b) => {
+    const fitOrder = { perfect: 0, good: 1, possible: 2 };
+    if (fitOrder[a.fit] !== fitOrder[b.fit]) return fitOrder[a.fit] - fitOrder[b.fit];
+    return a.timeDiff - b.timeDiff;
+  });
+
+  return results.slice(0, 5); // cap at 5 suggestions
+}
+
+
 // ════════════════════════════════════════════════════════
 function buildSplitRecommendation(students, meanAbility, alerts) {
   const n = students.length;
@@ -744,6 +780,32 @@ let placementActive = false;
 
 function processClasses(classes) {
   allAnalysed = classes.map(analyseClass);
+
+  // Second pass — add alternative class suggestions for flagged students
+  allAnalysed.forEach(cls => {
+    const flaggedStudents = cls.studentFlags.filter(s =>
+      s.flags.some(f => f.type === "crit" || f.type === "warn")
+    );
+    flaggedStudents.forEach(student => {
+      const alts = findAlternativeClasses(student, cls, allAnalysed);
+      if (!alts.length) return;
+      const fitLabel = { perfect:"Perfect fit", good:"Good fit", possible:"Possible fit" };
+      const rows = alts.map(({cls:alt, fit, sameDay, timeDiff}) => {
+        const timing = sameDay
+          ? (timeDiff === 0 ? "same time" : `${timeDiff} min away`)
+          : `${alt.day||""} ${alt.time||""}`;
+        return `<strong>${alt.classId||alt.className}</strong> `
+          + `(${alt.day||""} ${alt.time||""} · ${alt.instructor||"no instructor"}) — `
+          + `<em>${fitLabel[fit]}</em>${sameDay ? ` · ${timing}` : ""}`;
+      }).join("<br>");
+      cls.alerts.push({
+        level: "info",
+        icon:  "↔️",
+        text:  `<strong>${student.name}</strong> may fit better in:<br>${rows}`
+      });
+    });
+  });
+
   allAnalysed.sort((a,b)=>({critical:0,warning:1,healthy:2}[a.health]-{critical:0,warning:1,healthy:2}[b.health]));
   activeFilter = null; sliderActive = false;
   currentSort = { key:"datetime", dir:1 };
