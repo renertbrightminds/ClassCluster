@@ -324,6 +324,29 @@ const ac=n=>AVG[(n||" ").charCodeAt(0)%AVG.length];
 const ini=n=>(n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const clone=o=>JSON.parse(JSON.stringify(o||{}));
 
+// Handle browser back/forward navigation
+window.addEventListener('popstate', function(e){
+  const state = e.state;
+  if(!state) return;
+  if(state.tab){
+    activeTab=state.tab;
+    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+    document.querySelectorAll(".tab").forEach(t=>{
+      if(t.getAttribute("onclick")&&t.getAttribute("onclick").includes("'"+state.tab+"'")) t.classList.add("active");
+    });
+    ["my-availability","instructors","rollup","conflicts","shadows"].forEach(t=>{
+      document.getElementById("tab-"+t).style.display=t===state.tab?"":"none";
+    });
+    if(state.inst){
+      selectedInst=state.inst;
+      renderProfile(document.getElementById("tab-instructors"),state.inst);
+    } else {
+      selectedInst=null;
+      renderTab(state.tab);
+    }
+  }
+});
+
 // Handle sign-out redirect from ClassCluster
 if(new URLSearchParams(window.location.search).get('signout')==='1'){
   try{ localStorage.removeItem('bm_session'); }catch(e){}
@@ -378,6 +401,7 @@ onAuthStateChanged(auth, async user=>{
   window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
   document.getElementById("spinner").style.display="none";
   document.getElementById("app").style.display="";
+  history.replaceState({tab:'my-availability',inst:null},"",location.pathname+"#my-availability");
   renderTab("my-availability");
 });
 
@@ -428,15 +452,19 @@ function classesForProfile(profile){
   return {lead,shadow};
 }
 
-window.showTab=function(tab,btn){
+window.showTab=function(tab,btn,pushState){
   if (unsaved&&tab!=='my-availability'){if(!confirm("Unsaved availability changes. Leave anyway?"))return;unsaved=false;}
   activeTab=tab;selectedInst=null;
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   if(btn) btn.classList.add("active");
+  else document.querySelectorAll(".tab").forEach(t=>{
+    if(t.getAttribute("onclick")&&t.getAttribute("onclick").includes("'"+tab+"'")) t.classList.add("active");
+  });
   ["my-availability","instructors","rollup","conflicts","shadows"].forEach(t=>{
     document.getElementById("tab-"+t).style.display=t===tab?"":"none";
   });
   renderTab(tab);
+  if(pushState!==false) history.pushState({tab,inst:null},"",location.pathname+"#"+tab);
 };
 
 function renderTab(t){
@@ -763,7 +791,7 @@ window.saveAvail=async function(){
 function setSS(msg,ok){const e=document.getElementById("save-status");if(!e)return;e.textContent=msg;e.className="save-status"+(ok?" saved":"");}
 
 // ── ALL INSTRUCTORS ──
-function renderInstructors(){
+window.renderInstructors=function renderInstructors(){
   const el=document.getElementById("tab-instructors");
   if(selectedInst){renderProfile(el,selectedInst);return;}
   const active=allProfiles.filter(p=>p.active!==false);
@@ -804,7 +832,11 @@ window.filterIG=function(){
     card.style.display=show?"":"none";
   });
 };
-window.openProf=function(uid){selectedInst=uid;renderProfile(document.getElementById("tab-instructors"),uid);};
+window.openProf=function(uid){
+  selectedInst=uid;
+  renderProfile(document.getElementById("tab-instructors"),uid);
+  history.pushState({tab:'instructors',inst:uid},"",location.pathname+"#instructor-"+uid);
+};
 function renderProfile(el,uid){
   const p=allProfiles.find(x=>x.uid===uid); if(!p) return;
   const c=ac(p.displayName);
@@ -815,7 +847,7 @@ function renderProfile(el,uid){
     .filter(x=>x.inst)
     .sort((a,b)=>({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[a.session.day]??9)-({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[b.session.day]??9));
   el.innerHTML=`
-    <button class="back-btn" onclick="selectedInst=null;renderInstructors();">← All instructors</button>
+    <button class="back-btn" onclick="selectedInst=null;renderInstructors();history.pushState({tab:'instructors',inst:null},'',location.pathname+'#instructors');">← All instructors</button>
     <div class="profile-header">
       <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
       <div><div class="profile-name">${p.displayName}</div>
