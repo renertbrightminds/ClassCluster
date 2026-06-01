@@ -604,9 +604,9 @@ function buildGrid(wrapperId,avail,editable,targetUid){
   const profileUid = targetUid || (typeof currentUser !== 'undefined' ? currentUser.uid : null);
   const blockedSlots = profileUid ? (()=>{
     const profile = allProfiles.find(p=>p.uid===profileUid) || currentProfile;
-    if(!profile) return {assigned:new Set(), hw:new Set()};
-    const assigned = new Set();
-    const hw = new Set();
+    if(!profile) return {assigned:new Map(), hw:new Map()};
+    const assigned = new Map(); // key → class code
+    const hw = new Map();       // key → session name
     // Classes
     try {
       const {lead, shadow} = classesForProfile(profile);
@@ -615,8 +615,9 @@ function buildGrid(wrapperId,avail,editable,targetUid){
         if(!day||!cls.time) return;
         const m=cls.time.match(/(\d+):(\d+)/); if(!m) return;
         let mins=parseInt(m[1])*60+parseInt(m[2]);
+        const code = cls.classId || cls.className || '?';
         for(let i=0;i<4;i++){
-          assigned.add(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`);
+          assigned.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, code);
           mins+=15;
         }
       });
@@ -631,13 +632,14 @@ function buildGrid(wrapperId,avail,editable,targetUid){
       if(!sm||!em) return;
       let mins=parseInt(sm[1])*60+parseInt(sm[2]);
       const end=parseInt(em[1])*60+parseInt(em[2]);
+      const label = (s.name||'HW').replace(/homework support/i,'HW').replace(/hw support/i,'HW');
       while(mins<end){
-        hw.add(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`);
+        hw.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, label);
         mins+=15;
       }
     });
     return {assigned, hw};
-  })() : {assigned:new Set(), hw:new Set()};
+  })() : {assigned:new Map(), hw:new Map()};
 
   // Per-day columns
   h+=`<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;" id="${wrapperId}-cols">`;
@@ -647,14 +649,16 @@ function buildGrid(wrapperId,avail,editable,targetUid){
     h+=`<div class="ag-header">${day}</div>`;
     slots.forEach(slot=>{
       const key=`${day}|${slot}`;
-      const isAssigned=blockedSlots.assigned.has(key);
-      const isHw=!isAssigned&&blockedSlots.hw.has(key);
+      const classCode=blockedSlots.assigned.get(key);
+      const hwLabel=!classCode && blockedSlots.hw.get(key);
       const st=(avail[day]||{})[slot]||'none';
       const timeLabel=`<span style="font-size:12px;color:var(--muted);min-width:42px;display:inline-block;">${slot}</span>`;
-      if(isAssigned){
-        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned readonly" style="width:52px;" title="Class assigned">📚</div></div>`;
-      } else if(isHw){
-        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;" title="HW Support">HW</div></div>`;
+      if(classCode){
+        // Strip year prefix for display (e.g. "25-1081" → "1081")
+        const displayCode = classCode.replace(/^\d{2}-/,'');
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${classCode}">${displayCode}</div></div>`;
+      } else if(hwLabel){
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${hwLabel}">HW</div></div>`;
       } else if(editable){
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st}" style="width:52px;" title="${TITLES[st]}" data-day="${day}" data-slot="${slot}" data-uid="${targetUid||''}">${st==='none'?'':LABELS[st]}</div></div>`;
       } else {
