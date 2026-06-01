@@ -491,20 +491,16 @@ const SIZE_SMALL = 3;
 
 // Hard maximum grade spread by mean ability
 function maxGradeSpread(meanAbility) {
-  if (meanAbility >= 6) return 5;  // warn at 5, hard at 6 — but spread > 5 is the violation
-  if (meanAbility >= 5) return 4;
-  if (meanAbility >= 2) return 3;
+  if (meanAbility > 9) return 4;
+  if (meanAbility > 2) return 3;
   return 2;
 }
 
-// Warning threshold — spread at or above this triggers a warning even if under hard limit.
-// For all tiers, warn when spread equals the hard limit (at the edge).
-// For level 6+, also warn at 5 (one below the hard limit of 6).
 function warnGradeSpread(meanAbility) {
-  if (meanAbility >= 6) return 5;   // hard limit is 6, warn at 5
-  if (meanAbility >= 5) return 4;   // hard limit is 5 (i.e. spread>=5 = danger), warn at 4
-  if (meanAbility >= 2) return 3;   // hard limit is 4, warn at 3
-  return 2;                          // hard limit is 3, warn at 2
+  // Warn one below the hard limit
+  if (meanAbility > 9) return 3;
+  if (meanAbility > 2) return 2;
+  return null; // no warn tier at the lowest level — just hard limit
 }
 
 function isPrecocious(student, meanGrade, meanAbility) {
@@ -550,8 +546,7 @@ function analyseClass(cls) {
     if (precocious) {
       flags.push({ type:"precocious", msg:"Young high-achiever — grade exception applies at this level" });
     } else {
-      const warnSpread = warnGradeSpread(meanAbility);
-      const spreadViolated = gradeSpread >= allowedSpread || gradeSpread >= warnSpread;
+      const spreadViolated = gradeSpread >= allowedSpread;
       if (spreadViolated) {
         const others = students.filter(o=>o!==s).map(o=>o.grade);
         const spreadWithout = others.length ? Math.max(...others)-Math.min(...others) : 0;
@@ -588,16 +583,12 @@ function analyseClass(cls) {
     alerts.push({ level:"warn", icon:"🟡",
       text:`Level spread of ${abilitySpread.toFixed(1)} is approaching the limit. Watch for outliers pulling away.` });
   }
-  const warnSpread = warnGradeSpread(meanAbility);
-  if (gradeSpread >= allowedSpread) {
+  if (gradeSpread > allowedSpread) {
     alerts.push({ level:"danger", icon:"🔴",
-      text:`Grade spread is ${gradeSpread}. At mean level ${abilityToBook(meanAbility)}, the hard limit is ${allowedSpread - 1} grade${allowedSpread - 1 === 1 ? "" : "s"} difference.` });
-  } else if (warnSpread !== null && gradeSpread >= warnSpread) {
-    const atLimit = meanAbility >= 6; // level 6+ has a separate warn tier below the hard limit
+      text:`Grade spread is ${gradeSpread}. At mean level ${abilityToBook(meanAbility)}, the maximum allowed is ${allowedSpread}.` });
+  } else if (gradeSpread === allowedSpread) {
     alerts.push({ level:"warn", icon:"🟡",
-      text: atLimit
-        ? `Grade spread is ${gradeSpread}. At this level a spread of ${warnSpread} is allowed but not ideal — consider whether the age mix is working.`
-        : `Grade spread is ${gradeSpread}. This class is at the maximum grade spread for its level.` });
+      text:`Grade spread is ${gradeSpread} — at the limit for this level. Consider whether the age mix is working.` });
   }
 
   const splitRec = buildSplitRecommendation(students, meanAbility, alerts);
@@ -641,14 +632,18 @@ function scorePlacement(cls, studentGrade, studentAbility) {
   const newGradeSpread = Math.max(maxGrade, studentGrade) - Math.min(minGrade, studentGrade);
   const newAbSpread    = Math.max(maxAb,    studentAbility) - Math.min(minAb,  studentAbility);
 
-  const wouldBreakGrade = newGradeSpread >= allowedSpread;
+  const wouldBreakGrade  = newGradeSpread > allowedSpread;
+  const wouldWarnGrade   = newGradeSpread === allowedSpread;
   const wouldBreakAb    = newAbSpread    > ABILITY_TOLERANCE * 2;
 
   if (gradeDiff <= 0.5 && abDiff <= 0.5 && !wouldBreakGrade && !wouldBreakAb)
     return "perfect";
   if (abDiff <= ABILITY_TOLERANCE && !wouldBreakGrade && !wouldBreakAb)
     return "good";
-  if (abDiff <= ABILITY_TOLERANCE * 1.5 && newGradeSpread <= allowedSpread + 1)
+  // Spread exactly at limit → warning but still placeable
+  if (abDiff <= ABILITY_TOLERANCE && wouldWarnGrade && !wouldBreakAb)
+    return "possible";
+  if (abDiff <= ABILITY_TOLERANCE * 1.5 && newGradeSpread <= allowedSpread)
     return "possible";
   return null;
 }
@@ -900,8 +895,8 @@ function buildCard(cls, idx) {
   const healthLabel = {critical:"Action required",warning:"Needs attention",healthy:"Healthy"}[cls.health];
   const healthIcon  = {critical:"🔴",warning:"🟡",healthy:"🟢"}[cls.health];
 
-  const gradeChipCls = s.gradeSpread >= s.allowedSpread ? "crit"
-                     : s.gradeSpread >= warnGradeSpread(s.meanAbility) ? "warn"
+  const gradeChipCls = s.gradeSpread > s.allowedSpread ? "crit"
+                     : s.gradeSpread === s.allowedSpread ? "warn"
                      : "";
   const abChipCls    = s.abilitySpread>ABILITY_TOLERANCE*2 ? "crit" : s.abilitySpread>ABILITY_TOLERANCE*1.5 ? "warn" : "";
   const szChipCls    = s.n>=SIZE_CRIT ? "crit" : s.n>=SIZE_WARN ? "warn" : "";
