@@ -1729,6 +1729,15 @@ function renderClassroom(){
 
 
 window.doSignOut=async()=>{
+window.toggleDaySection=function(id){
+  const el=document.getElementById(id);
+  const icon=document.getElementById(id+'-icon');
+  if(!el) return;
+  const isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(icon) icon.textContent=isOpen?'▼':'▲';
+};
+
   try { localStorage.removeItem('bm_session'); } catch(e){}
   await fbSignOut(auth);
   window.location.href="login.html";
