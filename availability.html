@@ -113,6 +113,30 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
 .ag-cell.online{background:rgba(88,166,255,.22);color:#79c0ff;border-color:rgba(88,166,255,.35);}
 .ag-cell.both{background:rgba(188,140,255,.22);color:#d2a8ff;border-color:rgba(188,140,255,.35);}
 .ag-cell.readonly{cursor:default;}
+/* ── FLAG DIALOG ── */
+.flag-dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;}
+.flag-dialog{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:420px;max-width:92vw;}
+.flag-dialog-title{font-family:'Fraunces',serif;font-size:18px;font-weight:700;margin-bottom:16px;}
+.flag-field{margin-bottom:14px;}
+.flag-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+.flag-field select,.flag-field textarea,.flag-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;outline:none;}
+.flag-field select:focus,.flag-field textarea:focus{border-color:var(--accent);}
+.flag-field textarea{resize:vertical;min-height:70px;}
+.flag-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.flag-card{background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--border);}
+.flag-card.urgent{border-left-color:#f85149;}
+.flag-card.planned{border-left-color:#d29922;}
+.flag-card.open{border-left-color:#58a6ff;}
+.flag-card.resolved{border-left-color:#3fb950;opacity:.6;}
+.flag-card.critical-class{border-left-color:#f85149;background:rgba(248,81,73,.04);}
+.flag-card.critical-class .flag-card-title{color:#ffa198;}
+.flag-card-title{font-weight:600;font-size:14px;margin-bottom:3px;}
+.flag-card-meta{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.flag-status-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+.fsb-urgent{background:rgba(248,81,73,.15);color:#ffa198;}
+.fsb-planned{background:rgba(210,153,34,.15);color:#e3b341;}
+.fsb-open{background:rgba(88,166,255,.12);color:#79c0ff;}
+.fsb-resolved{background:rgba(63,185,80,.12);color:#3fb950;}
 .ag-cell.assigned{background:rgba(210,153,34,.25);color:#e3b341;border-color:rgba(210,153,34,.4);cursor:default;}
 .ag-cell.hw{background:rgba(20,184,166,.2);color:#2dd4bf;border-color:rgba(20,184,166,.4);cursor:default;}
 [data-theme="light"] .ag-cell.assigned{background:rgba(122,79,0,.15);color:#7a4f00;border-color:rgba(122,79,0,.3);}
@@ -205,7 +229,7 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
       <button class="tab active" onclick="showTab('my-availability',this)">My availability</button>
       <button class="tab admin-only" onclick="showTab('instructors',this)" style="display:none;">All instructors</button>
       <button class="tab admin-only" onclick="showTab('rollup',this)" style="display:none;">Scheduling</button>
-      <button class="tab admin-only" onclick="showTab('conflicts',this)" style="display:none;">Conflicts</button>
+      <button class="tab admin-only" onclick="showTab('conflicts',this)" style="display:none;">Action items</button>
       <button class="tab admin-only" onclick="showTab('shadows',this)" style="display:none;">Shadow tracker</button>
     </div>
     <div id="tab-my-availability"></div>
@@ -216,10 +240,51 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
   </div>
 </main>
 
+<!-- Flag dialog -->
+<div class="flag-dialog-overlay" id="flag-dialog-overlay" style="display:none;" onclick="if(event.target===this)closeFlagDialog()">
+  <div class="flag-dialog">
+    <div class="flag-dialog-title" id="flag-dialog-title">Flag class</div>
+    <input type="hidden" id="flag-class-id"/>
+    <input type="hidden" id="flag-doc-id"/>
+    <div class="flag-field">
+      <label>Reason</label>
+      <select id="flag-reason" onchange="document.getElementById('flag-other-wrap').style.display=this.value==='other'?'':'none'">
+        <option value="instructor-leaving">Instructor leaving / unavailable</option>
+        <option value="needs-split">Class needs splitting</option>
+        <option value="placement-issue">Student placement issue</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="flag-field" id="flag-other-wrap" style="display:none;">
+      <label>Specify reason</label>
+      <input type="text" id="flag-other-text" placeholder="Describe the issue…"/>
+    </div>
+    <div class="flag-field">
+      <label>Status</label>
+      <select id="flag-status">
+        <option value="open">Open</option>
+        <option value="planned">Planned change</option>
+        <option value="urgent">Urgent</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </div>
+    <div class="flag-field">
+      <label>Notes</label>
+      <textarea id="flag-note" placeholder="Any additional context…"></textarea>
+    </div>
+    <div class="flag-actions">
+      <button class="btn btn-ghost" onclick="closeFlagDialog()">Cancel</button>
+      <button class="btn btn-danger" id="flag-delete-btn" onclick="deleteFlag()" style="display:none;">Remove flag</button>
+      <button class="btn btn-primary" onclick="saveFlag()">Save flag</button>
+    </div>
+    <div style="font-size:12px;color:var(--red);margin-top:8px;display:none;" id="flag-error"></div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-import { getFirestore, collection, doc, getDoc, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig, CLASS_DATA_URL } from "./firebase-config.js";
 
 
@@ -311,7 +376,7 @@ const STATES = ['none','ip','online','both'];
 const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
 const TITLES = {none:'Unavailable',ip:'In-person only',online:'Online only',both:'Both IP & online'};
 
-let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], hwSessions=[];
+let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], hwSessions=[], classFlags=[];
 let draftAvail={}, draftDayNotes={}, activeTab='my-availability', selectedInst=null, unsaved=false;
 
 const AVG=[
@@ -396,6 +461,10 @@ onAuthStateChanged(auth, async user=>{
     const hwSnap=await getDocs(collection(db,'hwSessions'));
     hwSessions=hwSnap.docs.map(d=>({id:d.id,...d.data()}));
   }catch(e){ hwSessions=[]; }
+  try{
+    const flagSnap=await getDocs(collection(db,'classFlags'));
+    classFlags=flagSnap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ classFlags=[]; }
   updateBookLevelsFromClasses(allClasses);
   // Debug helpers — accessible from browser console
   window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
@@ -656,7 +725,9 @@ function buildGrid(wrapperId,avail,editable,targetUid){
       if(classCode){
         // Strip year prefix for display (e.g. "25-1081" → "1081")
         const displayCode = classCode.replace(/^\d{2}-/,'');
-        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${classCode}">${displayCode}</div></div>`;
+        const existingFlag = classFlags.find(f=>f.classId===classCode);
+        const flagIndicator = existingFlag ? `<span style="position:absolute;top:1px;right:2px;font-size:7px;color:${existingFlag.status==='urgent'?'#f85149':existingFlag.status==='planned'?'#d29922':'#58a6ff'};">●</span>` : '';
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;cursor:pointer;" title="${classCode}${existingFlag?' — '+existingFlag.status+' flag':''}" onclick="openFlagDialog('${classCode}')">${displayCode}${flagIndicator}</div></div>`;
       } else if(hwLabel){
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${hwLabel}">HW</div></div>`;
       } else if(editable){
@@ -1162,24 +1233,193 @@ window.buildRollup=function(){
 };
 
 
-// ── CONFLICTS ──
+// ── ACTION ITEMS ──
+const REASON_LABELS = {
+  'instructor-leaving': 'Instructor leaving / unavailable',
+  'needs-split':        'Class needs splitting',
+  'placement-issue':    'Student placement issue',
+  'other':              'Other',
+};
+const STATUS_ORDER = {urgent:0, open:1, planned:2, resolved:3};
+
 function renderConflicts(){
   const el=document.getElementById("tab-conflicts");
-  const conflicts=detectConflicts();
-  const inactive=allProfiles.filter(p=>p.active===false);
+  const isAdmin = currentProfile.role==='admin';
+
+  // Manual flags visible to current user
+  const visibleFlags = classFlags.filter(f=>{
+    if(isAdmin) return true;
+    const cls = allClasses.find(c=>c.classId===f.classId);
+    if(!cls) return false;
+    const lead = matchProfile(cls.instructor);
+    const shadows = (cls.shadows||[]).map(s=>matchProfile(s));
+    return lead?.uid===currentUser.uid || shadows.some(s=>s?.uid===currentUser.uid);
+  }).sort((a,b)=>(STATUS_ORDER[a.status]??9)-(STATUS_ORDER[b.status]??9));
+
+  // Critical classes from ClassCluster (stored in localStorage by index.html)
+  let critFromCSV = [];
+  try { const s=localStorage.getItem('bm_critical_classes'); if(s) critFromCSV=JSON.parse(s); } catch(e){}
+  const visibleCritical = critFromCSV.filter(c=>{
+    if(isAdmin) return true;
+    const lead=matchProfile(c.instructor);
+    const shadows=(c.shadows||[]).map(s=>matchProfile(s));
+    return lead?.uid===currentUser.uid || shadows.some(s=>s?.uid===currentUser.uid);
+  });
+
+  const statusBadge = s => {
+    const map={urgent:'fsb-urgent',open:'fsb-open',planned:'fsb-planned',resolved:'fsb-resolved'};
+    const lbl={urgent:'Urgent',open:'Open',planned:'Planned change',resolved:'Resolved'};
+    return `<span class="flag-status-badge ${map[s]||'fsb-open'}">${lbl[s]||s}</span>`;
+  };
+
   el.innerHTML=`
-    <div style="margin-bottom:24px;"><div class="section-label" style="margin-bottom:10px;">Detected conflicts (${conflicts.length})</div>
-      ${conflicts.length?conflicts.map(c=>`<div class="conflict-card"><div class="conflict-title">${c.type}</div><div class="conflict-detail">${c.detail}</div>
-        <div style="margin-top:6px;">${c.tags.map(t=>`<span class="conflict-tag">${t}</span>`).join('')}</div></div>`).join('')
-        :'<div class="empty">No conflicts detected.</div>'}
+    ${visibleCritical.length?`
+    <div style="margin-bottom:24px;">
+      <div class="section-label" style="margin-bottom:10px;color:#ffa198;">Critical classes from ClassCluster (${visibleCritical.length})</div>
+      ${visibleCritical.map(c=>{
+        const hasFlag=classFlags.find(f=>f.classId===c.classId);
+        return `<div class="flag-card critical-class" style="cursor:pointer;" onclick="openFlagDialog('${c.classId}')">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+            <div class="flag-card-title">🔴 ${c.classId}${c.day?' · '+c.day:''} ${c.time||''}</div>
+            ${hasFlag?statusBadge(hasFlag.status):'<span style="font-size:11px;color:var(--muted);">Click to flag</span>'}
+          </div>
+          <div class="flag-card-meta">${c.instructor||'No instructor'}${c.delivery?' · '+c.delivery:''}</div>
+          <div style="font-size:12px;color:var(--muted);">
+            ${(c.alerts||[]).filter(a=>a.level==='danger').map(a=>
+              `<div style="margin-bottom:3px;">• ${a.text.replace(/<[^>]+>/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<[^>]+>/g,'')}</div>`
+            ).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:''}
+    <div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <div class="section-label" style="margin:0;">Manual flags (${visibleFlags.filter(f=>f.status!=='resolved').length} active)</div>
+      </div>
+      ${!visibleFlags.length
+        ? '<div class="empty">No flags yet. Click an assigned class cell on the availability grid to flag it.</div>'
+        : visibleFlags.map(f=>{
+            const cls=allClasses.find(c=>c.classId===f.classId);
+            const instructor=cls?cls.instructor:'Unknown';
+            const schedule=[cls?.day,cls?.time].filter(Boolean).join(' ');
+            const reason=f.reason==='other'?(f.otherNote||'Other'):REASON_LABELS[f.reason]||f.reason;
+            return `<div class="flag-card ${f.status}">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                <div class="flag-card-title">${f.classId} ${schedule?'· '+schedule:''}</div>
+                ${statusBadge(f.status)}
+              </div>
+              <div class="flag-card-meta">${instructor}${cls?.delivery?' · '+cls.delivery:''}</div>
+              <div style="font-size:13px;margin-bottom:8px;">
+                <strong>${reason}</strong>
+                ${f.note?`<div style="color:var(--muted);margin-top:3px;">${f.note}</div>`:''}
+              </div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openFlagDialog('${f.classId}')">Edit</button>
+                ${isAdmin&&f.status!=='resolved'
+                  ? `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--green);border-color:rgba(63,185,80,.3);" onclick="resolveFlagById('${f.id}')">Mark resolved</button>`
+                  : ''}
+              </div>
+              <div style="font-size:10px;color:var(--muted);margin-top:8px;">
+                Flagged by ${f.createdByName||'unknown'} · ${f.createdAt?.toDate?f.createdAt.toDate().toLocaleDateString():''}
+                ${f.updatedByName&&f.updatedByName!==f.createdByName?` · Updated by ${f.updatedByName}`:''}
+              </div>
+            </div>`;
+          }).join('')}
     </div>
-    <div><div class="section-label" style="margin-bottom:10px;">Inactive instructors (${inactive.length})</div>
-      ${inactive.map(p=>`<div style="background:var(--surface);border:1px solid rgba(248,81,73,.2);border-radius:10px;padding:10px 14px;margin-bottom:8px;font-size:13px;">
-        <span style="font-weight:600;color:#ffa198;">${p.displayName}</span>
-        ${p.notes?`<span style="color:var(--muted);margin-left:8px;">${p.notes}</span>`:''}
-      </div>`).join('')}
-    </div>`;
+  \`;
 }
+
+
+// ── FLAG DIALOG FUNCTIONS ──
+window.openFlagDialog=function(classId){
+  const existing=classFlags.find(f=>f.classId===classId);
+  const cls=allClasses.find(c=>c.classId===classId);
+  document.getElementById('flag-dialog-title').textContent=
+    `Flag: ${classId}${cls?' · '+[cls.day,cls.time].filter(Boolean).join(' '):''}`;
+  document.getElementById('flag-class-id').value=classId;
+  document.getElementById('flag-doc-id').value=existing?.id||'';
+  document.getElementById('flag-reason').value=existing?.reason||'instructor-leaving';
+  document.getElementById('flag-other-wrap').style.display=
+    (existing?.reason==='other')?'':'none';
+  document.getElementById('flag-other-text').value=existing?.otherNote||'';
+  document.getElementById('flag-status').value=existing?.status||'open';
+  document.getElementById('flag-note').value=existing?.note||'';
+  document.getElementById('flag-delete-btn').style.display=existing?'':'none';
+  document.getElementById('flag-error').style.display='none';
+  document.getElementById('flag-dialog-overlay').style.display='flex';
+};
+
+window.closeFlagDialog=function(){
+  document.getElementById('flag-dialog-overlay').style.display='none';
+};
+
+window.saveFlag=async function(){
+  const classId=document.getElementById('flag-class-id').value;
+  const docId=document.getElementById('flag-doc-id').value;
+  const reason=document.getElementById('flag-reason').value;
+  const otherNote=document.getElementById('flag-other-text').value.trim();
+  const status=document.getElementById('flag-status').value;
+  const note=document.getElementById('flag-note').value.trim();
+  const errEl=document.getElementById('flag-error');
+  errEl.style.display='none';
+  if(reason==='other'&&!otherNote){
+    errEl.textContent='Please specify the reason.';errEl.style.display='block';return;
+  }
+  const cls=allClasses.find(c=>c.classId===classId);
+  const data={
+    classId, className:cls?.className||classId,
+    instructor:cls?.instructor||'',
+    reason, otherNote:reason==='other'?otherNote:'',
+    status, note,
+    updatedBy:currentUser.uid, updatedByName:currentProfile.displayName,
+    updatedAt:serverTimestamp(),
+  };
+  try{
+    if(docId){
+      await updateDoc(doc(db,'classFlags',docId),data);
+      const idx=classFlags.findIndex(f=>f.id===docId);
+      if(idx>=0) classFlags[idx]={...classFlags[idx],...data,id:docId};
+    } else {
+      data.createdBy=currentUser.uid;
+      data.createdByName=currentProfile.displayName;
+      data.createdAt=serverTimestamp();
+      const ref=await addDoc(collection(db,'classFlags'),data);
+      classFlags.push({...data,id:ref.id});
+    }
+    closeFlagDialog();
+    // Re-render current tab and grid
+    if(activeTab==='conflicts') renderConflicts();
+    if(activeTab==='my-availability') renderMine();
+    if(activeTab==='instructors'&&selectedInst) renderProfile(document.getElementById('tab-instructors'),selectedInst);
+  }catch(e){
+    errEl.textContent='Error saving: '+e.message;errEl.style.display='block';
+  }
+};
+
+window.deleteFlag=async function(){
+  const docId=document.getElementById('flag-doc-id').value;
+  if(!docId||!confirm('Remove this flag?')) return;
+  try{
+    await deleteDoc(doc(db,'classFlags',docId));
+    classFlags=classFlags.filter(f=>f.id!==docId);
+    closeFlagDialog();
+    if(activeTab==='conflicts') renderConflicts();
+    if(activeTab==='my-availability') renderMine();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+window.resolveFlagById=async function(docId){
+  try{
+    await updateDoc(doc(db,'classFlags',docId),{
+      status:'resolved',updatedBy:currentUser.uid,
+      updatedByName:currentProfile.displayName,updatedAt:serverTimestamp()
+    });
+    const f=classFlags.find(x=>x.id===docId);
+    if(f) f.status='resolved';
+    renderConflicts();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
 // Extract the school year prefix from a class ID (e.g. "25-1081" → "25", "1081" → null)
 function classYear(classId) {
   const m = (classId||'').match(/^(\d{2})-/);

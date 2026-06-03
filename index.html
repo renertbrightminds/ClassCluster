@@ -816,6 +816,23 @@ function processClasses(classes) {
   });
   const searchInput = document.getElementById("search-input");
   if (searchInput) { searchInput.value = ""; document.getElementById("search-clear").classList.remove("visible"); }
+  // Store critical classes in localStorage for availability.html Action items tab
+  try {
+    const criticals = allAnalysed
+      .filter(c => c.health === 'critical')
+      .map(c => ({
+        classId:    c.classId,
+        className:  c.className,
+        day:        c.day,
+        time:       c.time,
+        instructor: c.instructor,
+        shadows:    c.shadows||[],
+        delivery:   c.delivery,
+        alerts:     c.alerts.filter(a=>a.level==='danger'),
+      }));
+    localStorage.setItem('bm_critical_classes', JSON.stringify(criticals));
+  } catch(e) {}
+
   setTimeout(function(){
     renderSummary(allAnalysed);
     renderCards(allAnalysed);
