@@ -1587,24 +1587,24 @@ const ROOMS = [
 function renderClassroom(){
   const el = document.getElementById('tab-classroom');
 
-  // In-person classes with a known room
+  // Load class stats from ClassCluster localStorage
+  let classStatsMap = {};
+  try {
+    const stored = localStorage.getItem('bm_class_stats');
+    if(stored) JSON.parse(stored).forEach(c=>{ classStatsMap[c.classId]=c; });
+  } catch(e){}
+
+  // In-person classes
   const ipClasses = allClasses.filter(c => c.delivery === 'in-person');
   const knownRoomIds = new Set(ROOMS.map(r=>r.id));
+  const hwWithRoom = hwSessions.filter(s => s.room && knownRoomIds.has((s.room||'').toUpperCase()));
 
-  // HW sessions with a room
-  const hwWithRoom = hwSessions.filter(s =>
-    s.room && knownRoomIds.has((s.room||'').toUpperCase())
-  );
-
-  // All rooms used by classes or HW sessions, always show base 6
+  // Rooms to show: always base 6, plus any extras in use
   const usedRooms = new Set([
     ...ipClasses.map(c=>(c.room||'').toUpperCase()),
     ...hwWithRoom.map(s=>(s.room||'').toUpperCase()),
   ].filter(r=>r&&r!=='ZOOM'&&!r.startsWith('ZOOM')));
-  const activeRooms = ROOMS.filter(r => {
-    const base = ['P1','P2','P3','P4','P5','P6'];
-    return base.includes(r.id) || usedRooms.has(r.id);
-  });
+  const activeRooms = ROOMS.filter(r => ['P1','P2','P3','P4','P5','P6'].includes(r.id) || usedRooms.has(r.id));
 
   // Unassigned in-person classes
   const unassigned = ipClasses.filter(c => {
@@ -1612,128 +1612,183 @@ function renderClassroom(){
     return !room || (!knownRoomIds.has(room) && room !== 'ZOOM' && !room.startsWith('ZOOM'));
   });
 
+  // Helper: convert "H:MM" to minutes from midnight
+  function tm(t){ const m=(t||'').match(/(\d+):(\d+)/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
+
+  // Grade display helpers
+  const GRADE_LABELS = ['JK','SK','1','2','3','4','5','6','7','8','9','10','11','12'];
+  function gradeLabel(g){ return GRADE_LABELS[g+2] || String(g); }
+  function abilityLabel(v){
+    const BOOK_LEVEL_MAP=[
+      {name:'KJr',min:-1,max:-0.5},{name:'KSr',min:-0.5,max:0},
+      {name:'1A',min:0,max:0.5},{name:'1A R',min:0.5,max:1},
+      {name:'1B',min:1,max:1.5},{name:'1B R',min:1.5,max:2},
+      {name:'2A',min:2,max:2.5},{name:'2B',min:2.5,max:3},
+      {name:'2C',min:3,max:3.5},{name:'2D',min:3.5,max:4},
+      {name:'3A',min:4,max:4.5},{name:'3B',min:4.5,max:5},
+      {name:'3C',min:5,max:5.5},{name:'3D',min:5.5,max:6},
+      {name:'4A',min:6,max:7},{name:'4B',min:7,max:8},
+      {name:'Bk5',min:8,max:9},{name:'Bk6',min:9,max:10},
+      {name:'Bk7',min:10,max:11},{name:'Bk8',min:11,max:12},
+      {name:'D1',min:11.5,max:12},{name:'D2',min:12,max:12.25},
+      {name:'M10',min:12.25,max:14},{name:'M20',min:14,max:16},
+      {name:'M30',min:16,max:18},{name:'M31',min:18,max:20},
+    ];
+    for(const b of BOOK_LEVEL_MAP){ if(v>=b.min&&v<b.max) return b.name; }
+    return v.toFixed(1);
+  }
+
+  // Pixel height per minute — base unit for block sizing
+  const PX_PER_MIN = 1.8;
+  const SLOT_HEIGHT = 15 * PX_PER_MIN; // height of one 15-min slot label row
+
   el.innerHTML = DAYS.map((day, dayIdx) => {
     const dayClasses = ipClasses.filter(c =>
-      (c.day||'').toLowerCase().startsWith(day.toLowerCase()) && knownRoomIds.has((c.room||'').toUpperCase())
+      (c.day||'').toLowerCase().startsWith(day.toLowerCase()) &&
+      knownRoomIds.has((c.room||'').toUpperCase())
     );
     const dayHw = hwWithRoom.filter(s =>
       (s.day||'').toLowerCase().startsWith(day.toLowerCase())
     );
-    const daySlots = slotsForDay(day); // ALL slots for the day
+    const allSlots = slotsForDay(day);
+    if(!allSlots.length) return '';
 
-    // Build slot→room→[items] map for classes
-    const grid = {};
-    daySlots.forEach(slot => { grid[slot] = {}; });
-
-    dayClasses.forEach(cls => {
-      const room = (cls.room||'').toUpperCase();
-      const m = (cls.time||'').match(/(\d+):(\d+)/);
-      if(!m) return;
-      let mins = parseInt(m[1])*60+parseInt(m[2]);
-      for(let i=0;i<4;i++){
-        const h=Math.floor(mins/60), mn=mins%60;
-        const slot=`${h}:${mn.toString().padStart(2,'0')}`;
-        if(grid[slot]){
-          if(!grid[slot][room]) grid[slot][room]=[];
-          grid[slot][room].push({type:'class', cls});
-        }
-        mins+=15;
-      }
-    });
-
-    // Add HW sessions to grid
-    dayHw.forEach(s => {
-      const room = (s.room||'').toUpperCase();
-      const sm = (s.windowStart||'').match(/(\d+):(\d+)/);
-      const em = (s.windowEnd||'').match(/(\d+):(\d+)/);
-      if(!sm||!em) return;
-      let mins = parseInt(sm[1])*60+parseInt(sm[2]);
-      const endMins = parseInt(em[1])*60+parseInt(em[2]);
-      while(mins < endMins){
-        const h=Math.floor(mins/60), mn=mins%60;
-        const slot=`${h}:${mn.toString().padStart(2,'0')}`;
-        if(grid[slot]){
-          if(!grid[slot][room]) grid[slot][room]=[];
-          grid[slot][room].push({type:'hw', session:s});
-        }
-        mins+=15;
-      }
-    });
+    const dayStart = tm(allSlots[0]);
+    const dayEnd   = tm(allSlots[allSlots.length-1]) + 15;
+    const totalMins = dayEnd - dayStart;
+    const gridHeight = totalMins * PX_PER_MIN;
 
     const totalItems = dayClasses.length + dayHw.length;
-    const collapseId = `cr-day-${day}`;
+    const collapseId = 'cr-day-' + day;
 
-    return `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
-      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);cursor:pointer;"
-           onclick="toggleDaySection('${collapseId}')">
-        <div style="display:flex;align-items:center;gap:10px;">
-          <span style="font-weight:700;font-size:14px;">${day}</span>
-          <span style="font-size:12px;color:var(--muted);">${dayClasses.length} class${dayClasses.length!==1?'es':''}${dayHw.length?' · '+dayHw.length+' HW session'+( dayHw.length!==1?'s':''):''}</span>
-        </div>
-        <span id="${collapseId}-icon" style="color:var(--muted);font-size:12px;">${dayIdx===0?'▲':'▼'}</span>
-      </div>
-      <div id="${collapseId}" style="display:${dayIdx===0?'block':'none'};overflow-x:auto;">
-        <table style="border-collapse:collapse;min-width:100%;font-size:12px;">
-          <thead>
-            <tr>
-              <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;">Time</th>
-              ${activeRooms.map(r=>`
-              <th style="padding:8px 12px;text-align:center;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap;color:${r.color};">
-                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${r.color};margin-right:5px;vertical-align:middle;"></span>${r.label}
-              </th>`).join('')}
-            </tr>
-          </thead>
-          <tbody>
-            ${daySlots.map(slot=>{
-              const rowItems = activeRooms.map(r => (grid[slot]||{})[r.id]||[]);
-              const rowHasContent = rowItems.some(items=>items.length>0);
-              const rowBg = rowHasContent ? '' : 'background:rgba(0,0,0,.015);';
-              return `<tr style="${rowBg}">
-                <td style="padding:5px 12px;font-size:11px;color:var(--muted);white-space:nowrap;border-bottom:1px solid #0a0f18;position:sticky;left:0;background:var(--bg);">${slot}</td>
-                ${activeRooms.map(r=>{
-                  const items = (grid[slot]||{})[r.id]||[];
-                  const hasClass = items.some(i=>i.type==='class');
-                  const hasHw = items.some(i=>i.type==='hw');
-                  const conflict = items.length > 1 && items.filter(i=>i.type==='class').length > 1;
-                  const bg = items.length
-                    ? (conflict ? 'rgba(248,81,73,.2)' : hasHw && !hasClass ? 'rgba(20,184,166,.12)' : r.light)
-                    : 'transparent';
-                  const borderStyle = conflict ? 'outline:1px solid rgba(248,81,73,.5);' : '';
-                  return `<td style="padding:4px 8px;border-bottom:1px solid #0a0f18;background:${bg};${borderStyle}min-width:120px;vertical-align:top;">
-                    ${items.map(item=>{
-                      if(item.type==='class'){
-                        const instShort=(item.cls.instructor||'').split(' ')[0];
-                        const code=(item.cls.classId||'').replace(/^\d{2}-/,'');
-                        return `<div style="font-size:11px;font-weight:600;color:${r.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.cls.classId} · ${item.cls.instructor||''}">${code}${instShort?' · '+instShort:''}</div>`;
-                      } else {
-                        const s=item.session;
-                        const host=(s.instructors||[]).find(i=>i.host);
-                        return `<div style="font-size:11px;font-weight:500;color:#2dd4bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${s.name}${host?' · '+host.displayName:''}">HW${host?' · '+host.displayName.split(' ')[0]:''}</div>`;
-                      }
-                    }).join('')}
-                    ${conflict?'<div style="font-size:9px;color:#ffa198;font-weight:700;">⚠ CONFLICT</div>':''}
-                  </td>`;
-                }).join('')}
-              </tr>`;
-            }).join('')}
-          </tbody>
-        </table>
-      </div>
-    </div>`;
+    // Time axis labels
+    const timeAxis = allSlots.filter((_,i)=>i%4===0).map(slot=>{
+      const mins = tm(slot) - dayStart;
+      return '<div style="position:absolute;left:0;top:' + (mins*PX_PER_MIN) + 'px;font-size:10px;color:var(--muted);white-space:nowrap;transform:translateY(-50%);">' + slot + '</div>';
+    }).join('');
+
+    // Grid lines
+    const gridLines = allSlots.map(slot=>{
+      const mins = tm(slot) - dayStart;
+      const isHour = slot.endsWith(':00');
+      return '<div style="position:absolute;left:0;right:0;top:' + (mins*PX_PER_MIN) + 'px;border-top:' + (isHour?'1px solid var(--border)':'1px solid rgba(255,255,255,.04)') + ';pointer-events:none;"></div>';
+    }).join('');
+
+    // Build blocks for each room
+    const roomCols = activeRooms.map(room => {
+      const blocks = [];
+
+      // Regular classes
+      dayClasses.filter(c=>(c.room||'').toUpperCase()===room.id).forEach(cls=>{
+        const startMins = tm(cls.time);
+        if(startMins===null) return;
+        const duration = 60; // standard class duration
+        const top = (startMins - dayStart) * PX_PER_MIN;
+        const height = duration * PX_PER_MIN - 2;
+        const stats = classStatsMap[cls.classId];
+        const instFirst = (cls.instructor||'').split(' ')[0];
+        const code = (cls.classId||'').replace(/^\d{2}-/,'');
+        const hasFlag = classFlags.find(f=>f.classId===cls.classId);
+        const healthColor = stats?.health==='critical'?'#f85149':stats?.health==='warning'?'#d29922':null;
+
+        const statsHtml = stats?.stats ? [
+          '<div style="font-size:9px;opacity:.85;margin-top:2px;">',
+          'Gr ' + gradeLabel(stats.stats.minGrade) + '–' + gradeLabel(stats.stats.maxGrade),
+          ' (avg ' + gradeLabel(Math.round(stats.stats.meanGrade)) + ')',
+          '</div>',
+          '<div style="font-size:9px;opacity:.85;">',
+          'Lv ' + abilityLabel(stats.stats.minAb) + '–' + abilityLabel(stats.stats.maxAb),
+          ' (avg ' + abilityLabel(stats.stats.meanAbility) + ')',
+          '</div>',
+        ].join('') : '';
+
+        blocks.push(
+          '<div onclick="openFlagDialog(\'' + cls.classId + '\')" ' +
+          'style="position:absolute;left:2px;right:2px;top:' + top + 'px;height:' + height + 'px;' +
+          'background:' + room.color + ';border-radius:5px;padding:4px 6px;cursor:pointer;overflow:hidden;' +
+          'box-shadow:0 1px 3px rgba(0,0,0,.3);" ' +
+          'title="' + cls.classId + ' · ' + (cls.instructor||'') + '">' +
+          '<div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
+          code + (instFirst?' · '+instFirst:'') +
+          (hasFlag?'<span style="float:right;font-size:9px;background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;margin-left:4px;">' +
+            (hasFlag.status==='urgent'?'⚠':hasFlag.status==='planned'?'📋':'●') + '</span>':'') +
+          '</div>' +
+          (healthColor?'<div style="font-size:9px;color:'+healthColor+';font-weight:600;">' + (stats.health==='critical'?'Critical':'Warning') + '</div>':'') +
+          '<div style="color:rgba(255,255,255,.85);">' + statsHtml + '</div>' +
+          '</div>'
+        );
+      });
+
+      // HW sessions
+      dayHw.filter(s=>(s.room||'').toUpperCase()===room.id).forEach(s=>{
+        const startMins = tm(s.windowStart);
+        const endMins   = tm(s.windowEnd);
+        if(startMins===null||endMins===null) return;
+        const top    = (startMins - dayStart) * PX_PER_MIN;
+        const height = (endMins - startMins) * PX_PER_MIN - 2;
+        const host   = (s.instructors||[]).find(i=>i.host);
+
+        blocks.push(
+          '<div style="position:absolute;left:2px;right:2px;top:' + top + 'px;height:' + height + 'px;' +
+          'background:rgba(20,184,166,.7);border-radius:5px;padding:4px 6px;overflow:hidden;' +
+          'box-shadow:0 1px 3px rgba(0,0,0,.3);" title="' + s.name + '">' +
+          '<div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">HW Support</div>' +
+          (host?'<div style="font-size:9px;color:rgba(255,255,255,.85);">' + host.displayName.split(' ')[0] + ' (host)</div>':'') +
+          '<div style="font-size:9px;color:rgba(255,255,255,.85);">' + s.windowStart + '–' + s.windowEnd + '</div>' +
+          '</div>'
+        );
+      });
+
+      return '<div style="flex:1;min-width:110px;position:relative;height:' + gridHeight + 'px;border-left:1px solid var(--border);">' +
+        blocks.join('') +
+        '</div>';
+    }).join('');
+
+    return '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);cursor:pointer;" onclick="toggleDaySection(\'' + collapseId + '\')">' +
+        '<div style="display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-weight:700;font-size:14px;">' + day + '</span>' +
+          '<span style="font-size:12px;color:var(--muted);">' + dayClasses.length + ' class' + (dayClasses.length!==1?'es':'') + (dayHw.length?' · '+dayHw.length+' HW':'') + '</span>' +
+        '</div>' +
+        '<span id="' + collapseId + '-icon" style="color:var(--muted);font-size:12px;">' + (dayIdx===0?'▲':'▼') + '</span>' +
+      '</div>' +
+      '<div id="' + collapseId + '" style="display:' + (dayIdx===0?'block':'none') + ';overflow-x:auto;">' +
+        '<div style="display:flex;padding:8px 0;">' +
+          // Time axis
+          '<div style="width:44px;flex-shrink:0;position:relative;height:' + gridHeight + 'px;">' + timeAxis + '</div>' +
+          // Room column headers + body
+          '<div style="flex:1;display:flex;flex-direction:column;">' +
+            // Headers
+            '<div style="display:flex;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:4px;">' +
+              activeRooms.map(r=>
+                '<div style="flex:1;min-width:110px;text-align:center;font-size:12px;font-weight:700;color:' + r.color + ';border-left:1px solid var(--border);padding:4px;">' +
+                '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + r.color + ';margin-right:4px;vertical-align:middle;"></span>' + r.label +
+                '</div>'
+              ).join('') +
+            '</div>' +
+            // Grid + blocks
+            '<div style="display:flex;position:relative;">' +
+              // Grid lines overlay
+              '<div style="position:absolute;inset:0;pointer-events:none;">' + gridLines + '</div>' +
+              roomCols +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
   }).join('')
-  + (unassigned.length ? `
-    <div style="margin-top:16px;">
-      <div class="section-label" style="margin-bottom:10px;color:var(--amber);">Unassigned in-person classes (${unassigned.length})</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px;">
-        ${unassigned.map(cls=>`
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;">
-          <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
-          <span style="color:var(--muted);margin-left:6px;">${cls.day||''} ${cls.time||''}</span>
-          <span style="color:var(--muted);margin-left:6px;">${cls.instructor||''}</span>
-        </div>`).join('')}
-      </div>
-    </div>` : '');
+  + (unassigned.length ? '<div style="margin-top:16px;"><div class="section-label" style="margin-bottom:10px;color:var(--amber);">Unassigned in-person classes (' + unassigned.length + ')</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' +
+    unassigned.map(cls=>
+      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;">' +
+      '<span style="font-weight:600;color:var(--accent);">' + cls.classId + '</span>' +
+      '<span style="color:var(--muted);margin-left:6px;">' + (cls.day||'') + ' ' + (cls.time||'') + '</span>' +
+      '<span style="color:var(--muted);margin-left:6px;">' + (cls.instructor||'') + '</span>' +
+      '</div>'
+    ).join('') +
+    '</div></div>' : '');
 }
+
+
 
 
 window.doSignOut=async()=>{
