@@ -1579,18 +1579,26 @@ const ROOMS = [
 function renderClassroom(){
   const el = document.getElementById('tab-classroom');
 
-  // Only in-person classes (by delivery field)
+  // In-person classes with a known room
   const ipClasses = allClasses.filter(c => c.delivery === 'in-person');
+  const knownRoomIds = new Set(ROOMS.map(r=>r.id));
 
-  // Get all rooms actually used, plus the base 6
-  const usedRooms = new Set(ipClasses.map(c=>(c.room||'').toUpperCase()).filter(Boolean));
+  // HW sessions with a room
+  const hwWithRoom = hwSessions.filter(s =>
+    s.room && knownRoomIds.has((s.room||'').toUpperCase())
+  );
+
+  // All rooms used by classes or HW sessions, always show base 6
+  const usedRooms = new Set([
+    ...ipClasses.map(c=>(c.room||'').toUpperCase()),
+    ...hwWithRoom.map(s=>(s.room||'').toUpperCase()),
+  ].filter(r=>r&&r!=='ZOOM'&&!r.startsWith('ZOOM')));
   const activeRooms = ROOMS.filter(r => {
     const base = ['P1','P2','P3','P4','P5','P6'];
     return base.includes(r.id) || usedRooms.has(r.id);
   });
 
-  // Classes without a physical room (exclude online/zoom)
-  const knownRoomIds = new Set(ROOMS.map(r=>r.id));
+  // Unassigned in-person classes
   const unassigned = ipClasses.filter(c => {
     const room = (c.room||'').toUpperCase();
     return !room || (!knownRoomIds.has(room) && room !== 'ZOOM' && !room.startsWith('ZOOM'));
@@ -1598,34 +1606,53 @@ function renderClassroom(){
 
   el.innerHTML = DAYS.map((day, dayIdx) => {
     const dayClasses = ipClasses.filter(c =>
-      (c.day||'').toLowerCase().startsWith(day.toLowerCase()) && c.room
+      (c.day||'').toLowerCase().startsWith(day.toLowerCase()) && knownRoomIds.has((c.room||'').toUpperCase())
     );
-    const daySlots = slotsForDay(day);
-    const hasContent = dayClasses.length > 0;
+    const dayHw = hwWithRoom.filter(s =>
+      (s.day||'').toLowerCase().startsWith(day.toLowerCase())
+    );
+    const daySlots = slotsForDay(day); // ALL slots for the day
 
-    // Build slot→room→[classes] map
+    // Build slot→room→[items] map for classes
     const grid = {};
     daySlots.forEach(slot => { grid[slot] = {}; });
+
     dayClasses.forEach(cls => {
       const room = (cls.room||'').toUpperCase();
       const m = (cls.time||'').match(/(\d+):(\d+)/);
       if(!m) return;
       let mins = parseInt(m[1])*60+parseInt(m[2]);
       for(let i=0;i<4;i++){
-        const h=Math.floor(mins/60),mn=mins%60;
+        const h=Math.floor(mins/60), mn=mins%60;
         const slot=`${h}:${mn.toString().padStart(2,'0')}`;
-        if(!grid[slot]) grid[slot]={};
-        if(!grid[slot][room]) grid[slot][room]=[];
-        grid[slot][room].push(cls);
+        if(grid[slot]){
+          if(!grid[slot][room]) grid[slot][room]=[];
+          grid[slot][room].push({type:'class', cls});
+        }
         mins+=15;
       }
     });
 
-    // Only show slots where at least one room has a class
-    const activeSlots = daySlots.filter(slot =>
-      Object.values(grid[slot]||{}).some(arr=>arr.length>0)
-    );
+    // Add HW sessions to grid
+    dayHw.forEach(s => {
+      const room = (s.room||'').toUpperCase();
+      const sm = (s.windowStart||'').match(/(\d+):(\d+)/);
+      const em = (s.windowEnd||'').match(/(\d+):(\d+)/);
+      if(!sm||!em) return;
+      let mins = parseInt(sm[1])*60+parseInt(sm[2]);
+      const endMins = parseInt(em[1])*60+parseInt(em[2]);
+      while(mins < endMins){
+        const h=Math.floor(mins/60), mn=mins%60;
+        const slot=`${h}:${mn.toString().padStart(2,'0')}`;
+        if(grid[slot]){
+          if(!grid[slot][room]) grid[slot][room]=[];
+          grid[slot][room].push({type:'hw', session:s});
+        }
+        mins+=15;
+      }
+    });
 
+    const totalItems = dayClasses.length + dayHw.length;
     const collapseId = `cr-day-${day}`;
 
     return `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
@@ -1633,44 +1660,56 @@ function renderClassroom(){
            onclick="toggleDaySection('${collapseId}')">
         <div style="display:flex;align-items:center;gap:10px;">
           <span style="font-weight:700;font-size:14px;">${day}</span>
-          <span style="font-size:12px;color:var(--muted);">${dayClasses.length} class${dayClasses.length!==1?'es':''} assigned to rooms</span>
+          <span style="font-size:12px;color:var(--muted);">${dayClasses.length} class${dayClasses.length!==1?'es':''}${dayHw.length?' · '+dayHw.length+' HW session'+( dayHw.length!==1?'s':''):''}</span>
         </div>
         <span id="${collapseId}-icon" style="color:var(--muted);font-size:12px;">${dayIdx===0?'▲':'▼'}</span>
       </div>
       <div id="${collapseId}" style="display:${dayIdx===0?'block':'none'};overflow-x:auto;">
-        ${!activeSlots.length
-          ? '<div class="empty" style="padding:16px;">No classes assigned to rooms on this day.</div>'
-          : `<table style="border-collapse:collapse;min-width:100%;font-size:12px;">
-              <thead>
-                <tr>
-                  <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;">Time</th>
-                  ${activeRooms.map(r=>`
-                  <th style="padding:8px 12px;text-align:center;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap;color:${r.color};">
-                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${r.color};margin-right:5px;vertical-align:middle;"></span>${r.label}
-                  </th>`).join('')}
-                </tr>
-              </thead>
-              <tbody>
-                ${activeSlots.map(slot=>`
-                <tr>
-                  <td style="padding:5px 12px;font-size:11px;color:var(--muted);white-space:nowrap;border-bottom:1px solid #0a0f18;position:sticky;left:0;background:var(--bg);">${slot}</td>
-                  ${activeRooms.map(r=>{
-                    const classes = (grid[slot]||{})[r.id]||[];
-                    const conflict = classes.length > 1;
-                    const bg = classes.length ? (conflict?'rgba(248,81,73,.2)':r.light) : 'transparent';
-                    const border = conflict ? '1px solid rgba(248,81,73,.5)' : 'none';
-                    return `<td style="padding:4px 8px;border-bottom:1px solid #0a0f18;background:${bg};border:${border};min-width:120px;vertical-align:top;">
-                      ${classes.map(cls=>{
-                        const instShort=(cls.instructor||'').split(' ')[0];
-                        const code=(cls.classId||'').replace(/^\d{2}-/,'');
-                        return `<div style="font-size:11px;font-weight:600;color:${r.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cls.classId} · ${cls.instructor||''}">${code}${instShort?' · '+instShort:''}</div>`;
-                      }).join('')}
-                      ${conflict?'<div style="font-size:9px;color:#ffa198;font-weight:700;">⚠ CONFLICT</div>':''}
-                    </td>`;
-                  }).join('')}
-                </tr>`).join('')}
-              </tbody>
-            </table>`}
+        <table style="border-collapse:collapse;min-width:100%;font-size:12px;">
+          <thead>
+            <tr>
+              <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;">Time</th>
+              ${activeRooms.map(r=>`
+              <th style="padding:8px 12px;text-align:center;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap;color:${r.color};">
+                <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${r.color};margin-right:5px;vertical-align:middle;"></span>${r.label}
+              </th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            ${daySlots.map(slot=>{
+              const rowItems = activeRooms.map(r => (grid[slot]||{})[r.id]||[]);
+              const rowHasContent = rowItems.some(items=>items.length>0);
+              const rowBg = rowHasContent ? '' : 'background:rgba(0,0,0,.015);';
+              return `<tr style="${rowBg}">
+                <td style="padding:5px 12px;font-size:11px;color:var(--muted);white-space:nowrap;border-bottom:1px solid #0a0f18;position:sticky;left:0;background:var(--bg);">${slot}</td>
+                ${activeRooms.map(r=>{
+                  const items = (grid[slot]||{})[r.id]||[];
+                  const hasClass = items.some(i=>i.type==='class');
+                  const hasHw = items.some(i=>i.type==='hw');
+                  const conflict = items.length > 1 && items.filter(i=>i.type==='class').length > 1;
+                  const bg = items.length
+                    ? (conflict ? 'rgba(248,81,73,.2)' : hasHw && !hasClass ? 'rgba(20,184,166,.12)' : r.light)
+                    : 'transparent';
+                  const borderStyle = conflict ? 'outline:1px solid rgba(248,81,73,.5);' : '';
+                  return `<td style="padding:4px 8px;border-bottom:1px solid #0a0f18;background:${bg};${borderStyle}min-width:120px;vertical-align:top;">
+                    ${items.map(item=>{
+                      if(item.type==='class'){
+                        const instShort=(item.cls.instructor||'').split(' ')[0];
+                        const code=(item.cls.classId||'').replace(/^\d{2}-/,'');
+                        return `<div style="font-size:11px;font-weight:600;color:${r.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${item.cls.classId} · ${item.cls.instructor||''}">${code}${instShort?' · '+instShort:''}</div>`;
+                      } else {
+                        const s=item.session;
+                        const host=(s.instructors||[]).find(i=>i.host);
+                        return `<div style="font-size:11px;font-weight:500;color:#2dd4bf;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${s.name}${host?' · '+host.displayName:''}">HW${host?' · '+host.displayName.split(' ')[0]:''}</div>`;
+                      }
+                    }).join('')}
+                    ${conflict?'<div style="font-size:9px;color:#ffa198;font-weight:700;">⚠ CONFLICT</div>':''}
+                  </td>`;
+                }).join('')}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
       </div>
     </div>`;
   }).join('')
@@ -1687,6 +1726,7 @@ function renderClassroom(){
       </div>
     </div>` : '');
 }
+
 
 window.doSignOut=async()=>{
   try { localStorage.removeItem('bm_session'); } catch(e){}

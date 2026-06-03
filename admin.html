@@ -381,6 +381,12 @@ function renderPage() {
             </div>
           </div>
         </div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group">
+            <label>Room (for in-person sessions)</label>
+            <input type="text" id="hw-room" placeholder="e.g. P1"/>
+          </div>
+        </div>
         <div style="margin-bottom:12px;">
           <div class="section-label" style="margin-bottom:10px;">Instructors</div>
           <div id="hw-inst-rows"></div>
@@ -869,7 +875,7 @@ function renderHwList() {
           <button class="btn btn-danger" style="font-size:11px;padding:4px 10px;" onclick="deleteHwSession('${s.id}')">Delete</button>
         </div>
       </div>
-      <div class="hw-session-meta">${s.day} · ${s.windowStart}–${s.windowEnd} · ${s.delivery}</div>
+      <div class="hw-session-meta">${s.day} · ${s.windowStart}–${s.windowEnd} · ${s.delivery}${s.room?" · "+s.room:""}</div>
       <div>${instRows}</div>
     </div>`;
   }).join('');
@@ -910,6 +916,7 @@ window.saveHwSession = async function() {
   const delivery = document.getElementById('hw-delivery').value;
   const winStart = document.getElementById('hw-win-start').value.trim();
   const winEnd   = document.getElementById('hw-win-end').value.trim();
+  const room     = document.getElementById('hw-room').value.trim().toUpperCase();
 
   if(!name || !winStart || !winEnd) {
     showMsg(errEl, 'Name, window start, and window end are required.'); return;
@@ -931,7 +938,7 @@ window.saveHwSession = async function() {
   if(!instructors.length) { showMsg(errEl, 'Add at least one instructor.'); return; }
   if(!instructors.some(i => i.host)) { showMsg(errEl, 'At least one instructor must be designated as host.'); return; }
 
-  const data = { name, day, delivery, windowStart: winStart, windowEnd: winEnd, instructors, updatedAt: serverTimestamp() };
+  const data = { name, day, delivery, room: room||'', windowStart: winStart, windowEnd: winEnd, instructors, updatedAt: serverTimestamp() };
 
   try {
     if(editingHwId) {
@@ -958,6 +965,7 @@ window.editHwSession = function(id) {
   document.getElementById('hw-delivery').value = s.delivery;
   document.getElementById('hw-win-start').value = s.windowStart;
   document.getElementById('hw-win-end').value   = s.windowEnd;
+  document.getElementById('hw-room').value       = s.room||'';
   document.getElementById('hw-inst-rows').innerHTML = '';
   hwInstCount = 0;
   (s.instructors||[]).forEach(i => addHwInstRow(i));
@@ -975,7 +983,7 @@ window.deleteHwSession = async function(id) {
 window.clearHwForm = function() {
   editingHwId = null;
   document.getElementById('hw-form-title').textContent = 'New HW Support session';
-  ['hw-name','hw-win-start','hw-win-end'].forEach(id => {
+  ['hw-name','hw-win-start','hw-win-end','hw-room'].forEach(id => {
     const el = document.getElementById(id); if(el) el.value = '';
   });
   document.getElementById('hw-inst-rows').innerHTML = '';
