@@ -209,6 +209,14 @@ function toggleTheme(){
   if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
 }
 applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+window.toggleDaySection=function(id){
+  var el=document.getElementById(id);
+  var icon=document.getElementById(id+'-icon');
+  if(!el) return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(icon) icon.textContent=isOpen?'▼':'▲';
+};
 </script>
 </head>
 <body>
@@ -1745,3 +1753,12 @@ window.toggleDaySection=function(id){
 </script>
 </body>
 </html>
+window.toggleDaySection=function(id){
+  var el=document.getElementById(id);
+  var icon=document.getElementById(id+'-icon');
+  if(!el) return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(icon) icon.textContent=isOpen?'\u25bc':'\u25b2';
+};
+
