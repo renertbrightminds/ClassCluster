@@ -230,6 +230,7 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
       <button class="tab admin-only" onclick="showTab('instructors',this)" style="display:none;">All instructors</button>
       <button class="tab admin-only" onclick="showTab('rollup',this)" style="display:none;">Scheduling</button>
       <button class="tab admin-only" onclick="showTab('conflicts',this)" style="display:none;">Action items</button>
+      <button class="tab admin-only" onclick="showTab('classroom',this)" style="display:none;">Classroom</button>
       <button class="tab admin-only" onclick="showTab('shadows',this)" style="display:none;">Shadow tracker</button>
     </div>
     <div id="tab-my-availability"></div>
@@ -237,6 +238,7 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
     <div id="tab-rollup" style="display:none;"></div>
     <div id="tab-conflicts" style="display:none;"></div>
     <div id="tab-shadows" style="display:none;"></div>
+    <div id="tab-classroom" style="display:none;"></div>
   </div>
 </main>
 
@@ -399,7 +401,7 @@ window.addEventListener('popstate', function(e){
     document.querySelectorAll(".tab").forEach(t=>{
       if(t.getAttribute("onclick")&&t.getAttribute("onclick").includes("'"+state.tab+"'")) t.classList.add("active");
     });
-    ["my-availability","instructors","rollup","conflicts","shadows"].forEach(t=>{
+    ["my-availability","instructors","rollup","conflicts","shadows","classroom"].forEach(t=>{
       document.getElementById("tab-"+t).style.display=t===state.tab?"":"none";
     });
     if(state.inst){
@@ -487,6 +489,7 @@ function parseCSV(text){
   const ci=hdr.indexOf("classid")>=0?hdr.indexOf("classid"):hdr.indexOf("class");
   const di=hdr.indexOf("day"),ti=hdr.indexOf("time"),ii=hdr.indexOf("instructor");
   const shi=hdr.indexOf("shadows"),deli=hdr.indexOf("delivery"),oi=hdr.indexOf("comment");
+  const ri=hdr.indexOf("room");
   if (ci<0) return [];
   const map={},meta={};
   for (let i=1;i<lines.length;i++){
@@ -497,6 +500,7 @@ function parseCSV(text){
       day:di>=0?c[di]:"",time:ti>=0?c[ti]:"",instructor:ii>=0?c[ii]:"",
       shadows:shi>=0?c[shi].split(";").map(s=>s.trim()).filter(Boolean):[],
       delivery:deli>=0?(c[deli].toLowerCase().includes("online")?"online":"in-person"):"",
+      room:ri>=0?c[ri].trim():"",
       comment:oi>=0?c[oi]:""};
     }
     const ni=hdr.indexOf("name"),gi=hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
@@ -529,7 +533,7 @@ window.showTab=function(tab,btn,pushState){
   else document.querySelectorAll(".tab").forEach(t=>{
     if(t.getAttribute("onclick")&&t.getAttribute("onclick").includes("'"+tab+"'")) t.classList.add("active");
   });
-  ["my-availability","instructors","rollup","conflicts","shadows"].forEach(t=>{
+  ["my-availability","instructors","rollup","conflicts","shadows","classroom"].forEach(t=>{
     document.getElementById("tab-"+t).style.display=t===tab?"":"none";
   });
   renderTab(tab);
@@ -542,6 +546,7 @@ function renderTab(t){
   else if(t==="rollup") renderRollup();
   else if(t==="conflicts") renderConflicts();
   else if(t==="shadows") renderShadows();
+  else if(t==="classroom") renderClassroom();
 }
 
 // ── MY AVAILABILITY ──
@@ -1556,6 +1561,132 @@ window.resetProfileDraft=function(uid){
   const stat=document.getElementById('prof-save-status');
   if(stat){stat.textContent='Reset to last saved';stat.className='save-status';}
 };
+
+
+// ── CLASSROOM SCHEDULE ──
+const ROOMS = [
+  {id:'P1', label:'P1', color:'#ef4444', light:'rgba(239,68,68,.15)'},
+  {id:'P2', label:'P2', color:'#f97316', light:'rgba(249,115,22,.15)'},
+  {id:'P3', label:'P3', color:'#eab308', light:'rgba(234,179,8,.15)'},
+  {id:'P4', label:'P4', color:'#22c55e', light:'rgba(34,197,94,.15)'},
+  {id:'P5', label:'P5', color:'#3b82f6', light:'rgba(59,130,246,.15)'},
+  {id:'P6', label:'P6', color:'#a855f7', light:'rgba(168,85,247,.15)'},
+  // Future rooms — add id/label/color when known
+  {id:'P7', label:'P7 (future)', color:'#6b7280', light:'rgba(107,114,128,.1)'},
+  {id:'P8', label:'P8 (future)', color:'#6b7280', light:'rgba(107,114,128,.1)'},
+];
+
+function renderClassroom(){
+  const el = document.getElementById('tab-classroom');
+
+  // Only in-person classes (by delivery field)
+  const ipClasses = allClasses.filter(c => c.delivery === 'in-person');
+
+  // Get all rooms actually used, plus the base 6
+  const usedRooms = new Set(ipClasses.map(c=>(c.room||'').toUpperCase()).filter(Boolean));
+  const activeRooms = ROOMS.filter(r => {
+    const base = ['P1','P2','P3','P4','P5','P6'];
+    return base.includes(r.id) || usedRooms.has(r.id);
+  });
+
+  // Classes without a physical room (exclude online/zoom)
+  const knownRoomIds = new Set(ROOMS.map(r=>r.id));
+  const unassigned = ipClasses.filter(c => {
+    const room = (c.room||'').toUpperCase();
+    return !room || (!knownRoomIds.has(room) && room !== 'ZOOM' && !room.startsWith('ZOOM'));
+  });
+
+  el.innerHTML = DAYS.map((day, dayIdx) => {
+    const dayClasses = ipClasses.filter(c =>
+      (c.day||'').toLowerCase().startsWith(day.toLowerCase()) && c.room
+    );
+    const daySlots = slotsForDay(day);
+    const hasContent = dayClasses.length > 0;
+
+    // Build slot→room→[classes] map
+    const grid = {};
+    daySlots.forEach(slot => { grid[slot] = {}; });
+    dayClasses.forEach(cls => {
+      const room = (cls.room||'').toUpperCase();
+      const m = (cls.time||'').match(/(\d+):(\d+)/);
+      if(!m) return;
+      let mins = parseInt(m[1])*60+parseInt(m[2]);
+      for(let i=0;i<4;i++){
+        const h=Math.floor(mins/60),mn=mins%60;
+        const slot=`${h}:${mn.toString().padStart(2,'0')}`;
+        if(!grid[slot]) grid[slot]={};
+        if(!grid[slot][room]) grid[slot][room]=[];
+        grid[slot][room].push(cls);
+        mins+=15;
+      }
+    });
+
+    // Only show slots where at least one room has a class
+    const activeSlots = daySlots.filter(slot =>
+      Object.values(grid[slot]||{}).some(arr=>arr.length>0)
+    );
+
+    const collapseId = `cr-day-${day}`;
+
+    return `<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);cursor:pointer;"
+           onclick="toggleDaySection('${collapseId}')">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-weight:700;font-size:14px;">${day}</span>
+          <span style="font-size:12px;color:var(--muted);">${dayClasses.length} class${dayClasses.length!==1?'es':''} assigned to rooms</span>
+        </div>
+        <span id="${collapseId}-icon" style="color:var(--muted);font-size:12px;">${dayIdx===0?'▲':'▼'}</span>
+      </div>
+      <div id="${collapseId}" style="display:${dayIdx===0?'block':'none'};overflow-x:auto;">
+        ${!activeSlots.length
+          ? '<div class="empty" style="padding:16px;">No classes assigned to rooms on this day.</div>'
+          : `<table style="border-collapse:collapse;min-width:100%;font-size:12px;">
+              <thead>
+                <tr>
+                  <th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);border-bottom:1px solid var(--border);white-space:nowrap;position:sticky;left:0;background:var(--surface);z-index:1;">Time</th>
+                  ${activeRooms.map(r=>`
+                  <th style="padding:8px 12px;text-align:center;font-size:12px;font-weight:700;border-bottom:1px solid var(--border);white-space:nowrap;color:${r.color};">
+                    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${r.color};margin-right:5px;vertical-align:middle;"></span>${r.label}
+                  </th>`).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${activeSlots.map(slot=>`
+                <tr>
+                  <td style="padding:5px 12px;font-size:11px;color:var(--muted);white-space:nowrap;border-bottom:1px solid #0a0f18;position:sticky;left:0;background:var(--bg);">${slot}</td>
+                  ${activeRooms.map(r=>{
+                    const classes = (grid[slot]||{})[r.id]||[];
+                    const conflict = classes.length > 1;
+                    const bg = classes.length ? (conflict?'rgba(248,81,73,.2)':r.light) : 'transparent';
+                    const border = conflict ? '1px solid rgba(248,81,73,.5)' : 'none';
+                    return `<td style="padding:4px 8px;border-bottom:1px solid #0a0f18;background:${bg};border:${border};min-width:120px;vertical-align:top;">
+                      ${classes.map(cls=>{
+                        const instShort=(cls.instructor||'').split(' ')[0];
+                        const code=(cls.classId||'').replace(/^\d{2}-/,'');
+                        return `<div style="font-size:11px;font-weight:600;color:${r.color};white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${cls.classId} · ${cls.instructor||''}">${code}${instShort?' · '+instShort:''}</div>`;
+                      }).join('')}
+                      ${conflict?'<div style="font-size:9px;color:#ffa198;font-weight:700;">⚠ CONFLICT</div>':''}
+                    </td>`;
+                  }).join('')}
+                </tr>`).join('')}
+              </tbody>
+            </table>`}
+      </div>
+    </div>`;
+  }).join('')
+  + (unassigned.length ? `
+    <div style="margin-top:16px;">
+      <div class="section-label" style="margin-bottom:10px;color:var(--amber);">Unassigned in-person classes (${unassigned.length})</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">
+        ${unassigned.map(cls=>`
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;">
+          <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
+          <span style="color:var(--muted);margin-left:6px;">${cls.day||''} ${cls.time||''}</span>
+          <span style="color:var(--muted);margin-left:6px;">${cls.instructor||''}</span>
+        </div>`).join('')}
+      </div>
+    </div>` : '');
+}
 
 window.doSignOut=async()=>{
   try { localStorage.removeItem('bm_session'); } catch(e){}
