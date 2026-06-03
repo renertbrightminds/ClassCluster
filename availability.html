@@ -386,7 +386,7 @@ const STATES = ['none','ip','online','both'];
 const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
 const TITLES = {none:'Unavailable',ip:'In-person only',online:'Online only',both:'Both IP & online'};
 
-let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], hwSessions=[], classFlags=[];
+let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], extraSessions=[], classFlags=[];
 let draftAvail={}, draftDayNotes={}, activeTab='my-availability', selectedInst=null, unsaved=false;
 
 const AVG=[
@@ -468,9 +468,18 @@ onAuthStateChanged(auth, async user=>{
   }
   allClasses=await fetchClasses();
   try{
-    const hwSnap=await getDocs(collection(db,'hwSessions'));
-    hwSessions=hwSnap.docs.map(d=>({id:d.id,...d.data()}));
-  }catch(e){ hwSessions=[]; }
+    // Read from extraSessions (new) and hwSessions (legacy) — merge both
+    const [newSnap, legacySnap] = await Promise.all([
+      getDocs(collection(db,'extraSessions')).catch(()=>({docs:[]})),
+      getDocs(collection(db,'hwSessions')).catch(()=>({docs:[]})),
+    ]);
+    const newDocs = newSnap.docs.map(d=>({id:d.id,...d.data()}));
+    // Legacy docs get type:'hw-support' if not already set
+    const legacyDocs = legacySnap.docs
+      .map(d=>({id:'legacy_'+d.id,...d.data(),type:d.data().type||'hw-support',_legacy:true,_legacyId:d.id}))
+      .filter(d=>!newDocs.some(n=>n._legacyId===d._legacyId)); // skip already-migrated
+    extraSessions=[...newDocs,...legacyDocs];
+  }catch(e){ extraSessions=[]; }
   try{
     const flagSnap=await getDocs(collection(db,'classFlags'));
     classFlags=flagSnap.docs.map(d=>({id:d.id,...d.data()}));
@@ -562,7 +571,7 @@ function renderMine(){
   const el=document.getElementById("tab-my-availability");
   const p=currentProfile, c=ac(p.displayName);
   const {lead,shadow}=classesForProfile(p);
-  const myHwSessions=hwSessions
+  const myHwSessions=extraSessions
     .map(s=>({session:s, inst:(s.instructors||[]).find(i=>i.uid===p.uid)}))
     .filter(x=>x.inst)
     .sort((a,b)=>{
@@ -705,7 +714,7 @@ function buildGrid(wrapperId,avail,editable,targetUid){
       });
     } catch(e){}
     // HW sessions
-    (hwSessions||[]).forEach(s=>{
+    (extraSessions||[]).forEach(s=>{
       const inst=(s.instructors||[]).find(i=>i.uid===profileUid);
       if(!inst) return;
       const day=DAYS.find(d=>(s.day||'').toLowerCase().startsWith(d.toLowerCase()));
@@ -714,7 +723,7 @@ function buildGrid(wrapperId,avail,editable,targetUid){
       if(!sm||!em) return;
       let mins=parseInt(sm[1])*60+parseInt(sm[2]);
       const end=parseInt(em[1])*60+parseInt(em[2]);
-      const label = (s.name||'HW').replace(/homework support/i,'HW').replace(/hw support/i,'HW');
+      const label = sessionLabel(s);
       while(mins<end){
         hw.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, label);
         mins+=15;
@@ -935,7 +944,7 @@ function renderProfile(el,uid){
   const c=ac(p.displayName);
   let lead=[],shadow=[];try{const r=classesForProfile(p);lead=r.lead;shadow=r.shadow;}catch(e){}
   const isOwn=uid===currentUser.uid;
-  const profHwSessions=hwSessions
+  const profHwSessions=extraSessions
     .map(s=>({session:s,inst:(s.instructors||[]).find(i=>i.uid===p.uid)}))
     .filter(x=>x.inst)
     .sort((a,b)=>({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[a.session.day]??9)-({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[b.session.day]??9));
@@ -1001,9 +1010,9 @@ function renderProfile(el,uid){
         ${cls.instructor?`<span style="color:var(--muted);font-size:11px;">Lead: ${cls.instructor}</span>`:''}
       </div>`).join('')}
       ${profHwSessions.map(({session,inst})=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
-        <span style="font-weight:600;color:#2dd4bf;">${session.name}</span>
+        <span style="font-weight:600;color:${sessionColor(session)};">${session.name}</span>
         <span style="color:var(--muted);">${session.day} · ${inst.start}–${inst.end}</span>
-        <span class="pip" style="background:rgba(20,184,166,.2);color:#2dd4bf;">${inst.host?'Host':'HW'}</span>
+        <span class="pip" style="background:rgba(20,184,166,.2);color:${sessionColor(session)};">${inst.host?'Host':sessionLabel(session)}</span>
         <span class="pip ${session.delivery==='online'?'pip-online':'pip-ip'}">${session.delivery==='online'?'🌐':'🏫'}</span>
       </div>`).join('')}
     </div>`:''}
@@ -1039,7 +1048,7 @@ function assignedSlotsForProfile(profile) {
     }
   });
   // Also block HW support session slots for this instructor
-  hwSessions.forEach(s => {
+  extraSessions.forEach(s => {
     const inst = (s.instructors||[]).find(i => i.uid === profile.uid);
     if (!inst) return;
     const day = DAYS.find(d => (s.day||'').toLowerCase().startsWith(d.toLowerCase()));
@@ -1061,7 +1070,7 @@ function assignedSlotsForProfile(profile) {
 
 // Returns HW session info for a profile at a given day|slot key
 function hwSessionForSlot(profile, key) {
-  for (const s of hwSessions) {
+  for (const s of extraSessions) {
     const inst = (s.instructors||[]).find(i => i.uid === profile.uid);
     if (!inst) continue;
     const day = DAYS.find(d => (s.day||'').toLowerCase().startsWith(d.toLowerCase()));
@@ -1571,6 +1580,26 @@ window.resetProfileDraft=function(uid){
 };
 
 
+// ── EXTRA SESSION HELPERS ──
+function sessionLabel(s){
+  return {
+    'hw-support': 'HW',
+    'chess-club':  'Chess',
+  }[s.type||'hw-support'] || s.type || 'Session';
+}
+function sessionColor(s){
+  return {
+    'hw-support': '#2dd4bf',
+    'chess-club':  '#f59e0b',
+  }[s.type||'hw-support'] || '#2dd4bf';
+}
+function sessionFullName(s){
+  return {
+    'hw-support': 'HW Support',
+    'chess-club':  'Chess Club',
+  }[s.type||'hw-support'] || s.name || 'Session';
+}
+
 // ── CLASSROOM SCHEDULE ──
 const ROOMS = [
   {id:'P1', label:'P1', color:'#ef4444', light:'rgba(239,68,68,.15)'},
@@ -1597,7 +1626,7 @@ function renderClassroom(){
   // In-person classes
   const ipClasses = allClasses.filter(c => c.delivery === 'in-person');
   const knownRoomIds = new Set(ROOMS.map(r=>r.id));
-  const hwWithRoom = hwSessions.filter(s => s.room && knownRoomIds.has((s.room||'').toUpperCase()));
+  const hwWithRoom = extraSessions.filter(s => s.room && knownRoomIds.has((s.room||'').toUpperCase()));
 
   // Rooms to show: always base 6, plus any extras in use
   const usedRooms = new Set([
@@ -1731,9 +1760,9 @@ function renderClassroom(){
 
         blocks.push(
           '<div style="position:absolute;left:2px;right:2px;top:' + top + 'px;height:' + height + 'px;' +
-          'background:rgba(20,184,166,.7);border-radius:5px;padding:4px 6px;overflow:hidden;' +
+          'background:' + sessionColor(s) + ';border-radius:5px;padding:4px 6px;overflow:hidden;' +
           'box-shadow:0 1px 3px rgba(0,0,0,.3);" title="' + s.name + '">' +
-          '<div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">HW Support</div>' +
+          '<div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sessionFullName(s) + '</div>' +
           (host?'<div style="font-size:9px;color:rgba(255,255,255,.85);">' + host.displayName.split(' ')[0] + ' (host)</div>':'') +
           '<div style="font-size:9px;color:rgba(255,255,255,.85);">' + s.windowStart + '–' + s.windowEnd + '</div>' +
           '</div>'
