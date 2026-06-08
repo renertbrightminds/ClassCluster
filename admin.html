@@ -343,7 +343,7 @@ function renderPage() {
               <div class="actions">
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
                 ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleRole('${p.uid}','${p.role||'instructor'}')">
-  ${p.role==='super-admin'?'→ Admin':p.role==='admin'?'→ Instructor':'→ Admin'}
+  ${p.role==='super-admin'?'→ Instructor':p.role==='admin'?'→ Super-admin':'→ Admin'}
 </button>`:''}
                 ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>`:''}
               </div>
