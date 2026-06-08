@@ -1283,11 +1283,11 @@ const STATUS_ORDER = {urgent:0, open:1, planned:2, resolved:3};
 
 function renderConflicts(){
   const el=document.getElementById("tab-conflicts");
-  const isAdmin = isAdmin(currentProfile);
+  const isAdminRole = isAdmin(currentProfile);
 
   // Manual flags visible to current user
   const visibleFlags = classFlags.filter(f=>{
-    if(isAdmin) return true;
+    if(isAdminRole) return true;
     const cls = allClasses.find(c=>c.classId===f.classId);
     if(!cls) return false;
     const lead = matchProfile(cls.instructor);
@@ -1299,7 +1299,7 @@ function renderConflicts(){
   let critFromCSV = [];
   try { const s=localStorage.getItem('bm_critical_classes'); if(s) critFromCSV=JSON.parse(s); } catch(e){}
   const visibleCritical = critFromCSV.filter(c=>{
-    if(isAdmin) return true;
+    if(isAdminRole) return true;
     const lead=matchProfile(c.instructor);
     const shadows=(c.shadows||[]).map(s=>matchProfile(s));
     return lead?.uid===currentUser.uid || shadows.some(s=>s?.uid===currentUser.uid);
@@ -1354,7 +1354,7 @@ function renderConflicts(){
               </div>
               <div style="display:flex;gap:6px;flex-wrap:wrap;">
                 <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openFlagDialog('${f.classId}')">Edit</button>
-                ${isAdmin&&f.status!=='resolved'
+                ${isAdminRole&&f.status!=='resolved'
                   ? `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--green);border-color:rgba(63,185,80,.3);" onclick="resolveFlagById('${f.id}')">Mark resolved</button>`
                   : ''}
               </div>

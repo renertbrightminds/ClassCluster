@@ -192,6 +192,8 @@ const db   = getFirestore(app);
 let currentUser = null;
 let allProfiles = [];
 let resetTargetUid = null;
+let isSuperAdmin = false;
+let isAdminUser = false;
 
 onAuthStateChanged(auth, async user => {
   if (!user) { window.location.href = "login.html"; return; }
@@ -206,8 +208,8 @@ onAuthStateChanged(auth, async user => {
     return;
   }
   currentUser = {...user, profile};
-  const isSuperAdmin = profile.role === 'super-admin';
-  const isAdmin = profile.role === 'admin' || profile.role === 'super-admin';
+  isSuperAdmin = profile.role === 'super-admin';
+  isAdminUser  = profile.role === 'admin' || profile.role === 'super-admin';
   document.getElementById("user-name").textContent = profile.displayName;
   await loadAll();
   renderPage();
