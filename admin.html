@@ -233,7 +233,7 @@ function renderPage() {
   main.innerHTML = `
     <div class="page-title">Admin</div>
     <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;">
-      ${isSuperAdmin?'<button class="tab active" onclick="adminTab('accounts',this)">Accounts</button>':''}
+      ${isSuperAdmin?'<button class="tab active" onclick="adminTab(\'accounts\',this)">Accounts</button>':''}
       <button class="tab ${isSuperAdmin?'':'active'}" onclick="adminTab('hw',this)">Extra sessions</button>
     </div>
     <div id="admin-accounts" style="${isSuperAdmin?'':'display:none'}">
