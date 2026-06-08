@@ -758,6 +758,7 @@ function parseFile(text, filename) {
       comment:    oi>=0   ? c[oi]   : "",
       delivery:   deli>=0 ? (/on[il]{2,3}ne/i.test(c[deli].trim()) || c[deli].trim().toLowerCase().includes('online') ? 'online' : 'in-person') : "",
       room:       ri>=0   ? c[ri].trim().toUpperCase() : "",
+      program:    'math', // overridden by fetchData after parsing
     }; }
     map[cn].push({ name:c[ni], grade:Math.min(12, Math.max(-1, parseFloat(c[gi]))), ability:parseFloat(c[bi]) });
   }
@@ -1035,6 +1036,10 @@ function buildCard(cls, idx) {
       })()
     : "";
 
+  const programBadge = cls.program === 'writing'
+    ? `<span style="display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:600;background:rgba(240,165,0,.15);color:#f0a500;margin-left:6px;vertical-align:middle;">Writing</span>`
+    : '';
+
   const schedStr = (cls.day || cls.time)
     ? ` &nbsp;·&nbsp; ${[cls.day, cls.time].filter(Boolean).join(" ")}`
     : "";
@@ -1058,7 +1063,7 @@ function buildCard(cls, idx) {
       <div class="card-header-left">
         <span class="card-chevron">▶</span>
         <div style="min-width:0;">
-          <div class="card-header-name">${cls.className}${deliveryBadge}</div>
+          <div class="card-header-name">${cls.className}${programBadge}${deliveryBadge}</div>
           <div class="card-header-meta">${s.n} students &nbsp;·&nbsp; ${abRangeStr} &nbsp;·&nbsp; ${gradeRangeStr}${schedStr}${instructorStr}</div>
           ${commentShort}
         </div>
@@ -1464,32 +1469,35 @@ function fetchData() {
   btn.classList.add("spinning");
   showError(null); showSpinner(true);
 
-  // Google Sheets blocks direct fetch() due to CORS — route through a proxy.
-  // corsproxy.io is a free, open-source proxy that passes the request through.
-  const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(CONFIG.dataUrl);
+  function fetchCSV(url) {
+    if(!url) return Promise.resolve(null);
+    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
+    return fetch(proxyUrl, { cache:"no-cache" })
+      .then(r => r.ok ? r.text() : null)
+      .catch(() => null);
+  }
 
-  fetch(proxyUrl, { cache:"no-cache" })
-    .then(r => {
-      if (!r.ok) throw new Error(`Server returned HTTP ${r.status}.`);
-      return r.text();
-    })
-    .then(text => {
-      if (!text || text.trim().length === 0)
-        throw new Error("The sheet returned empty data. Check that the correct tab is published.");
-      try {
-        const classes = parseFile(text, "data.csv");
-        if (!classes || classes.length === 0)
-          throw new Error("No classes found. Check that the published tab has the right column headers.");
-        processClasses(classes);
-        const now   = new Date();
-        const stamp = now.toLocaleDateString(undefined, {month:"short",day:"numeric",year:"numeric"})
-                    + " " + now.toLocaleTimeString(undefined, {hour:"2-digit",minute:"2-digit"});
-        const el = document.getElementById("last-updated");
-        el.textContent = `Updated ${stamp}`;
-        el.classList.add("visible");
-      } catch(err) {
-        showError("Failed to parse data: " + err.message);
-      }
+  // Get writing URL from config or firebase-config module
+  const writingUrl = window.WRITING_DATA_URL || '';
+
+  Promise.all([fetchCSV(CONFIG.dataUrl), fetchCSV(writingUrl)])
+    .then(([mathText, writingText]) => {
+      if (!mathText || mathText.trim().length === 0)
+        throw new Error("The math sheet returned empty data. Check that the correct tab is published.");
+      const mathClasses = parseFile(mathText, "data.csv").map(c=>({...c, program:'math'}));
+      if (!mathClasses || mathClasses.length === 0)
+        throw new Error("No classes found. Check that the published tab has the right column headers.");
+      const writingClasses = writingText
+        ? (parseFile(writingText, "writing.csv")||[]).map(c=>({...c, program:'writing'}))
+        : [];
+      const classes = [...mathClasses, ...writingClasses];
+      processClasses(classes);
+      const now   = new Date();
+      const stamp = now.toLocaleDateString(undefined, {month:"short",day:"numeric",year:"numeric"})
+                  + " " + now.toLocaleTimeString(undefined, {hour:"2-digit",minute:"2-digit"});
+      const el = document.getElementById("last-updated");
+      el.textContent = `Updated ${stamp}${writingClasses.length ? ` · ${writingClasses.length} writing` : ''}`;
+      el.classList.add("visible");
     })
     .catch(err => showError("Could not fetch data: " + (err.message || "Unknown error")))
     .finally(() => { btn.classList.remove("spinning"); showSpinner(false); });
@@ -2011,6 +2019,13 @@ document.addEventListener("DOMContentLoaded",function(){
   } else {
     dropzone.style.display = "";
   }
+
+  // Load writing URL from firebase-config
+  try {
+    import('./firebase-config.js').then(m => {
+      window.WRITING_DATA_URL = m.WRITING_DATA_URL || '';
+    }).catch(()=>{});
+  } catch(e){}
 
   // Read user session written by availability.html on login
   try {

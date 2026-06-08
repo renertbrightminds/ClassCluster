@@ -295,7 +295,7 @@ window.toggleDaySection=function(id){
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-import { firebaseConfig, CLASS_DATA_URL } from "./firebase-config.js";
+import { firebaseConfig, CLASS_DATA_URL, WRITING_DATA_URL } from "./firebase-config.js";
 
 
 const app  = initializeApp(firebaseConfig);
@@ -494,13 +494,22 @@ onAuthStateChanged(auth, async user=>{
 });
 
 async function fetchClasses(){
-  try{
-    const r=await fetch("https://corsproxy.io/?"+encodeURIComponent(CLASS_DATA_URL),{cache:"no-cache"});
-    return r.ok?parseCSV(await r.text()):[];
-  }catch{return [];}
+  async function fetchCSV(url, program){
+    if(!url) return [];
+    try{
+      const r=await fetch("https://corsproxy.io/?"+encodeURIComponent(url),{cache:"no-cache"});
+      if(!r.ok) return [];
+      return parseCSV(await r.text(), program);
+    }catch{ return []; }
+  }
+  const [math, writing] = await Promise.all([
+    fetchCSV(CLASS_DATA_URL, 'math'),
+    fetchCSV(WRITING_DATA_URL, 'writing'),
+  ]);
+  return [...math, ...writing];
 }
 
-function parseCSV(text){
+function parseCSV(text, program='math'){
   const lines=text.trim().split(/\r?\n/);
   const hdr=lines[0].split(",").map(h=>h.trim().toLowerCase());
   const ci=hdr.indexOf("classid")>=0?hdr.indexOf("classid"):hdr.indexOf("class");
@@ -518,6 +527,7 @@ function parseCSV(text){
       shadows:shi>=0?c[shi].split(";").map(s=>s.trim()).filter(Boolean):[],
       delivery:deli>=0?(c[deli].toLowerCase().includes("online")?"online":"in-person"):"",
       room:ri>=0?c[ri].trim():"",
+      program,
       comment:oi>=0?c[oi]:""};
     }
     const ni=hdr.indexOf("name"),gi=hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
@@ -655,6 +665,7 @@ function renderMine(){
         <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
         <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
         <span class="pip ${cls.delivery==='online'?'pip-online':'pip-ip'}">${cls.delivery==='online'?'🌐':'🏫'}</span>
+        ${cls.program==='writing'?'<span class="pip" style="background:rgba(240,165,0,.15);color:#f0a500;">Writing</span>':''}
       </div>`).join('')}
       ${shadow.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
         <span style="font-weight:600;color:#d2a8ff;">${cls.classId}</span>
@@ -1719,7 +1730,9 @@ function renderClassroom(){
         const stats = classStatsMap[cls.classId];
         const instFirst = (cls.instructor||'').split(' ')[0];
         const code = (cls.classId||'').replace(/^\d{2}-/,'');
-        const hasFlag = classFlags.find(f=>f.classId===cls.classId);
+        const blockBg = cls.program==='writing'
+          ? `repeating-linear-gradient(45deg,${room.color},${room.color} 6px,${room.color}cc 6px,${room.color}cc 12px)`
+          : room.color;
         const healthColor = stats?.health==='critical'?'#f85149':stats?.health==='warning'?'#d29922':null;
 
         const statsHtml = stats?.stats ? [
@@ -1733,10 +1746,12 @@ function renderClassroom(){
           '</div>',
         ].join('') : '';
 
+        const hasFlag = classFlags.find(f=>f.classId===cls.classId);
+
         blocks.push(
           '<div onclick="openFlagDialog(\'' + cls.classId + '\')" ' +
           'style="position:absolute;left:2px;right:2px;top:' + top + 'px;height:' + height + 'px;' +
-          'background:' + room.color + ';border-radius:5px;padding:4px 6px;cursor:pointer;overflow:hidden;' +
+          'background:' + blockBg + ';border-radius:5px;padding:4px 6px;cursor:pointer;overflow:hidden;' +
           (stats?.health==='critical' ? 'outline:2px solid #f85149;outline-offset:-2px;' : '') +
           'box-shadow:0 1px 3px rgba(0,0,0,.3);" ' +
           'title="' + cls.classId + ' · ' + (cls.instructor||'') + '">' +
