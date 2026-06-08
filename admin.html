@@ -889,7 +889,7 @@ function renderHwList() {
   const el = document.getElementById('hw-list');
   if(!el) return;
 
-  const migrationCard = `<div class="card" style="border-color:rgba(210,153,34,.3);margin-bottom:16px;">
+  const migrationCard = `<div class="card" style="border-color:rgba(210,153,34,.3);margin-top:20px;">
     <div class="card-title" style="color:#e3b341;">🔄 Migrate existing HW sessions</div>
     <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
       Click to copy sessions from the old <code>hwSessions</code> collection into
@@ -900,17 +900,23 @@ function renderHwList() {
     <div class="error" id="migrate-error"></div>
   </div>`;
 
+  const selStyle = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;';
   const filterBar = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
-    <select id="es-filter-type" onchange="applyEsFilters()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;">
+    <select id="es-filter-type" onchange="applyEsFilters()" style="${selStyle}">
       <option value="">All types</option>
       <option value="hw-support">HW Support</option>
       <option value="chess-club">Chess Club</option>
     </select>
-    <select id="es-filter-day" onchange="applyEsFilters()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;">
+    <select id="es-filter-day" onchange="applyEsFilters()" style="${selStyle}">
       <option value="">All days</option>
       ${['Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<option value="${d}">${d}</option>`).join('')}
     </select>
-    <select id="es-sort" onchange="applyEsFilters()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;">
+    <select id="es-filter-delivery" onchange="applyEsFilters()" style="${selStyle}">
+      <option value="">All delivery</option>
+      <option value="online">Online</option>
+      <option value="in-person">In-person</option>
+    </select>
+    <select id="es-sort" onchange="applyEsFilters()" style="${selStyle}">
       <option value="day-time">Sort: Day &amp; Time</option>
       <option value="type-day">Sort: Type then Day</option>
       <option value="type">Sort: Type</option>
@@ -919,17 +925,17 @@ function renderHwList() {
   </div>`;
 
   if(!hwSessions.length) {
-    el.innerHTML = migrationCard + filterBar + '<div style="color:var(--muted);font-size:13px;">No extra sessions yet.</div>';
+    el.innerHTML = filterBar + '<div style="color:var(--muted);font-size:13px;">No extra sessions yet.</div>' + migrationCard;
     return;
   }
 
-  el.innerHTML = migrationCard + filterBar + '<div id="es-session-list"></div>';
+  el.innerHTML = filterBar + '<div id="es-session-list"></div>' + migrationCard;
   applyEsFilters();
 }
 
 window.applyEsFilters = function() {
-  const typeFilter = document.getElementById('es-filter-type')?.value||'';
-  const dayFilter  = document.getElementById('es-filter-day')?.value||'';
+  const typeFilter     = document.getElementById('es-filter-type')?.value||'';
+  const dayFilter      = document.getElementById('es-filter-day')?.value||'';
   const sort       = document.getElementById('es-sort')?.value||'day-time';
   const listEl     = document.getElementById('es-session-list');
   const countEl    = document.getElementById('es-count');
@@ -939,9 +945,11 @@ window.applyEsFilters = function() {
 
   function toMins(t){ const m=(t||'').match(/(\d+):(\d+)/); return m?parseInt(m[1])*60+parseInt(m[2]):9999; }
 
+  const deliveryFilter = document.getElementById('es-filter-delivery')?.value||'';
   let sessions = hwSessions.filter(s => {
-    if(typeFilter && (s.type||'hw-support') !== typeFilter) return false;
-    if(dayFilter  && s.day !== dayFilter) return false;
+    if(typeFilter    && (s.type||'hw-support') !== typeFilter) return false;
+    if(dayFilter     && s.day !== dayFilter) return false;
+    if(deliveryFilter && (s.delivery||'') !== deliveryFilter) return false;
     return true;
   });
 
