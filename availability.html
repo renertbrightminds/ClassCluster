@@ -462,7 +462,7 @@ onAuthStateChanged(auth, async user=>{
   draftAvail=clone(currentProfile.availability||{});
   draftDayNotes=clone(currentProfile.dayNotes||{});
   document.getElementById("user-label").textContent=currentProfile.displayName;
-  if (currentProfile.role==="admin") {
+  if (isAdmin(currentProfile)) {
     document.getElementById("admin-link").style.display="";
     document.querySelectorAll(".admin-only").forEach(el=>el.style.display="");
   }
@@ -487,6 +487,10 @@ onAuthStateChanged(auth, async user=>{
   updateBookLevelsFromClasses(allClasses);
   // Debug helpers — accessible from browser console
   window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
+
+// Role helpers — available throughout the module
+function isAdmin(profile){ return profile?.role==='admin'||profile?.role==='super-admin'; }
+function isSuperAdmin(profile){ return profile?.role==='super-admin'; }
   document.getElementById("spinner").style.display="none";
   document.getElementById("app").style.display="";
   history.replaceState({tab:'my-availability',inst:null},"",location.pathname+"#my-availability");
@@ -603,7 +607,7 @@ function renderMine(){
       <div>
         <div class="profile-name">${p.displayName}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
-          ${p.role==="admin"?'<span class="badge b-purple">Admin</span>':''}
+          ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':''}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
           ${p.maxNew===0?'<span class="badge b-amber">No new classes</span>':p.maxNew?`<span class="badge b-green">Open to ${p.maxNew} new</span>`:''}
         </div>
@@ -967,7 +971,7 @@ function renderProfile(el,uid){
       <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
       <div><div class="profile-name">${p.displayName}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
-          ${p.role==="admin"?'<span class="badge b-purple">Admin</span>':'<span class="badge b-blue">Instructor</span>'}
+          ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':'<span class="badge b-blue">Instructor</span>'}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
           ${p.maxNew===0?'<span class="badge b-amber">No new</span>':p.maxNew?`<span class="badge b-green">+${p.maxNew} new</span>`:''}
           ${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}
@@ -988,7 +992,7 @@ function renderProfile(el,uid){
     <div class="card" style="margin-bottom:12px;">
       <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
         Weekly availability
-        ${(currentProfile.role==='admin'&&p.uid!==currentUser.uid)?'<span style="font-size:11px;color:var(--muted);">Admin edit</span>':''}
+        ${(isAdmin(currentProfile)&&p.uid!==currentUser.uid)?'<span style="font-size:11px;color:var(--muted);">Admin edit</span>':''}
       </div>
       <div id="prof-av-grid"></div>
       <div class="avail-legend" style="margin-top:10px;">
@@ -999,7 +1003,7 @@ function renderProfile(el,uid){
         <span><span class="legend-dot" style="background:rgba(20,184,166,.3)"></span>HW</span>
         <span><span class="legend-dot" style="background:var(--surface2);border:1px solid #1c2333;"></span>Unavailable</span>
       </div>
-      ${(currentProfile.role==='admin'&&p.uid!==currentUser.uid)?`
+      ${(isAdmin(currentProfile)&&p.uid!==currentUser.uid)?`
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
         <span class="save-status" id="prof-save-status"></span>
         <div style="display:flex;gap:8px;">
@@ -1031,7 +1035,7 @@ function renderProfile(el,uid){
     </div>`:''}
   `;
   // For admin editing another instructor, use a separate draft object
-  if (currentProfile.role==='admin' && p.uid!==currentUser.uid) {
+  if (isAdmin(currentProfile) && p.uid!==currentUser.uid) {
     window._profileDraft = window._profileDraft || {};
     window._profileDraft[p.uid] = window._profileDraft[p.uid] || JSON.parse(JSON.stringify(p.availability||{}));
     buildGrid("prof-av-grid", window._profileDraft[p.uid], true, p.uid);
@@ -1279,7 +1283,7 @@ const STATUS_ORDER = {urgent:0, open:1, planned:2, resolved:3};
 
 function renderConflicts(){
   const el=document.getElementById("tab-conflicts");
-  const isAdmin = currentProfile.role==='admin';
+  const isAdmin = isAdmin(currentProfile);
 
   // Manual flags visible to current user
   const visibleFlags = classFlags.filter(f=>{

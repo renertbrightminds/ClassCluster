@@ -2,48 +2,53 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // ── Instructors collection ──
-    // Each document is keyed by the instructor's Firebase Auth UID.
-    match /instructors/{uid} {
+    // Helper to check if the requesting user is admin or super-admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role in ['admin','super-admin'];
+    }
+    function isSuperAdmin() {
+      return get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == 'super-admin';
+    }
 
+    // ── Instructors collection ──
+    match /instructors/{uid} {
       // Any signed-in user can read any instructor profile
-      // (needed for the rollup, conflict, and all-instructors views)
       allow read: if request.auth != null;
 
-      // An instructor can update only their own document,
-      // and only the availability + availabilityUpdatedAt fields.
+      // An instructor can update only their own availability and preferences
       allow update: if request.auth != null
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['availability', 'availabilityUpdatedAt', 'dayNotes',
                                    'gradeMin', 'gradeMax', 'levelMin', 'levelMax', 'comment', 'theme']);
 
-      // Admins (role == "admin") can read and write anything, including delete
-      allow write, delete: if request.auth != null
-                   && get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == "admin";
+      // Regular admins can update non-sensitive fields (not role or active)
+      allow update: if request.auth != null
+                    && isAdmin()
+                    && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role', 'active']);
+
+      // Super-admins can write and delete anything including role/active changes
+      allow write, delete: if request.auth != null && isSuperAdmin();
     }
 
-    // Class flags — authenticated users can read and write their own, admins can write all
+    // Class flags — any authenticated user can create; creator or admin can update/delete
     match /classFlags/{flagId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null
-        && (resource.data.createdBy == request.auth.uid
-          || get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == "admin");
+        && (resource.data.createdBy == request.auth.uid || isAdmin());
     }
 
-    // HW Support sessions (legacy collection — keep for migration reads)
+    // HW Support sessions (legacy — keep for migration reads)
     match /hwSessions/{sessionId} {
       allow read: if request.auth != null;
-      allow write, delete: if request.auth != null
-        && get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == "admin";
+      allow write, delete: if request.auth != null && isAdmin();
     }
 
     // Extra sessions (HW Support, Chess Club, etc.)
     match /extraSessions/{sessionId} {
       allow read: if request.auth != null;
-      allow write, delete: if request.auth != null
-        && get(/databases/$(database)/documents/instructors/$(request.auth.uid)).data.role == "admin";
+      allow write, delete: if request.auth != null && isAdmin();
     }
 
     // Deny everything else by default
