@@ -697,7 +697,7 @@ function buildGrid(wrapperId,avail,editable,targetUid){
     const profile = allProfiles.find(p=>p.uid===profileUid) || currentProfile;
     if(!profile) return {assigned:new Map(), hw:new Map()};
     const assigned = new Map(); // key → class code
-    const hw = new Map();       // key → session name
+    const hw = new Map();       // key → session object
     // Classes
     try {
       const {lead, shadow} = classesForProfile(profile);
@@ -725,7 +725,7 @@ function buildGrid(wrapperId,avail,editable,targetUid){
       const end=parseInt(em[1])*60+parseInt(em[2]);
       const label = sessionLabel(s);
       while(mins<end){
-        hw.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, label);
+        hw.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, s);
         mins+=15;
       }
     });
@@ -741,7 +741,8 @@ function buildGrid(wrapperId,avail,editable,targetUid){
     slots.forEach(slot=>{
       const key=`${day}|${slot}`;
       const classCode=blockedSlots.assigned.get(key);
-      const hwLabel=!classCode && blockedSlots.hw.get(key);
+      const hwSession=!classCode && blockedSlots.hw.get(key);
+      const hwLabel=hwSession ? sessionLabel(hwSession) : null;
       const st=(avail[day]||{})[slot]||'none';
       const timeLabel=`<span style="font-size:12px;color:var(--muted);min-width:42px;display:inline-block;">${slot}</span>`;
       if(classCode){
@@ -751,7 +752,8 @@ function buildGrid(wrapperId,avail,editable,targetUid){
         const flagIndicator = existingFlag ? `<span style="position:absolute;top:1px;right:2px;font-size:7px;color:${existingFlag.status==='urgent'?'#f85149':existingFlag.status==='planned'?'#d29922':'#58a6ff'};">●</span>` : '';
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;cursor:pointer;" title="${classCode}${existingFlag?' — '+existingFlag.status+' flag':''}" onclick="openFlagDialog('${classCode}')">${displayCode}${flagIndicator}</div></div>`;
       } else if(hwLabel){
-        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${hwLabel}">HW</div></div>`;
+        const hwColor = sessionColor(hwSession);
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:${hwColor}22;border-color:${hwColor}66;color:${hwColor};" title="${hwSession.name||hwLabel}">${hwLabel}</div></div>`;
       } else if(editable){
         h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st}" style="width:52px;" title="${TITLES[st]}" data-day="${day}" data-slot="${slot}" data-uid="${targetUid||''}">${st==='none'?'':LABELS[st]}</div></div>`;
       } else {
