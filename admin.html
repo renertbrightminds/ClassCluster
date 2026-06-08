@@ -883,6 +883,8 @@ async function loadHwSessions() {
   }
 }
 
+const DAY_ORDER = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+
 function renderHwList() {
   const el = document.getElementById('hw-list');
   if(!el) return;
@@ -898,32 +900,101 @@ function renderHwList() {
     <div class="error" id="migrate-error"></div>
   </div>`;
 
+  const filterBar = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+    <select id="es-filter-type" onchange="applyEsFilters()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;">
+      <option value="">All types</option>
+      <option value="hw-support">HW Support</option>
+      <option value="chess-club">Chess Club</option>
+    </select>
+    <select id="es-filter-day" onchange="applyEsFilters()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;">
+      <option value="">All days</option>
+      ${['Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<option value="${d}">${d}</option>`).join('')}
+    </select>
+    <select id="es-sort" onchange="applyEsFilters()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;">
+      <option value="day-time">Sort: Day &amp; Time</option>
+      <option value="type-day">Sort: Type then Day</option>
+      <option value="type">Sort: Type</option>
+    </select>
+    <span id="es-count" style="font-size:12px;color:var(--muted);"></span>
+  </div>`;
+
   if(!hwSessions.length) {
-    el.innerHTML = migrationCard + '<div style="color:var(--muted);font-size:13px;margin-bottom:16px;">No extra sessions yet.</div>';
+    el.innerHTML = migrationCard + filterBar + '<div style="color:var(--muted);font-size:13px;">No extra sessions yet.</div>';
     return;
   }
-  el.innerHTML = migrationCard + hwSessions.map(s => {
-    const typeName = {'hw-support':'HW Support','chess-club':'Chess Club'}[s.type||'hw-support']||s.type||'Session';
+
+  el.innerHTML = migrationCard + filterBar + '<div id="es-session-list"></div>';
+  applyEsFilters();
+}
+
+window.applyEsFilters = function() {
+  const typeFilter = document.getElementById('es-filter-type')?.value||'';
+  const dayFilter  = document.getElementById('es-filter-day')?.value||'';
+  const sort       = document.getElementById('es-sort')?.value||'day-time';
+  const listEl     = document.getElementById('es-session-list');
+  const countEl    = document.getElementById('es-count');
+  if(!listEl) return;
+
+  const TYPE_NAMES = {'hw-support':'HW Support','chess-club':'Chess Club'};
+
+  function toMins(t){ const m=(t||'').match(/(\d+):(\d+)/); return m?parseInt(m[1])*60+parseInt(m[2]):9999; }
+
+  let sessions = hwSessions.filter(s => {
+    if(typeFilter && (s.type||'hw-support') !== typeFilter) return false;
+    if(dayFilter  && s.day !== dayFilter) return false;
+    return true;
+  });
+
+  sessions = sessions.sort((a,b) => {
+    if(sort === 'type'){
+      return (a.type||'').localeCompare(b.type||'');
+    }
+    if(sort === 'type-day'){
+      const tc = (a.type||'').localeCompare(b.type||'');
+      if(tc!==0) return tc;
+      const dc = (DAY_ORDER[a.day]??9)-(DAY_ORDER[b.day]??9);
+      if(dc!==0) return dc;
+      return toMins(a.windowStart)-toMins(b.windowStart);
+    }
+    // day-time (default)
+    const dc = (DAY_ORDER[a.day]??9)-(DAY_ORDER[b.day]??9);
+    if(dc!==0) return dc;
+    return toMins(a.windowStart)-toMins(b.windowStart);
+  });
+
+  if(countEl) countEl.textContent = sessions.length + ' session' + (sessions.length!==1?'s':'');
+
+  if(!sessions.length){
+    listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No sessions match these filters.</div>';
+    return;
+  }
+
+  listEl.innerHTML = sessions.map(s => {
+    const typeName  = TYPE_NAMES[s.type||'hw-support']||s.type||'Session';
     const typeColor = {'hw-support':'var(--accent)','chess-club':'#f59e0b'}[s.type||'hw-support']||'var(--muted)';
-    const instRows = (s.instructors||[]).map(i =>
+    const instRows  = (s.instructors||[]).map(i =>
       `<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid #0a0f18;">
         <span style="font-weight:${i.host?'700':'400'};color:${i.host?'var(--accent)':'var(--text)'};">${i.displayName}${i.host?' (host)':''}</span>
         <span style="color:var(--muted);">${i.start} – ${i.end}</span>
       </div>`
     ).join('');
-    return `<div class="hw-session-card">
+    return `<div class="hw-session-card" style="border-left:3px solid ${typeColor};">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-        <div class="hw-session-title">${s.name}</div>
+        <div>
+          <span class="hw-session-title">${s.name}</span>
+          <span style="margin-left:8px;font-size:11px;font-weight:600;color:${typeColor};">${typeName}</span>
+        </div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="editHwSession('${s.id}')">Edit</button>
           <button class="btn btn-danger" style="font-size:11px;padding:4px 10px;" onclick="deleteHwSession('${s.id}')">Delete</button>
         </div>
       </div>
-      <div class="hw-session-meta">${{'hw-support':'HW Support','chess-club':'Chess Club'}[s.type||'hw-support']||s.type} · ${s.day} · ${s.windowStart}–${s.windowEnd} · ${s.delivery}${s.room?" · "+s.room:""}</div>
+      <div class="hw-session-meta">${s.day} · ${s.windowStart}–${s.windowEnd} · ${s.delivery}${s.room?' · '+s.room:''}</div>
       <div>${instRows}</div>
     </div>`;
   }).join('');
-}
+};
+
 
 window.addHwInstRow = function(inst) {
   hwInstCount++;
