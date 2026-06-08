@@ -428,6 +428,10 @@ if(new URLSearchParams(window.location.search).get('signout')==='1'){
   fbSignOut(auth).finally(()=>{ window.location.href='login.html'; });
 }
 
+// ── ROLE HELPERS ──
+function isAdmin(profile){ return profile?.role==='admin'||profile?.role==='super-admin'; }
+function isSuperAdmin(profile){ return profile?.role==='super-admin'; }
+
 onAuthStateChanged(auth, async user=>{
   if (!user){window.location.href="login.html";return;}
   currentUser=user;
@@ -487,10 +491,6 @@ onAuthStateChanged(auth, async user=>{
   updateBookLevelsFromClasses(allClasses);
   // Debug helpers — accessible from browser console
   window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
-
-// Role helpers — available throughout the module
-function isAdmin(profile){ return profile?.role==='admin'||profile?.role==='super-admin'; }
-function isSuperAdmin(profile){ return profile?.role==='super-admin'; }
   document.getElementById("spinner").style.display="none";
   document.getElementById("app").style.display="";
   history.replaceState({tab:'my-availability',inst:null},"",location.pathname+"#my-availability");
