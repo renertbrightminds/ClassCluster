@@ -94,6 +94,7 @@ main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
 .b-purple{background:rgba(188,140,255,.15);color:#d2a8ff;}
 .b-blue{background:rgba(88,166,255,.1);color:#79c0ff;}
 .b-gray{background:rgba(118,131,144,.15);color:#adbac7;}
+.b-teal{background:rgba(20,184,166,.15);color:#2dd4bf;}
 .back-btn{background:transparent;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;display:flex;align-items:center;gap:5px;}
 .back-btn:hover{color:var(--text);}
 .profile-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;}
@@ -922,34 +923,53 @@ window.renderInstructors=function renderInstructors(){
       <div class="metric"><div class="metric-label">Inactive</div><div class="metric-value crit">${allProfiles.filter(p=>p.active===false).length}</div></div>
     </div>
     <div class="filter-row">
-      <input id="iq" placeholder="Search…" oninput="filterIG()" style="min-width:180px;"/>
-      <select id="if" onchange="filterIG()">
-        <option value="all">All</option><option value="active">Active</option>
-        <option value="open">Open to new</option><option value="maxed">Maxed</option><option value="inactive">Inactive</option>
+      <input id="iq" placeholder="Search by name…" oninput="filterIG()" style="min-width:180px;"/>
+      <select id="if-role" onchange="filterIG()">
+        <option value="all">All roles</option>
+        <option value="junior-instructor">Junior</option>
+        <option value="instructor">Instructor</option>
+        <option value="admin">Admin</option>
+        <option value="super-admin">Super-admin</option>
       </select>
+      <select id="if-status" onchange="filterIG()">
+        <option value="all">All statuses</option>
+        <option value="active">Active</option>
+        <option value="open">Open to new</option>
+        <option value="maxed">Maxed</option>
+        <option value="inactive">Inactive</option>
+      </select>
+      <span id="ig-count" style="font-size:12px;color:var(--muted);"></span>
     </div>
     <div class="inst-grid" id="inst-grid">
       ${allProfiles.map(p=>{
         const c=ac(p.displayName);let lead=[],shadow=[];try{const r=classesForProfile(p);lead=r.lead;shadow=r.shadow;}catch(e){}
-        return`<div class="inst-card${p.active===false?' inactive':''}" data-n="${(p.displayName||'').toLowerCase()}" data-a="${p.active!==false}" data-m="${p.maxNew??''}" onclick="openProf('${p.uid}')">
+        return`<div class="inst-card${p.active===false?' inactive':''}" data-n="${(p.displayName||'').toLowerCase()}" data-a="${p.active!==false}" data-m="${p.maxNew??''}" data-role="${p.role||'instructor'}" onclick="openProf('${p.uid}')">
           <div class="inst-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
           <div class="inst-name">${p.displayName||'—'}</div>
           <div class="inst-sub" style="margin-bottom:5px;">${lead.length} class${lead.length!==1?'es':''}${shadow.length?` · <span style="color:#d2a8ff">${shadow.length} shadow</span>`:''}</div>
-          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.active!==false&&p.maxNew===0?'<span class="badge b-amber">maxed</span>':''}${p.active!==false&&p.maxNew>0?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
+          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':''}${p.active!==false&&p.maxNew===0?'<span class="badge b-amber">maxed</span>':''}${p.active!==false&&p.maxNew>0?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
         </div>`;}).join('')}
     </div>`;
 }
 window.filterIG=function(){
-  const q=(document.getElementById("iq")?.value||"").toLowerCase();
-  const f=document.getElementById("if")?.value||"all";
+  const q      = (document.getElementById("iq")?.value||"").toLowerCase();
+  const fRole  = document.getElementById("if-role")?.value||"all";
+  const fStatus= document.getElementById("if-status")?.value||"all";
+  let visible  = 0;
   document.querySelectorAll(".inst-card").forEach(card=>{
-    const a=card.dataset.a==="true",m=card.dataset.m;
+    const a=card.dataset.a==="true", m=card.dataset.m, role=card.dataset.role||'instructor';
     let show=true;
-    if(q&&!card.dataset.n.includes(q)) show=false;
-    if(f==="active"&&!a) show=false; if(f==="inactive"&&a) show=false;
-    if(f==="open"&&!(a&&m>0)) show=false; if(f==="maxed"&&!(a&&m==="0")) show=false;
+    if(q && !card.dataset.n.includes(q)) show=false;
+    if(fRole!=="all" && role!==fRole) show=false;
+    if(fStatus==="active"   && !a) show=false;
+    if(fStatus==="inactive" &&  a) show=false;
+    if(fStatus==="open"     && !(a&&m>0)) show=false;
+    if(fStatus==="maxed"    && !(a&&m==="0")) show=false;
     card.style.display=show?"":"none";
+    if(show) visible++;
   });
+  const countEl=document.getElementById("ig-count");
+  if(countEl) countEl.textContent=visible+" of "+allProfiles.length;
 };
 window.openProf=function(uid){
   selectedInst=uid;
@@ -971,7 +991,7 @@ function renderProfile(el,uid){
       <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
       <div><div class="profile-name">${p.displayName}</div>
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
-          ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':'<span class="badge b-blue">Instructor</span>'}
+          ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':'<span class="badge b-blue">Instructor</span>'}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
           ${p.maxNew===0?'<span class="badge b-amber">No new</span>':p.maxNew?`<span class="badge b-green">+${p.maxNew} new</span>`:''}
           ${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}
@@ -1148,7 +1168,7 @@ function assignedDeliveryMap(profile){
 }
 
 // ── SCHEDULING / ROLLUP ──
-let scheduleMode = 'ip'; // 'ip' | 'online'
+let scheduleMode = 'ip'; // 'ip' | 'online' | 'juniors'
 
 function renderRollup(){
   const el=document.getElementById("tab-rollup");
@@ -1158,6 +1178,8 @@ function renderRollup(){
         onclick="setScheduleMode('ip')" style="font-size:13px;">🏫 In-person</button>
       <button class="tab ${scheduleMode==='online'?'active':''}" id="sched-tab-online"
         onclick="setScheduleMode('online')" style="font-size:13px;">🌐 Online</button>
+      <button class="tab ${scheduleMode==='juniors'?'active':''}" id="sched-tab-juniors"
+        onclick="setScheduleMode('juniors')" style="font-size:13px;">🌱 Junior instructors</button>
     </div>
     <div class="filter-row" style="margin-bottom:16px;">
       <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">From</label>
@@ -1179,6 +1201,7 @@ window.setScheduleMode=function(mode){
   scheduleMode=mode;
   document.getElementById("sched-tab-ip")?.classList.toggle("active",mode==="ip");
   document.getElementById("sched-tab-online")?.classList.toggle("active",mode==="online");
+  document.getElementById("sched-tab-juniors")?.classList.toggle("active",mode==="juniors");
   buildRollup();
 };
 
@@ -1195,11 +1218,12 @@ window.buildRollup=function(){
   const blockedByUid={};
   allProfiles.forEach(p=>{ blockedByUid[p.uid]=assignedSlotsForProfile(p); });
 
-  // Active instructors matching name filter
+  // Active instructors — exclude juniors from IP/online tabs, show only juniors in juniors tab
   const insts=allProfiles.filter(p=>{
     if(p.active===false) return false;
     if(q&&!(p.displayName||"").toLowerCase().includes(q)) return false;
-    return true;
+    if(scheduleMode==='juniors') return p.role==='junior-instructor';
+    return p.role!=='junior-instructor';
   });
 
   // Is an instructor truly free (not assigned, and marked available for mode) at day+slot?
@@ -1207,6 +1231,8 @@ window.buildRollup=function(){
     const key=`${day}|${slot}`;
     if(blockedByUid[p.uid].has(key)) return false;
     const avail=(p.availability?.[day]||{})[slot]||"none";
+    if(avail==="none") return false;
+    if(scheduleMode==="juniors") return true; // show all availability types for juniors
     if(scheduleMode==="ip"    ) return avail==="ip"||avail==="both";
     if(scheduleMode==="online") return avail==="online"||avail==="both";
     return false;
@@ -1226,8 +1252,8 @@ window.buildRollup=function(){
   // Each day is a column, each time slot is a row.
   // Cell content = list of free instructor names.
 
-  const accentColor = scheduleMode==="online" ? "#79c0ff" : "#56d364";
-  const accentBg    = scheduleMode==="online" ? "rgba(88,166,255,.06)" : "rgba(63,185,80,.06)";
+  const accentColor = scheduleMode==="online" ? "#79c0ff" : scheduleMode==="juniors" ? "#2dd4bf" : "#56d364";
+  const accentBg    = scheduleMode==="online" ? "rgba(88,166,255,.06)" : scheduleMode==="juniors" ? "rgba(20,184,166,.06)" : "rgba(63,185,80,.06)";
 
   // Grid: flex row of day columns (same structure as availability grid)
   let html=`<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;">`;

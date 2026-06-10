@@ -92,6 +92,7 @@ input:focus,select:focus{border-color:var(--accent);}
 .b-instructor{background:rgba(88,166,255,.1);color:#79c0ff;}
 .b-inactive{background:rgba(248,81,73,.1);color:#ffa198;}
 .b-active{background:rgba(63,185,80,.12);color:#56d364;}
+.b-teal{background:rgba(20,184,166,.15);color:#2dd4bf;}
 .instructor-table{width:100%;border-collapse:collapse;font-size:13px;}
 .instructor-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--border);}
 .instructor-table td{padding:10px 12px;border-bottom:1px solid #0a0f18;vertical-align:middle;}
@@ -258,6 +259,7 @@ function renderPage() {
         <div class="form-group">
           <label>Role</label>
           <select id="new-role">
+            <option value="junior-instructor">Junior Instructor</option>
             <option value="instructor">Instructor</option>
             <option value="admin">Admin</option>
           </select>
@@ -327,23 +329,47 @@ function renderPage() {
     <!-- Instructor list -->
     <div class="card">
       <div class="card-title">👥 All instructors (${allProfiles.length})</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="inst-search" placeholder="Search by name or email…"
+          oninput="filterInstTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 12px;outline:none;min-width:220px;flex:1;"/>
+        <select id="inst-filter-role" onchange="filterInstTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;outline:none;">
+          <option value="">All roles</option>
+          <option value="junior-instructor">Junior Instructor</option>
+          <option value="instructor">Instructor</option>
+          <option value="admin">Admin</option>
+          <option value="super-admin">Super-admin</option>
+        </select>
+        <select id="inst-filter-status" onchange="filterInstTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;outline:none;">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <span id="inst-count" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+      </div>
       <table class="instructor-table">
         <thead><tr>
           <th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Max new</th><th>Actions</th>
         </tr></thead>
         <tbody>
         ${allProfiles.map(p => `
-          <tr>
+          <tr class="inst-table-row"
+              data-name="${(p.displayName||'').toLowerCase().replace(/"/g,'')}"
+              data-email="${(p.email||'').toLowerCase()}"
+              data-role="${p.role||'instructor'}"
+              data-active="${p.active!==false}">
             <td style="font-weight:500;">${p.displayName||'—'}</td>
             <td style="color:var(--muted);">${p.email||'—'}</td>
-            <td><span class="badge ${p.role==='super-admin'?'b-purple':p.role==='admin'?'b-admin':'b-instructor'}">${p.role||'instructor'}</span></td>
+            <td><span class="badge ${p.role==='super-admin'?'b-purple':p.role==='admin'?'b-admin':p.role==='junior-instructor'?'b-teal':'b-instructor'}">${p.role==='junior-instructor'?'Junior':p.role||'instructor'}</span></td>
             <td><span class="badge ${p.active===false?'b-inactive':'b-active'}">${p.active===false?'Inactive':'Active'}</span></td>
             <td style="color:var(--muted);">${p.maxNew!=null?p.maxNew:'—'}</td>
             <td>
               <div class="actions">
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
                 ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleRole('${p.uid}','${p.role||'instructor'}')">
-  ${p.role==='super-admin'?'→ Instructor':p.role==='admin'?'→ Super-admin':'→ Admin'}
+  ${p.role==='super-admin'?'→ Junior':p.role==='admin'?'→ Super-admin':p.role==='instructor'?'→ Admin':'→ Instructor'}
 </button>`:''}
                 ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>`:''}
               </div>
@@ -437,6 +463,28 @@ window.adminTab = function(tab, btn) {
   if(tab==='hw') loadHwSessions();
 };
 
+window.filterInstTable = function() {
+  const q      = (document.getElementById('inst-search')?.value||'').toLowerCase();
+  const role   = document.getElementById('inst-filter-role')?.value||'';
+  const status = document.getElementById('inst-filter-status')?.value||'';
+  let visible  = 0;
+  document.querySelectorAll('.inst-table-row').forEach(row => {
+    const name   = (row.dataset.name||'').toLowerCase();
+    const email  = (row.dataset.email||'').toLowerCase();
+    const rRole  = row.dataset.role||'';
+    const active = row.dataset.active;
+    let show = true;
+    if(q && !name.includes(q) && !email.includes(q)) show = false;
+    if(role && rRole !== role) show = false;
+    if(status === 'active'   && active === 'false') show = false;
+    if(status === 'inactive' && active !== 'false') show = false;
+    row.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  const countEl = document.getElementById('inst-count');
+  if(countEl) countEl.textContent = visible + ' of ' + allProfiles.length;
+};
+
 window.createAccount = async function() {
   const name   = document.getElementById("new-name").value.trim();
   const email  = document.getElementById("new-email").value.trim();
@@ -483,7 +531,7 @@ window.createAccount = async function() {
 };
 
 window.toggleRole = async function(uid, currentRole) {
-  const cycle = {instructor:'admin', admin:'super-admin', 'super-admin':'instructor'};
+  const cycle = {'junior-instructor':'instructor', instructor:'admin', admin:'super-admin', 'super-admin':'junior-instructor'};
   const newRole = cycle[currentRole] || 'admin';
   if (!confirm(`Change this instructor's role to ${newRole}?`)) return;
   await updateDoc(doc(db, "instructors", uid), {role: newRole});
