@@ -368,9 +368,13 @@ function renderPage() {
             <td>
               <div class="actions">
                 <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
-                ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleRole('${p.uid}','${p.role||'instructor'}')">
-  ${p.role==='super-admin'?'→ Junior':p.role==='admin'?'→ Super-admin':p.role==='instructor'?'→ Admin':'→ Instructor'}
-</button>`:''}
+                ${isSuperAdmin?`<select id="role-sel-${p.uid}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:4px 6px;outline:none;">
+                  <option value="junior-instructor" ${(p.role||'')==='junior-instructor'?'selected':''}>Junior</option>
+                  <option value="instructor" ${(p.role||'instructor')==='instructor'?'selected':''}>Instructor</option>
+                  <option value="admin" ${(p.role||'')==='admin'?'selected':''}>Admin</option>
+                  <option value="super-admin" ${(p.role||'')==='super-admin'?'selected':''}>Super-admin</option>
+                </select>
+                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="saveRole('${p.uid}')">Save role</button>`:''}
                 ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>`:''}
               </div>
             </td>
@@ -530,12 +534,22 @@ window.createAccount = async function() {
   }
 };
 
-window.toggleRole = async function(uid, currentRole) {
-  const cycle = {'junior-instructor':'instructor', instructor:'admin', admin:'super-admin', 'super-admin':'junior-instructor'};
-  const newRole = cycle[currentRole] || 'admin';
-  if (!confirm(`Change this instructor's role to ${newRole}?`)) return;
-  await updateDoc(doc(db, "instructors", uid), {role: newRole});
-  await loadAll(); renderPage();
+window.saveRole = async function(uid) {
+  const sel = document.getElementById('role-sel-' + uid);
+  if(!sel) return;
+  const newRole = sel.value;
+  const p = allProfiles.find(x => x.uid === uid);
+  if(p && p.role === newRole) return; // no change
+  if(!confirm(`Change ${p?.displayName||'this instructor'}'s role to ${newRole}?`)) {
+    sel.value = p?.role || 'instructor'; // reset dropdown
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "instructors", uid), {role: newRole});
+    await loadAll(); renderPage();
+  } catch(e) {
+    alert('Error saving role: ' + e.message);
+  }
 };
 
 window.toggleActive = async function(uid, currentlyActive) {
