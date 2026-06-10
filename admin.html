@@ -349,38 +349,37 @@ function renderPage() {
         </select>
         <span id="inst-count" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
       </div>
-      <table class="instructor-table">
-        <thead><tr>
-          <th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Max new</th><th>Actions</th>
-        </tr></thead>
-        <tbody>
-        ${allProfiles.map(p => `
-          <tr class="inst-table-row"
+      <div id="inst-list">
+        ${allProfiles.map(p=>`
+          <div class="inst-table-row" style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #0a0f18;flex-wrap:wrap;"
               data-name="${(p.displayName||'').toLowerCase().replace(/"/g,'')}"
               data-email="${(p.email||'').toLowerCase()}"
               data-role="${p.role||'instructor'}"
               data-active="${p.active!==false}">
-            <td style="font-weight:500;">${p.displayName||'—'}</td>
-            <td style="color:var(--muted);">${p.email||'—'}</td>
-            <td><span class="badge ${p.role==='super-admin'?'b-purple':p.role==='admin'?'b-admin':p.role==='junior-instructor'?'b-teal':'b-instructor'}">${p.role==='junior-instructor'?'Junior':p.role||'instructor'}</span></td>
-            <td><span class="badge ${p.active===false?'b-inactive':'b-active'}">${p.active===false?'Inactive':'Active'}</span></td>
-            <td style="color:var(--muted);">${p.maxNew!=null?p.maxNew:'—'}</td>
-            <td>
-              <div class="actions">
-                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
-                ${isSuperAdmin?`<select id="role-sel-${p.uid}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:4px 6px;outline:none;">
-                  <option value="junior-instructor" ${(p.role||'')==='junior-instructor'?'selected':''}>Junior</option>
-                  <option value="instructor" ${(p.role||'instructor')==='instructor'?'selected':''}>Instructor</option>
-                  <option value="admin" ${(p.role||'')==='admin'?'selected':''}>Admin</option>
-                  <option value="super-admin" ${(p.role||'')==='super-admin'?'selected':''}>Super-admin</option>
-                </select>
-                <button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="saveRole('${p.uid}')">Save role</button>`:''}
-                ${isSuperAdmin?`<button class="btn btn-ghost" style="font-size:11px;padding:5px 10px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>`:''}
-              </div>
-            </td>
-          </tr>`).join('')}
-        </tbody>
-      </table>
+            <div style="flex:1;min-width:140px;">
+              <div style="font-weight:600;font-size:13px;">${p.displayName||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.email||'—'}</div>
+            </div>
+            <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;flex-wrap:wrap;">
+              <span class="badge ${p.role==='super-admin'?'b-purple':p.role==='admin'?'b-admin':p.role==='junior-instructor'?'b-teal':'b-instructor'}">${p.role==='junior-instructor'?'Junior':p.role||'instructor'}</span>
+              <span class="badge ${p.active===false?'b-inactive':'b-active'}">${p.active===false?'Inactive':'Active'}</span>
+              ${p.maxNew!=null?`<span class="badge b-gray">Max ${p.maxNew}</span>`:''}
+            </div>
+            <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex-shrink:0;">
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
+              ${isSuperAdmin?`
+              <select id="role-sel-${p.uid}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:4px 6px;outline:none;">
+                <option value="junior-instructor" ${(p.role||'')==='junior-instructor'?'selected':''}>Junior</option>
+                <option value="instructor" ${(p.role||'instructor')==='instructor'?'selected':''}>Instructor</option>
+                <option value="admin" ${(p.role||'')==='admin'?'selected':''}>Admin</option>
+                <option value="super-admin" ${(p.role||'')==='super-admin'?'selected':''}>Super-admin</option>
+              </select>
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="saveRole('${p.uid}')">Save</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>
+              `:''}
+            </div>
+          </div>`).join('')}
+      </div>
     </div>
   </div>
     <div id="admin-hw" style="display:none;">
@@ -472,7 +471,7 @@ window.filterInstTable = function() {
   const role   = document.getElementById('inst-filter-role')?.value||'';
   const status = document.getElementById('inst-filter-status')?.value||'';
   let visible  = 0;
-  document.querySelectorAll('.inst-table-row').forEach(row => {
+  document.querySelectorAll('#inst-list .inst-table-row').forEach(row => {
     const name   = (row.dataset.name||'').toLowerCase();
     const email  = (row.dataset.email||'').toLowerCase();
     const rRole  = row.dataset.role||'';
