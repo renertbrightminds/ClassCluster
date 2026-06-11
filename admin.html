@@ -190,6 +190,12 @@ const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db   = getFirestore(app);
 
+// Secondary app instance for bulk account creation only.
+// Creating a user via the primary auth instance signs you out as the admin.
+// Using a separate named instance keeps the admin session intact.
+const app2  = initializeApp(firebaseConfig, 'bulk-creator');
+const auth2 = getAuth(app2);
+
 let currentUser = null;
 let allProfiles = [];
 let resetTargetUid = null;
@@ -329,7 +335,6 @@ function renderPage() {
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
         Creates login accounts for all Firestore profiles that have an email but no login yet.
         No emails are sent — instructors won't be notified until you're ready.
-        <strong style="color:var(--amber);">Note: you will be signed out after bulk creation completes and will need to sign in again.</strong>
       </p>
       <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
         <div class="form-group">
@@ -934,9 +939,8 @@ window.runBulkCreate = async function() {
     }
 
     try {
-      // Only create the Firebase Auth account — Firestore profile re-linking
-      // happens automatically on first login via email match in availability.html
-      const cred = await createUserWithEmailAndPassword(auth, profile.email, pw);
+      // Use secondary auth instance so admin session is not disrupted
+      const cred = await createUserWithEmailAndPassword(auth2, profile.email, pw);
 
       if (statEl) { statEl.textContent="✓ Done"; statEl.className="bulk-status bs-done"; }
       done++;
@@ -961,8 +965,7 @@ window.runBulkCreate = async function() {
 
   const summary = document.createElement("div");
   summary.style.cssText = "font-size:13px;margin-top:10px;";
-  summary.innerHTML = `<span style="font-weight:600;color:${errors?'var(--amber)':'var(--green)'};">Done — ${done} created${skipped?`, ${skipped} skipped`:''}${errors?`, ${errors} failed`:''}.</span>`
-    + (done > 0 ? `<br><span style="color:var(--amber);font-size:12px;margin-top:4px;display:block;">⚠ You have been signed out as a side effect of account creation. Please <a href="login.html" style="color:var(--accent);">sign in again</a>.</span>` : '');
+  summary.innerHTML = `<span style="font-weight:600;color:${errors?'var(--amber)':'var(--green)'};">Done — ${done} created${skipped?`, ${skipped} skipped`:''}${errors?`, ${errors} failed`:''}.</span>`;
   preview.appendChild(summary);
 
   // Reload profiles to reflect new accounts
