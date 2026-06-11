@@ -855,19 +855,41 @@ window.previewBulk = function() {
   }
 
   preview.innerHTML = `
-    <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
-      ${toCreate.length} account${toCreate.length!==1?'s':''} will be created.
-      You'll need to share the login link and temporary password with each instructor manually.
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:13px;color:var(--muted);">
+        <span id="bulk-selected-count">${toCreate.length}</span> of ${toCreate.length} selected.
+        Uncheck any instructors who don't need login access yet.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="setBulkAll(true)">Select all</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="setBulkAll(false)">Deselect all</button>
+      </div>
     </div>
-    <div style="background:var(--surface2);border-radius:8px;border:1px solid var(--border);overflow:hidden;max-height:300px;overflow-y:auto;">
+    <div style="background:var(--surface2);border-radius:8px;border:1px solid var(--border);overflow:hidden;max-height:320px;overflow-y:auto;">
       ${toCreate.map(p=>`
-        <div class="bulk-row">
-          <span style="font-weight:500;">${p.displayName||'—'}</span>
+        <div class="bulk-row" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="bchk-${p.uid}" checked
+            onchange="updateBulkCount(${toCreate.length})"
+            style="accent-color:var(--accent);cursor:pointer;width:15px;height:15px;flex-shrink:0;"/>
+          <span style="font-weight:500;flex:1;">${p.displayName||'—'}</span>
+          <span style="font-size:11px;color:var(--muted);">${p.email||''}</span>
           <span class="bulk-status bs-pending" id="bstat-${p.uid}">Pending</span>
         </div>`).join('')}
     </div>`;
 
   document.getElementById("bulk-run-btn").style.display = "";
+};
+
+window.setBulkAll = function(checked) {
+  document.querySelectorAll('[id^="bchk-"]').forEach(cb => cb.checked = checked);
+  const total = document.querySelectorAll('[id^="bchk-"]').length;
+  updateBulkCount(total);
+};
+
+window.updateBulkCount = function(total) {
+  const selected = document.querySelectorAll('[id^="bchk-"]:checked').length;
+  const el = document.getElementById('bulk-selected-count');
+  if(el) el.textContent = selected;
 };
 
 window.runBulkCreate = async function() {
@@ -879,8 +901,14 @@ window.runBulkCreate = async function() {
   if (!pw || pw.length < 6) { showMsg(err, "Password must be at least 6 characters."); return; }
   if (pw !== pw2) { showMsg(err, "Passwords don't match."); return; }
 
-  const toCreate = profilesWithoutAccounts();
-  if (!toCreate.length) { showMsg(err, "No accounts to create."); return; }
+  // Only include profiles whose checkbox is checked
+  const allProfilesToCreate = profilesWithoutAccounts();
+  const toCreate = allProfilesToCreate.filter(p => {
+    const cb = document.getElementById(`bchk-${p.uid}`);
+    return cb ? cb.checked : true;
+  });
+
+  if (!toCreate.length) { showMsg(err, "No accounts selected — tick the checkboxes for the instructors you want to create accounts for."); return; }
 
   const btn = document.getElementById("bulk-run-btn");
   const previewBtn = document.querySelector('[onclick="previewBulk()"]');
