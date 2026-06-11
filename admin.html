@@ -300,6 +300,29 @@ function renderPage() {
       <div class="success" id="import-success"></div>
     </div>
 
+    <!-- Email import tool -->
+    <div class="card" id="email-import-card">
+      <div class="card-title">✉️ Update instructor emails from CSV</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Upload a CSV with <strong>Name</strong> and <strong>Email</strong> columns to update Firestore email fields in bulk.
+        You'll see a preview with match confirmation before anything is saved.
+      </p>
+      <div style="margin-bottom:12px;">
+        <label style="display:inline-block;cursor:pointer;">
+          <input type="file" id="email-csv-file" accept=".csv" style="display:none;" onchange="previewEmailImport()"/>
+          <span class="btn btn-ghost">📂 Choose CSV file</span>
+        </label>
+        <span id="email-csv-filename" style="font-size:12px;color:var(--muted);margin-left:10px;"></span>
+      </div>
+      <div id="email-import-preview"></div>
+      <div style="display:none;margin-top:12px;" id="email-import-actions">
+        <button class="btn btn-primary" onclick="runEmailImport()">Save email updates</button>
+        <button class="btn btn-ghost" style="margin-left:8px;" onclick="clearEmailImport()">Clear</button>
+      </div>
+      <div class="error" id="email-import-error"></div>
+      <div class="success" id="email-import-success"></div>
+    </div>
+
     <!-- Step 2: Bulk create accounts -->
     <div class="card" id="bulk-card">
       <div class="card-title">⚡ Step 2 — Bulk create login accounts</div>
@@ -920,6 +943,158 @@ window.runBulkCreate = async function() {
   // Reload profiles to reflect new accounts
   await loadAll();
   renderPage();
+};
+
+// ── EMAIL IMPORT ──
+let emailImportRows = []; // [{csvName, csvEmail, matchedUid, matchedName}]
+
+window.previewEmailImport = function() {
+  const file = document.getElementById('email-csv-file').files[0];
+  const errEl = document.getElementById('email-import-error');
+  const previewEl = document.getElementById('email-import-preview');
+  const actionsEl = document.getElementById('email-import-actions');
+  const filenameEl = document.getElementById('email-csv-filename');
+  errEl.style.display = 'none';
+  document.getElementById('email-import-success').style.display = 'none';
+  if(!file) return;
+  filenameEl.textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length) { showMsg(errEl, 'CSV is empty.'); return; }
+
+    // Parse header
+    const hdr = lines[0].split(',').map(h=>h.trim().toLowerCase());
+    const ni = hdr.indexOf('name'), ei = hdr.indexOf('email');
+    if(ni<0||ei<0) { showMsg(errEl, 'CSV must have "Name" and "Email" columns.'); return; }
+
+    // Parse rows
+    const csvRows = lines.slice(1).map(line => {
+      const parts = line.split(',');
+      return { csvName: (parts[ni]||'').trim(), csvEmail: (parts[ei]||'').trim().toLowerCase() };
+    }).filter(r => r.csvName && r.csvEmail);
+
+    if(!csvRows.length) { showMsg(errEl, 'No data rows found.'); return; }
+
+    // Match each CSV row to a Firestore profile
+    emailImportRows = csvRows.map(row => {
+      const nameLower = row.csvName.toLowerCase();
+      // 1. Exact full name match
+      let match = allProfiles.find(p => (p.displayName||'').toLowerCase() === nameLower);
+      let matchType = 'exact';
+      if(!match) {
+        // 2. First name match — only if unique
+        const firstName = nameLower.split(' ')[0];
+        const firstNameMatches = allProfiles.filter(p =>
+          (p.displayName||'').toLowerCase().split(' ')[0] === firstName
+        );
+        if(firstNameMatches.length === 1) {
+          match = firstNameMatches[0];
+          matchType = 'first-name';
+        } else if(firstNameMatches.length > 1) {
+          matchType = 'ambiguous';
+        } else {
+          matchType = 'no-match';
+        }
+      }
+      return {
+        csvName: row.csvName,
+        csvEmail: row.csvEmail,
+        matchedUid: match?.uid || null,
+        matchedName: match?.displayName || null,
+        matchType,
+      };
+    });
+
+    // Build preview table
+    const selStyle = 'background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:4px 6px;outline:none;max-width:200px;';
+    const profileOptions = allProfiles
+      .sort((a,b)=>(a.displayName||'').localeCompare(b.displayName||''))
+      .map(p=>`<option value="${p.uid}">${p.displayName}</option>`)
+      .join('');
+
+    previewEl.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+        ${emailImportRows.length} rows parsed. Review matches below — correct any that are wrong before saving.
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">CSV Name</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Email</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Matched profile</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${emailImportRows.map((row, i) => {
+              const statusColor = row.matchType==='exact'?'var(--green)':row.matchType==='first-name'?'var(--amber)':'var(--red)';
+              const statusText = {exact:'✓ Exact match','first-name':'~ First name','ambiguous':'⚠ Ambiguous','no-match':'✗ No match'}[row.matchType]||row.matchType;
+              return `<tr style="border-bottom:1px solid #0a0f18;">
+                <td style="padding:6px 8px;">${row.csvName}</td>
+                <td style="padding:6px 8px;color:var(--muted);">${row.csvEmail}</td>
+                <td style="padding:6px 8px;">
+                  <select id="email-match-${i}" style="${selStyle}">
+                    <option value="">— skip —</option>
+                    ${allProfiles.sort((a,b)=>(a.displayName||'').localeCompare(b.displayName||'')).map(p=>
+                      `<option value="${p.uid}" ${row.matchedUid===p.uid?'selected':''}>${p.displayName}</option>`
+                    ).join('')}
+                  </select>
+                </td>
+                <td style="padding:6px 8px;color:${statusColor};font-weight:500;">${statusText}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    actionsEl.style.display = '';
+  };
+  reader.readAsText(file);
+};
+
+window.runEmailImport = async function() {
+  const errEl = document.getElementById('email-import-error');
+  const sucEl = document.getElementById('email-import-success');
+  errEl.style.display = 'none'; sucEl.style.display = 'none';
+
+  const updates = [];
+  emailImportRows.forEach((row, i) => {
+    const sel = document.getElementById(`email-match-${i}`);
+    const uid = sel?.value;
+    if(!uid) return; // skipped
+    updates.push({ uid, email: row.csvEmail, csvName: row.csvName });
+  });
+
+  if(!updates.length) { showMsg(errEl, 'No rows selected — nothing to save.'); return; }
+  if(!confirm(`Update email addresses for ${updates.length} instructor${updates.length!==1?'s':''}?`)) return;
+
+  let done = 0, errors = 0;
+  for(const u of updates) {
+    try {
+      await updateDoc(doc(db, 'instructors', u.uid), { email: u.email });
+      done++;
+    } catch(e) {
+      console.error('Email update failed for', u.csvName, e);
+      errors++;
+    }
+  }
+
+  showMsg(sucEl, `✓ Updated ${done} email${done!==1?'s':''}${errors?`, ${errors} failed`:''}.`);
+  await loadAll();
+  renderPage();
+};
+
+window.clearEmailImport = function() {
+  emailImportRows = [];
+  document.getElementById('email-csv-file').value = '';
+  document.getElementById('email-csv-filename').textContent = '';
+  document.getElementById('email-import-preview').innerHTML = '';
+  document.getElementById('email-import-actions').style.display = 'none';
+  document.getElementById('email-import-error').style.display = 'none';
+  document.getElementById('email-import-success').style.display = 'none';
 };
 
 // ── MIGRATION: hwSessions → extraSessions ──

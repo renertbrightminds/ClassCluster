@@ -227,6 +227,7 @@ window.toggleDaySection=function(id){
     <span id="user-label" style="font-size:12px;color:var(--muted);"></span>
     <a href="index.html" class="nav-link">← Classes</a>
     <a id="admin-link" href="admin.html" class="nav-link" style="display:none;">Admin</a>
+    <button onclick="openEmailChangeDialog()" class="nav-link">Change email</button>
     <button onclick="doSignOut()" class="nav-link">Sign out</button>
     <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
   </div>
@@ -292,9 +293,37 @@ window.toggleDaySection=function(id){
   </div>
 </div>
 
+<!-- Email change dialog -->
+<div class="flag-dialog-overlay" id="email-change-overlay" style="display:none;" onclick="if(event.target===this)closeEmailChangeDialog()">
+  <div class="flag-dialog">
+    <div class="flag-dialog-title">Change email address</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Enter your current password to confirm, then your new email address.
+    </p>
+    <div class="flag-field">
+      <label>Current password</label>
+      <input type="password" id="ec-password" placeholder="Your current password"/>
+    </div>
+    <div class="flag-field">
+      <label>New email address</label>
+      <input type="email" id="ec-new-email" placeholder="new@example.com"/>
+    </div>
+    <div class="flag-field">
+      <label>Confirm new email</label>
+      <input type="email" id="ec-confirm-email" placeholder="new@example.com again"/>
+    </div>
+    <div class="flag-actions">
+      <button class="btn btn-ghost" onclick="closeEmailChangeDialog()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmailChange()">Update email</button>
+    </div>
+    <div style="font-size:12px;color:var(--red);margin-top:8px;display:none;" id="ec-error"></div>
+    <div style="font-size:12px;color:var(--green);margin-top:8px;display:none;" id="ec-success"></div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-import { getAuth, onAuthStateChanged, signOut as fbSignOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 import { getFirestore, collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig, CLASS_DATA_URL, WRITING_DATA_URL } from "./firebase-config.js";
 
@@ -1867,6 +1896,49 @@ function renderClassroom(){
 
 
 
+
+window.openEmailChangeDialog = function() {
+  ['ec-password','ec-new-email','ec-confirm-email'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('ec-error').style.display='none';
+  document.getElementById('ec-success').style.display='none';
+  document.getElementById('email-change-overlay').style.display='flex';
+};
+window.closeEmailChangeDialog = function() {
+  document.getElementById('email-change-overlay').style.display='none';
+};
+window.saveEmailChange = async function() {
+  const errEl = document.getElementById('ec-error');
+  const sucEl = document.getElementById('ec-success');
+  errEl.style.display='none'; sucEl.style.display='none';
+  const password  = document.getElementById('ec-password').value;
+  const newEmail  = document.getElementById('ec-new-email').value.trim().toLowerCase();
+  const confirm   = document.getElementById('ec-confirm-email').value.trim().toLowerCase();
+  if(!password)          { errEl.textContent='Please enter your current password.'; errEl.style.display='block'; return; }
+  if(!newEmail)          { errEl.textContent='Please enter a new email address.'; errEl.style.display='block'; return; }
+  if(newEmail!==confirm) { errEl.textContent='Email addresses do not match.'; errEl.style.display='block'; return; }
+  try {
+    // Re-authenticate first
+    const credential = EmailAuthProvider.credential(currentUser.email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+    // Update Firebase Auth email
+    await updateEmail(currentUser, newEmail);
+    // Update Firestore profile
+    await updateDoc(doc(db, 'instructors', currentUser.uid), { email: newEmail });
+    sucEl.textContent='✓ Email updated successfully.';
+    sucEl.style.display='block';
+    setTimeout(closeEmailChangeDialog, 2000);
+  } catch(e) {
+    const msg = e.code==='auth/wrong-password' ? 'Incorrect password.'
+              : e.code==='auth/email-already-in-use' ? 'That email is already in use.'
+              : e.code==='auth/invalid-email' ? 'Invalid email address.'
+              : e.code==='auth/requires-recent-login' ? 'Please sign out and sign back in before changing your email.'
+              : e.message;
+    errEl.textContent = msg;
+    errEl.style.display='block';
+  }
+};
 
 window.doSignOut=async()=>{
   try { localStorage.removeItem('bm_session'); } catch(e){}
