@@ -831,7 +831,9 @@ window.runImport = async function() {
 // We detect this by checking if the Firestore profile has an 'email' field set
 // (email is only written when the account is created via createAccount or bulk)
 function profilesWithoutAccounts() {
-  return allProfiles.filter(p => p.active !== false && !p.email);
+  // Include all active profiles that have an email address.
+  // The bulk create step handles "already exists" gracefully by skipping them.
+  return allProfiles.filter(p => p.active !== false && p.email);
 }
 
 window.previewBulk = function() {
