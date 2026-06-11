@@ -399,6 +399,7 @@ function renderPage() {
               </select>
               <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="saveRole('${p.uid}')">Save</button>
               <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>
+              <button class="btn btn-danger" style="font-size:11px;padding:4px 9px;" onclick="deleteProfile('${p.uid}','${(p.displayName||'').replace(/'/g,'\\\'') }')">Delete</button>
               `:''}
             </div>
           </div>`).join('')}
@@ -553,6 +554,17 @@ window.createAccount = async function() {
     showMsg(errEl, friendlyError(e.code));
   } finally {
     btn.disabled = false; btn.textContent = "Create account";
+  }
+};
+
+window.deleteProfile = async function(uid, name) {
+  if(!confirm(`Permanently delete ${name}'s profile from Firestore?\n\nThis removes them from the instructor list. Their Firebase Auth account (if any) will need to be deleted separately from the Firebase console.\n\nThis cannot be undone.`)) return;
+  try {
+    await deleteDoc(doc(db, 'instructors', uid));
+    await loadAll();
+    renderPage();
+  } catch(e) {
+    alert('Error deleting profile: ' + e.message);
   }
 };
 
