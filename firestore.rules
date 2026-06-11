@@ -15,6 +15,12 @@ service cloud.firestore {
       // Any signed-in user can read any instructor profile
       allow read: if request.auth != null;
 
+      // A user can create their own profile document (for re-linking after bulk account recreation)
+      // Only allowed if the email matches their auth email and no role escalation
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.email == request.auth.token.email;
+
       // An instructor can update only their own availability and preferences
       allow update: if request.auth != null
                     && request.auth.uid == uid
@@ -29,6 +35,11 @@ service cloud.firestore {
 
       // Super-admins can write and delete anything including role/active changes
       allow write, delete: if request.auth != null && isSuperAdmin();
+
+      // Allow deletion of old profile doc when re-linking (user deletes their old doc keyed by old UID)
+      // The old doc's email must match the authenticated user's email
+      allow delete: if request.auth != null
+                    && resource.data.email == request.auth.token.email;
     }
 
     // Class flags — any authenticated user can create; creator or admin can update/delete

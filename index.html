@@ -2030,10 +2030,11 @@ document.addEventListener("DOMContentLoaded",function(){
   // Read user session written by availability.html on login
   try {
     const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
-    if(session.displayName){
-      window._ccIsAdmin      = session.role === 'admin';
-      window._ccPresetFilter = session.role === 'admin' ? null : session.displayName;
-      // sign out button always visible
+    if(session.displayName && session.uid){
+      const isAdminRole = ['admin','super-admin'].includes(session.role);
+      window._ccIsAdmin      = isAdminRole;
+      window._ccPresetFilter = isAdminRole ? null : session.displayName;
+      window._ccSessionUid   = session.uid;
     }
   } catch(e){}
   window._ccAuthReady = true;

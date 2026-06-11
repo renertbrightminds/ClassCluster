@@ -482,11 +482,11 @@ onAuthStateChanged(auth, async user=>{
         if(!relinked.exists()){ document.getElementById("spinner").innerHTML='<p style="color:var(--red)">Profile re-link failed. Contact an administrator.</p>'; return; }
         currentProfile={uid:user.uid,...relinked.data()};
       } catch(e) {
-        document.getElementById("spinner").innerHTML='<p style="color:var(--red)">No profile found. Contact an administrator.</p>';
+        document.getElementById("spinner").innerHTML=`<p style="color:var(--red)">Profile linking error: ${e.message}<br><small style="color:var(--muted);">Email: ${user.email} · UID: ${user.uid}</small></p>`;
         return;
       }
     } else {
-      document.getElementById("spinner").innerHTML='<p style="color:var(--red)">No profile found. Contact an administrator.</p>';
+      document.getElementById("spinner").innerHTML=`<p style="color:var(--red)">No profile found for ${user.email}.<br><small style="color:var(--muted);">Contact an administrator.</small></p>`;
       return;
     }
   } else {
@@ -494,6 +494,7 @@ onAuthStateChanged(auth, async user=>{
   // Write session for ClassCluster to read (no Firebase needed there)
   try {
     localStorage.setItem('bm_session', JSON.stringify({
+      uid:         user.uid,
       displayName: currentProfile.displayName,
       role:        currentProfile.role || 'instructor',
     }));
