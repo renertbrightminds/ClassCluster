@@ -906,26 +906,9 @@ window.runBulkCreate = async function() {
     }
 
     try {
-      // Create auth account then immediately re-sign in as admin
+      // Only create the Firebase Auth account — Firestore profile re-linking
+      // happens automatically on first login via email match in availability.html
       const cred = await createUserWithEmailAndPassword(auth, profile.email, pw);
-      const newUid = cred.user.uid;
-
-      // Write profile keyed by new UID
-      await setDoc(doc(db, "instructors", newUid), {
-        ...profile, uid: newUid, createdAt: serverTimestamp(),
-      });
-
-      // Delete old pending doc
-      if (profile.uid !== newUid) {
-        try { await deleteDoc(doc(db, "instructors", profile.uid)); } catch {}
-      }
-
-      // Immediately sign back in as admin (critical — must happen after every account creation)
-      await signInWithEmailAndPassword(auth, currentUser.email, pw)
-        .catch(async () => {
-          // Admin password differs from bulk password — use stored credential
-          // This will fail silently; admin will need to re-login after bulk create completes
-        });
 
       if (statEl) { statEl.textContent="✓ Done"; statEl.className="bulk-status bs-done"; }
       done++;
