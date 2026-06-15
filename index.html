@@ -1949,6 +1949,7 @@ function runPlacementFilter(){
 // Called when either auth or data finishes loading.
 // Only applies the preset once both are ready.
 function ccTryApplyPreset(){
+  console.log('[CC preset] ccTryApplyPreset called', {authReady:window._ccAuthReady, dataReady:window._ccDataReady, preset:window._ccPresetFilter, isAdmin:window._ccIsAdmin});
   if(!window._ccAuthReady || !window._ccDataReady) return;
   if(!window._ccPresetFilter || window._ccIsAdmin) return;
 
@@ -1960,6 +1961,8 @@ function ccTryApplyPreset(){
   const firstName = name.split(" ")[0].toLowerCase();
   const match = csvInstructors.find(n => n.toLowerCase() === name.toLowerCase()) ||
                 csvInstructors.find(n => n.split(" ")[0].toLowerCase() === firstName);
+
+  console.log('[CC preset] name:', name, 'csvInstructors:', csvInstructors, 'match:', match);
 
   if(!match){
     // Name not found in CSV — show all classes rather than nothing
@@ -2030,6 +2033,7 @@ document.addEventListener("DOMContentLoaded",function(){
   // Read user session written by availability.html on login
   try {
     const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
+    console.log('[CC session] bm_session:', session);
     if(session.displayName && session.uid){
       const isAdminRole = ['admin','super-admin'].includes(session.role);
       window._ccIsAdmin      = isAdminRole;
