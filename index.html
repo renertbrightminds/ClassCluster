@@ -2035,9 +2035,43 @@ document.addEventListener("DOMContentLoaded",function(){
       window._ccIsAdmin      = isAdminRole;
       window._ccPresetFilter = isAdminRole ? null : session.displayName;
       window._ccSessionUid   = session.uid;
+      const banner = document.getElementById('cc-user-banner');
+      if(banner){ banner.textContent = session.displayName; banner.style.display=''; }
+      window._ccAuthReady = true;
+      ccTryApplyPreset();
+    } else {
+      // No session yet (e.g. first login before availability.html has run) —
+      // look up the profile directly from Firebase so classes are filtered immediately
+      Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
+        import('./firebase-config.js'),
+      ]).then(([{initializeApp},{getAuth,onAuthStateChanged},{getFirestore,doc,getDoc},{firebaseConfig}])=>{
+        const app=initializeApp(firebaseConfig,'cc-session');
+        const auth=getAuth(app);
+        const db=getFirestore(app);
+        onAuthStateChanged(auth, async user=>{
+          if(!user){ window._ccAuthReady=true; ccTryApplyPreset(); return; }
+          try{
+            const ps=await getDoc(doc(db,'instructors',user.uid));
+            if(ps.exists()){
+              const profile=ps.data();
+              const isAdminRole=['admin','super-admin'].includes(profile.role);
+              window._ccIsAdmin=isAdminRole;
+              window._ccPresetFilter=isAdminRole?null:profile.displayName;
+              window._ccSessionUid=user.uid;
+              try{ localStorage.setItem('bm_session', JSON.stringify({uid:user.uid,displayName:profile.displayName,role:profile.role||'instructor'})); }catch(e){}
+              const banner=document.getElementById('cc-user-banner');
+              if(banner && !isAdminRole){ banner.textContent=profile.displayName; banner.style.display=''; }
+            }
+          }catch(e){}
+          window._ccAuthReady=true;
+          ccTryApplyPreset();
+        });
+      }).catch(()=>{ window._ccAuthReady=true; ccTryApplyPreset(); });
     }
-  } catch(e){}
-  window._ccAuthReady = true;
+  } catch(e){ window._ccAuthReady=true; }
 });
 </script>
 

@@ -124,6 +124,7 @@ input:focus,select:focus{border-color:var(--accent);}
 .bs-skipped{background:rgba(210,153,34,.12);color:#e3b341;}
 .progress-bar-wrap{background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;margin:12px 0;}
 .progress-bar{height:100%;background:var(--accent);border-radius:6px;transition:width .3s;}
+</style>
 <script>
 // Theme — plain script (not module) so onclick attrs can call these functions
 var THEME_KEY = 'bm_theme';
@@ -142,7 +143,6 @@ function toggleTheme(){
 // Apply immediately to avoid flash of wrong theme
 applyTheme(localStorage.getItem(THEME_KEY)||'dark');
 </script>
-</style>
 </head>
 <body>
 
