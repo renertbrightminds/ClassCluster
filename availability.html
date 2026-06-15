@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Instructor Availability — Bright Minds</title>
+<title>My Availability — Bright Minds</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Inter:wght@400;500;600&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -226,6 +226,7 @@ window.toggleDaySection=function(id){
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="user-label" style="font-size:12px;color:var(--muted);"></span>
     <a href="index.html" class="nav-link">← Classes</a>
+    <a id="scheduling-link" href="scheduling.html" class="nav-link admin-only" style="display:none;">Scheduling</a>
     <a id="admin-link" href="admin.html" class="nav-link" style="display:none;">Admin</a>
     <button onclick="openEmailChangeDialog()" class="nav-link">Change email</button>
     <button onclick="doSignOut()" class="nav-link">Sign out</button>
@@ -235,14 +236,9 @@ window.toggleDaySection=function(id){
 <main>
   <div class="spinner-wrap" id="spinner"><span class="dot-spin">⟳</span>&nbsp;Loading…</div>
   <div id="app" style="display:none;">
-    <div class="tabs">
-      <button class="tab active" onclick="showTab('my-availability',this)">My availability</button>
-      <button class="tab admin-only" onclick="showTab('instructors',this)" style="display:none;">All instructors</button>
-      <button class="tab admin-only" onclick="showTab('rollup',this)" style="display:none;">Scheduling</button>
-      <button class="tab admin-only" onclick="showTab('conflicts',this)" style="display:none;">Action items</button>
-      <button class="tab admin-only" onclick="showTab('classroom',this)" style="display:none;">Classroom</button>
-      <button class="tab admin-only" onclick="showTab('shadows',this)" style="display:none;">Shadow tracker</button>
-    </div>
+    <div id="tab-my-availability"></div>
+  </div>
+</main>
     <div id="tab-my-availability"></div>
     <div id="tab-instructors" style="display:none;"></div>
     <div id="tab-rollup" style="display:none;"></div>
@@ -417,7 +413,7 @@ const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
 const TITLES = {none:'Unavailable',ip:'In-person only',online:'Online only',both:'Both IP & online'};
 
 let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], extraSessions=[], classFlags=[];
-let draftAvail={}, draftDayNotes={}, activeTab='my-availability', selectedInst=null, unsaved=false;
+let draftAvail={}, draftDayNotes={}, unsaved=false;
 
 const AVG=[
   {bg:"rgba(88,166,255,.15)",txt:"#79c0ff"},{bg:"rgba(63,185,80,.15)",txt:"#56d364"},
@@ -429,28 +425,11 @@ const ac=n=>AVG[(n||" ").charCodeAt(0)%AVG.length];
 const ini=n=>(n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
 const clone=o=>JSON.parse(JSON.stringify(o||{}));
 
-// Handle browser back/forward navigation
-window.addEventListener('popstate', function(e){
-  const state = e.state;
-  if(!state) return;
-  if(state.tab){
-    activeTab=state.tab;
-    document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-    document.querySelectorAll(".tab").forEach(t=>{
-      if(t.getAttribute("onclick")&&t.getAttribute("onclick").includes("'"+state.tab+"'")) t.classList.add("active");
-    });
-    ["my-availability","instructors","rollup","conflicts","shadows","classroom"].forEach(t=>{
-      document.getElementById("tab-"+t).style.display=t===state.tab?"":"none";
-    });
-    if(state.inst){
-      selectedInst=state.inst;
-      renderProfile(document.getElementById("tab-instructors"),state.inst);
-    } else {
-      selectedInst=null;
-      renderTab(state.tab);
-    }
-  }
+window.addEventListener('beforeunload', function(e){
+  if(unsaved){ e.preventDefault(); e.returnValue=''; }
 });
+
+// (No tab navigation needed — single view)
 
 // Handle sign-out redirect from ClassCluster
 if(new URLSearchParams(window.location.search).get('signout')==='1'){
@@ -544,8 +523,8 @@ onAuthStateChanged(auth, async user=>{
   window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
   document.getElementById("spinner").style.display="none";
   document.getElementById("app").style.display="";
-  history.replaceState({tab:'my-availability',inst:null},"",location.pathname+"#my-availability");
-  renderTab("my-availability");
+  if(isAdmin(currentProfile)) document.getElementById("scheduling-link").style.display="";
+  renderMine();
   } // end else (profile found by UID)
 });
 
@@ -606,30 +585,6 @@ function classesForProfile(profile){
   const lead=allClasses.filter(c=>matchProfile(c.instructor)?.uid===profile.uid);
   const shadow=allClasses.filter(c=>c.shadows.some(s=>matchProfile(s)?.uid===profile.uid));
   return {lead,shadow};
-}
-
-window.showTab=function(tab,btn,pushState){
-  if (unsaved&&tab!=='my-availability'){if(!confirm("Unsaved availability changes. Leave anyway?"))return;unsaved=false;}
-  activeTab=tab;selectedInst=null;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  if(btn) btn.classList.add("active");
-  else document.querySelectorAll(".tab").forEach(t=>{
-    if(t.getAttribute("onclick")&&t.getAttribute("onclick").includes("'"+tab+"'")) t.classList.add("active");
-  });
-  ["my-availability","instructors","rollup","conflicts","shadows","classroom"].forEach(t=>{
-    document.getElementById("tab-"+t).style.display=t===tab?"":"none";
-  });
-  renderTab(tab);
-  if(pushState!==false) history.pushState({tab,inst:null},"",location.pathname+"#"+tab);
-};
-
-function renderTab(t){
-  if(t==="my-availability") renderMine();
-  else if(t==="instructors") renderInstructors();
-  else if(t==="rollup") renderRollup();
-  else if(t==="conflicts") renderConflicts();
-  else if(t==="shadows") renderShadows();
-  else if(t==="classroom") renderClassroom();
 }
 
 // ── MY AVAILABILITY ──
@@ -730,9 +685,9 @@ function renderMine(){
         ${cls.instructor?`<span style="color:var(--muted);font-size:11px;">Lead: ${cls.instructor}</span>`:''}
       </div>`).join('')}
       ${myHwSessions.map(({session,inst})=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
-        <span style="font-weight:600;color:#e3b341;">${session.name}</span>
+        <span style="font-weight:600;color:${sessionColor(session)};">${session.name}</span>
         <span style="color:var(--muted);">${session.day} · ${inst.start}–${inst.end}</span>
-        <span class="pip" style="background:rgba(240,165,0,.15);color:#e3b341;">${inst.host?'Host':'HW Support'}</span>
+        <span class="pip" style="background:${sessionColor(session)}26;color:${sessionColor(session)};">${inst.host?'Host':sessionFullName(session)}</span>
         <span class="pip ${session.delivery==='online'?'pip-online':'pip-ip'}">${session.delivery==='online'?'🌐':'🏫'}</span>
       </div>`).join('')}
     </div>`:''}`;
@@ -956,165 +911,6 @@ window.saveAvail=async function(){
 };
 function setSS(msg,ok){const e=document.getElementById("save-status");if(!e)return;e.textContent=msg;e.className="save-status"+(ok?" saved":"");}
 
-// ── ALL INSTRUCTORS ──
-window.goBackToInstructors=function(){
-  selectedInst=null;
-  renderInstructors();
-  history.pushState({tab:'instructors',inst:null},'',location.pathname+'#instructors');
-};
-window.renderInstructors=function renderInstructors(){
-  const el=document.getElementById("tab-instructors");
-  if(selectedInst){renderProfile(el,selectedInst);return;}
-  const active=allProfiles.filter(p=>p.active!==false);
-  el.innerHTML=`
-    <div class="metrics">
-      <div class="metric"><div class="metric-label">Active</div><div class="metric-value ok">${active.length}</div></div>
-      <div class="metric"><div class="metric-label">Open to new</div><div class="metric-value ok">${active.filter(p=>p.maxNew>0).length}</div></div>
-      <div class="metric"><div class="metric-label">Maxed out</div><div class="metric-value warn">${active.filter(p=>p.maxNew===0).length}</div></div>
-      <div class="metric"><div class="metric-label">Inactive</div><div class="metric-value crit">${allProfiles.filter(p=>p.active===false).length}</div></div>
-    </div>
-    <div class="filter-row">
-      <input id="iq" placeholder="Search by name…" oninput="filterIG()" style="min-width:180px;"/>
-      <select id="if-role" onchange="filterIG()">
-        <option value="all">All roles</option>
-        <option value="junior-instructor">Junior</option>
-        <option value="instructor">Instructor</option>
-        <option value="admin">Admin</option>
-        <option value="super-admin">Super-admin</option>
-      </select>
-      <select id="if-status" onchange="filterIG()">
-        <option value="all">All statuses</option>
-        <option value="active">Active</option>
-        <option value="open">Open to new</option>
-        <option value="maxed">Maxed</option>
-        <option value="inactive">Inactive</option>
-      </select>
-      <span id="ig-count" style="font-size:12px;color:var(--muted);"></span>
-    </div>
-    <div class="inst-grid" id="inst-grid">
-      ${allProfiles.map(p=>{
-        const c=ac(p.displayName);let lead=[],shadow=[];try{const r=classesForProfile(p);lead=r.lead;shadow=r.shadow;}catch(e){}
-        return`<div class="inst-card${p.active===false?' inactive':''}" data-n="${(p.displayName||'').toLowerCase()}" data-a="${p.active!==false}" data-m="${p.maxNew??''}" data-role="${p.role||'instructor'}" onclick="openProf('${p.uid}')">
-          <div class="inst-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
-          <div class="inst-name">${p.displayName||'—'}</div>
-          <div class="inst-sub" style="margin-bottom:5px;">${lead.length} class${lead.length!==1?'es':''}${shadow.length?` · <span style="color:#d2a8ff">${shadow.length} shadow</span>`:''}</div>
-          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':''}${p.active!==false&&p.maxNew===0?'<span class="badge b-amber">maxed</span>':''}${p.active!==false&&p.maxNew>0?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
-        </div>`;}).join('')}
-    </div>`;
-}
-window.filterIG=function(){
-  const q      = (document.getElementById("iq")?.value||"").toLowerCase();
-  const fRole  = document.getElementById("if-role")?.value||"all";
-  const fStatus= document.getElementById("if-status")?.value||"all";
-  let visible  = 0;
-  document.querySelectorAll(".inst-card").forEach(card=>{
-    const a=card.dataset.a==="true", m=card.dataset.m, role=card.dataset.role||'instructor';
-    let show=true;
-    if(q && !card.dataset.n.includes(q)) show=false;
-    if(fRole!=="all" && role!==fRole) show=false;
-    if(fStatus==="active"   && !a) show=false;
-    if(fStatus==="inactive" &&  a) show=false;
-    if(fStatus==="open"     && !(a&&m>0)) show=false;
-    if(fStatus==="maxed"    && !(a&&m==="0")) show=false;
-    card.style.display=show?"":"none";
-    if(show) visible++;
-  });
-  const countEl=document.getElementById("ig-count");
-  if(countEl) countEl.textContent=visible+" of "+allProfiles.length;
-};
-window.openProf=function(uid){
-  selectedInst=uid;
-  renderProfile(document.getElementById("tab-instructors"),uid);
-  history.pushState({tab:'instructors',inst:uid},"",location.pathname+"#instructor-"+uid);
-};
-function renderProfile(el,uid){
-  const p=allProfiles.find(x=>x.uid===uid); if(!p) return;
-  const c=ac(p.displayName);
-  let lead=[],shadow=[];try{const r=classesForProfile(p);lead=r.lead;shadow=r.shadow;}catch(e){}
-  const isOwn=uid===currentUser.uid;
-  const profHwSessions=extraSessions
-    .map(s=>({session:s,inst:(s.instructors||[]).find(i=>i.uid===p.uid)}))
-    .filter(x=>x.inst)
-    .sort((a,b)=>({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[a.session.day]??9)-({Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5}[b.session.day]??9));
-  el.innerHTML=`
-    <button class="back-btn" onclick="goBackToInstructors()">← All instructors</button>
-    <div class="profile-header">
-      <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
-      <div><div class="profile-name">${p.displayName}</div>
-        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
-          ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':'<span class="badge b-blue">Instructor</span>'}
-          ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
-          ${p.maxNew===0?'<span class="badge b-amber">No new</span>':p.maxNew?`<span class="badge b-green">+${p.maxNew} new</span>`:''}
-          ${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}
-          ${isOwn?'<span class="badge b-blue">You</span>':''}
-        </div>
-      </div>
-    </div>
-    ${(p.notes||p.comment||p.gradeMin||p.levelMin)?`<div class="card" style="border-color:rgba(88,166,255,.15);margin-bottom:12px;">
-      ${p.gradeMin||p.gradeMax||p.levelMin||p.levelMax?`<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:${p.notes||p.comment?'12px':'0'};">
-        ${p.gradeMin||p.gradeMax?`<div><div class="section-label" style="margin-bottom:3px;">Grade range</div>
-          <span style="font-size:13px;color:var(--text);">${p.gradeMin||'?'} → ${p.gradeMax||'?'}</span></div>`:''}
-        ${p.levelMin||p.levelMax?`<div><div class="section-label" style="margin-bottom:3px;">Level range</div>
-          <span style="font-size:13px;color:var(--text);">${p.levelMin||'?'} → ${p.levelMax||'?'}</span></div>`:''}
-      </div>`:''}
-      ${p.notes?`<div class="section-label" style="margin-bottom:4px;">Admin notes</div><div class="note-box" style="margin-bottom:${p.comment?'10px':'0'};">${p.notes}</div>`:''}
-      ${p.comment?`<div class="section-label" style="margin-bottom:4px;margin-top:${p.notes?'10px':'0'};">Instructor comment</div><div class="note-box">${p.comment}</div>`:''}
-    </div>`:''}
-    <div class="card" style="margin-bottom:12px;">
-      <div class="section-label" style="display:flex;align-items:center;justify-content:space-between;">
-        Weekly availability
-        ${(isAdmin(currentProfile)&&p.uid!==currentUser.uid)?'<span style="font-size:11px;color:var(--muted);">Admin edit</span>':''}
-      </div>
-      <div id="prof-av-grid"></div>
-      <div class="avail-legend" style="margin-top:10px;">
-        <span><span class="legend-dot" style="background:rgba(63,185,80,.35)"></span>IP free</span>
-        <span><span class="legend-dot" style="background:rgba(88,166,255,.35)"></span>Online free</span>
-        <span><span class="legend-dot" style="background:rgba(188,140,255,.35)"></span>Both</span>
-        <span><span class="legend-dot" style="background:rgba(210,153,34,.35)"></span>Assigned</span>
-        <span><span class="legend-dot" style="background:rgba(20,184,166,.3)"></span>HW</span>
-        <span><span class="legend-dot" style="background:var(--surface2);border:1px solid #1c2333;"></span>Unavailable</span>
-      </div>
-      ${(isAdmin(currentProfile)&&p.uid!==currentUser.uid)?`
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;">
-        <span class="save-status" id="prof-save-status"></span>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-ghost" style="font-size:12px;padding:6px 12px;" onclick="resetProfileDraft('${p.uid}')">Reset</button>
-          <button class="btn btn-primary" style="font-size:12px;padding:6px 12px;" id="prof-save-btn" onclick="saveProfileAvail('${p.uid}')">Save</button>
-        </div>
-      </div>`:''}
-    </div>
-
-    ${(lead.length||shadow.length||profHwSessions.length)?`<div class="card">
-      <div class="section-label">Assigned classes & sessions</div>
-      ${lead.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
-        <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
-        <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
-        <span class="pip ${cls.delivery==='online'?'pip-online':'pip-ip'}">${cls.delivery==='online'?'🌐':'🏫'}</span>
-      </div>`).join('')}
-      ${shadow.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
-        <span style="font-weight:600;color:#d2a8ff;">${cls.classId}</span>
-        <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
-        <span class="pip pip-shadow">Shadow</span>
-        ${cls.instructor?`<span style="color:var(--muted);font-size:11px;">Lead: ${cls.instructor}</span>`:''}
-      </div>`).join('')}
-      ${profHwSessions.map(({session,inst})=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
-        <span style="font-weight:600;color:${sessionColor(session)};">${session.name}</span>
-        <span style="color:var(--muted);">${session.day} · ${inst.start}–${inst.end}</span>
-        <span class="pip" style="background:rgba(20,184,166,.2);color:${sessionColor(session)};">${inst.host?'Host':sessionLabel(session)}</span>
-        <span class="pip ${session.delivery==='online'?'pip-online':'pip-ip'}">${session.delivery==='online'?'🌐':'🏫'}</span>
-      </div>`).join('')}
-    </div>`:''}
-  `;
-  // For admin editing another instructor, use a separate draft object
-  if (isAdmin(currentProfile) && p.uid!==currentUser.uid) {
-    window._profileDraft = window._profileDraft || {};
-    window._profileDraft[p.uid] = window._profileDraft[p.uid] || JSON.parse(JSON.stringify(p.availability||{}));
-    buildGrid("prof-av-grid", window._profileDraft[p.uid], true, p.uid);
-  } else {
-    buildGrid("prof-av-grid", p.availability||{}, false);
-  }
-}
-
 // ── ROLLUP ──
 
 // Returns a Set of "day|slot" strings that an instructor is assigned to (lead or shadow)
@@ -1178,272 +974,6 @@ function hwSessionForSlot(profile, key) {
   return null;
 }
 
-function slotStatus(profile, day, slot, blockedCache) {
-  // Returns: 'none' | 'ip' | 'online' | 'both' | 'assigned-lead' | 'assigned-shadow'
-  const key = `${day}|${slot}`;
-  if (!blockedCache) blockedCache = assignedSlotsForProfile(profile);
-  if (blockedCache.has(key)) {
-    // Determine lead vs shadow
-    const {lead, shadow} = classesForProfile(profile);
-    const isLead = lead.some(cls => {
-      const d = DAYS.find(d=>(cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
-      return d===day && assignedSlotsForClass(cls).has(key);
-    });
-    return isLead ? 'assigned-lead' : 'assigned-shadow';
-  }
-  return (profile.availability?.[day]||{})[slot]||'none';
-}
-
-function assignedSlotsForClass(cls) {
-  const blocked = new Set();
-  const day = DAYS.find(d=>(cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
-  if (!day||!cls.time) return blocked;
-  const m = cls.time.match(/(\d+):(\d+)/);
-  if (!m) return blocked;
-  let mins = parseInt(m[1])*60+parseInt(m[2]);
-  for (let i=0;i<4;i++){
-    const h=Math.floor(mins/60), mn=mins%60;
-    blocked.add(`${day}|${h}:${mn.toString().padStart(2,'0')}`);
-    mins+=15;
-  }
-  return blocked;
-}
-
-function assignedDeliveryMap(profile){
-  const map={};
-  const {lead,shadow}=classesForProfile(profile);
-  [...lead,...shadow].forEach(cls=>{
-    assignedSlotsForClass(cls).forEach(key=>{map[key]=cls.delivery||"in-person";});
-  });
-  return map;
-}
-
-// ── SCHEDULING / ROLLUP ──
-let scheduleMode = 'ip'; // 'ip' | 'online' | 'juniors'
-
-function renderRollup(){
-  const el=document.getElementById("tab-rollup");
-  el.innerHTML=`
-    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:16px;">
-      <button class="tab ${scheduleMode==='ip'?'active':''}" id="sched-tab-ip"
-        onclick="setScheduleMode('ip')" style="font-size:13px;">🏫 In-person</button>
-      <button class="tab ${scheduleMode==='online'?'active':''}" id="sched-tab-online"
-        onclick="setScheduleMode('online')" style="font-size:13px;">🌐 Online</button>
-      <button class="tab ${scheduleMode==='juniors'?'active':''}" id="sched-tab-juniors"
-        onclick="setScheduleMode('juniors')" style="font-size:13px;">🌱 Junior instructors</button>
-    </div>
-    <div class="filter-row" style="margin-bottom:16px;">
-      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">From</label>
-      <select id="rt-from">${SLOTS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
-      <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">To</label>
-      <select id="rt-to">${SLOTS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
-      <input id="rq" placeholder="Filter instructor…" oninput="buildRollup()" style="min-width:150px;"/>
-    </div>
-    <div id="rollup-wrap"></div>`;
-
-  document.getElementById("rt-to").selectedIndex=SLOTS.length-1;
-  ["rt-from","rt-to"].forEach(id=>{
-    document.getElementById(id)?.addEventListener("change",buildRollup);
-  });
-  buildRollup();
-}
-
-window.setScheduleMode=function(mode){
-  scheduleMode=mode;
-  document.getElementById("sched-tab-ip")?.classList.toggle("active",mode==="ip");
-  document.getElementById("sched-tab-online")?.classList.toggle("active",mode==="online");
-  document.getElementById("sched-tab-juniors")?.classList.toggle("active",mode==="juniors");
-  buildRollup();
-};
-
-window.buildRollup=function(){
-  const fromVal = document.getElementById("rt-from")?.value||SLOTS[0];
-  const toVal   = document.getElementById("rt-to")?.value||SLOTS[SLOTS.length-1];
-  const q       = (document.getElementById("rq")?.value||"").toLowerCase();
-  const wrap    = document.getElementById("rollup-wrap"); if(!wrap) return;
-
-  function toMins(t){ const [h,m]=(t||"0:0").split(":").map(Number); return h*60+m; }
-  const fromMins=toMins(fromVal), toMins_=toMins(toVal);
-
-  // Pre-compute blocked slots per instructor
-  const blockedByUid={};
-  allProfiles.forEach(p=>{ blockedByUid[p.uid]=assignedSlotsForProfile(p); });
-
-  // Active instructors — exclude juniors from IP/online tabs, show only juniors in juniors tab
-  const insts=allProfiles.filter(p=>{
-    if(p.active===false) return false;
-    if(q&&!(p.displayName||"").toLowerCase().includes(q)) return false;
-    if(scheduleMode==='juniors') return p.role==='junior-instructor';
-    return p.role!=='junior-instructor';
-  });
-
-  // Is an instructor truly free (not assigned, and marked available for mode) at day+slot?
-  function isFree(p, day, slot){
-    const key=`${day}|${slot}`;
-    if(blockedByUid[p.uid].has(key)) return false;
-    const avail=(p.availability?.[day]||{})[slot]||"none";
-    if(avail==="none") return false;
-    if(scheduleMode==="juniors") return true; // show all availability types for juniors
-    if(scheduleMode==="ip"    ) return avail==="ip"||avail==="both";
-    if(scheduleMode==="online") return avail==="online"||avail==="both";
-    return false;
-  }
-
-  // Time slots to show as rows (filtered by range, must exist in at least one day)
-  const rowSlots=SLOTS.filter(s=>{
-    const m=toMins(s); return m>=fromMins&&m<=toMins_;
-  });
-
-  if(!rowSlots.length){
-    wrap.innerHTML='<div class="empty">No slots in selected time range.</div>'; return;
-  }
-
-  // ── GRID ──
-  // Layout mirrors the availability tab:
-  // Each day is a column, each time slot is a row.
-  // Cell content = list of free instructor names.
-
-  const accentColor = scheduleMode==="online" ? "#79c0ff" : scheduleMode==="juniors" ? "#2dd4bf" : "#56d364";
-  const accentBg    = scheduleMode==="online" ? "rgba(88,166,255,.06)" : scheduleMode==="juniors" ? "rgba(20,184,166,.06)" : "rgba(63,185,80,.06)";
-
-  // Grid: flex row of day columns (same structure as availability grid)
-  let html=`<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;">`;
-
-  DAYS.forEach(day=>{
-    const daySlots=slotsForDay(day).filter(s=>{
-      const m=toMins(s); return m>=fromMins&&m<=toMins_;
-    });
-
-    html+=`<div style="flex-shrink:0;min-width:140px;">`;
-    // Day header
-    html+=`<div style="font-size:13px;font-weight:700;color:var(--text);text-align:center;padding:6px 4px 10px;">${day}</div>`;
-
-    if(!daySlots.length){
-      html+=`<div style="font-size:11px;color:var(--muted);text-align:center;padding:8px;">—</div>`;
-    } else {
-      daySlots.forEach(slot=>{
-        const freeInsts=insts.filter(p=>isFree(p,day,slot));
-
-        const bg=freeInsts.length>0?accentBg:"transparent";
-        const border=freeInsts.length>0
-          ? (scheduleMode==="online"?"rgba(88,166,255,.2)":"rgba(63,185,80,.2)")
-          : "var(--border)";
-
-        html+=`<div style="display:flex;gap:5px;margin-bottom:3px;align-items:flex-start;">`;
-        html+=`<span style="font-size:11px;color:var(--muted);min-width:42px;padding-top:4px;flex-shrink:0;">${slot}</span>`;
-        html+=`<div style="flex:1;min-height:26px;border-radius:5px;border:1px solid ${border};background:${bg};padding:3px 5px;">`;
-        if(freeInsts.length){
-          html+=freeInsts.map(p=>
-            `<div style="font-size:10px;font-weight:600;color:${accentColor};line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;"
-              onclick="showTab('instructors');openProf('${p.uid}')" title="${p.displayName}">${p.displayName}</div>`
-          ).join("");
-        }
-        html+=`</div></div>`;
-      });
-    }
-    html+=`</div>`;
-  });
-
-  html+=`</div>`;
-  wrap.innerHTML=html;
-};
-
-
-// ── ACTION ITEMS ──
-const REASON_LABELS = {
-  'instructor-leaving': 'Instructor leaving / unavailable',
-  'needs-split':        'Class needs splitting',
-  'placement-issue':    'Student placement issue',
-  'other':              'Other',
-};
-const STATUS_ORDER = {urgent:0, open:1, planned:2, resolved:3};
-
-function renderConflicts(){
-  const el=document.getElementById("tab-conflicts");
-  const isAdminRole = isAdmin(currentProfile);
-
-  // Manual flags visible to current user
-  const visibleFlags = classFlags.filter(f=>{
-    if(isAdminRole) return true;
-    const cls = allClasses.find(c=>c.classId===f.classId);
-    if(!cls) return false;
-    const lead = matchProfile(cls.instructor);
-    const shadows = (cls.shadows||[]).map(s=>matchProfile(s));
-    return lead?.uid===currentUser.uid || shadows.some(s=>s?.uid===currentUser.uid);
-  }).sort((a,b)=>(STATUS_ORDER[a.status]??9)-(STATUS_ORDER[b.status]??9));
-
-  // Critical classes from ClassCluster (stored in localStorage by index.html)
-  let critFromCSV = [];
-  try { const s=localStorage.getItem('bm_critical_classes'); if(s) critFromCSV=JSON.parse(s); } catch(e){}
-  const visibleCritical = critFromCSV.filter(c=>{
-    if(isAdminRole) return true;
-    const lead=matchProfile(c.instructor);
-    const shadows=(c.shadows||[]).map(s=>matchProfile(s));
-    return lead?.uid===currentUser.uid || shadows.some(s=>s?.uid===currentUser.uid);
-  });
-
-  const statusBadge = s => {
-    const map={urgent:'fsb-urgent',open:'fsb-open',planned:'fsb-planned',resolved:'fsb-resolved'};
-    const lbl={urgent:'Urgent',open:'Open',planned:'Planned change',resolved:'Resolved'};
-    return `<span class="flag-status-badge ${map[s]||'fsb-open'}">${lbl[s]||s}</span>`;
-  };
-
-  el.innerHTML=`
-    ${visibleCritical.length?`
-    <div style="margin-bottom:24px;">
-      <div class="section-label" style="margin-bottom:10px;color:#ffa198;">Critical classes from ClassCluster (${visibleCritical.length})</div>
-      ${visibleCritical.map(c=>{
-        const hasFlag=classFlags.find(f=>f.classId===c.classId);
-        return `<div class="flag-card critical-class" style="cursor:pointer;" onclick="openFlagDialog('${c.classId}')">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-            <div class="flag-card-title">🔴 ${c.classId}${c.day?' · '+c.day:''} ${c.time||''}</div>
-            ${hasFlag?statusBadge(hasFlag.status):'<span style="font-size:11px;color:var(--muted);">Click to flag</span>'}
-          </div>
-          <div class="flag-card-meta">${c.instructor||'No instructor'}${c.delivery?' · '+c.delivery:''}</div>
-          <div style="font-size:12px;color:var(--muted);">
-            ${(c.alerts||[]).filter(a=>a.level==='danger').map(a=>
-              `<div style="margin-bottom:3px;">• ${a.text.replace(/<[^>]+>/g,' ').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/<[^>]+>/g,'')}</div>`
-            ).join('')}
-          </div>
-        </div>`;
-      }).join('')}
-    </div>`:''}
-    <div>
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-        <div class="section-label" style="margin:0;">Manual flags (${visibleFlags.filter(f=>f.status!=='resolved').length} active)</div>
-      </div>
-      ${!visibleFlags.length
-        ? '<div class="empty">No flags yet. Click an assigned class cell on the availability grid to flag it.</div>'
-        : visibleFlags.map(f=>{
-            const cls=allClasses.find(c=>c.classId===f.classId);
-            const instructor=cls?cls.instructor:'Unknown';
-            const schedule=[cls?.day,cls?.time].filter(Boolean).join(' ');
-            const reason=f.reason==='other'?(f.otherNote||'Other'):REASON_LABELS[f.reason]||f.reason;
-            return `<div class="flag-card ${f.status}">
-              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
-                <div class="flag-card-title">${f.classId} ${schedule?'· '+schedule:''}</div>
-                ${statusBadge(f.status)}
-              </div>
-              <div class="flag-card-meta">${instructor}${cls?.delivery?' · '+cls.delivery:''}</div>
-              <div style="font-size:13px;margin-bottom:8px;">
-                <strong>${reason}</strong>
-                ${f.note?`<div style="color:var(--muted);margin-top:3px;">${f.note}</div>`:''}
-              </div>
-              <div style="display:flex;gap:6px;flex-wrap:wrap;">
-                <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="openFlagDialog('${f.classId}')">Edit</button>
-                ${isAdminRole&&f.status!=='resolved'
-                  ? `<button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;color:var(--green);border-color:rgba(63,185,80,.3);" onclick="resolveFlagById('${f.id}')">Mark resolved</button>`
-                  : ''}
-              </div>
-              <div style="font-size:10px;color:var(--muted);margin-top:8px;">
-                Flagged by ${f.createdByName||'unknown'} · ${f.createdAt?.toDate?f.createdAt.toDate().toLocaleDateString():''}
-                ${f.updatedByName&&f.updatedByName!==f.createdByName?` · Updated by ${f.updatedByName}`:''}
-              </div>
-            </div>`;
-          }).join('')}
-    </div>
-  `;
-}
 
 
 // ── FLAG DIALOG FUNCTIONS ──
@@ -1503,10 +1033,7 @@ window.saveFlag=async function(){
       classFlags.push({...data,id:ref.id});
     }
     closeFlagDialog();
-    // Re-render current tab and grid
-    if(activeTab==='conflicts') renderConflicts();
-    if(activeTab==='my-availability') renderMine();
-    if(activeTab==='instructors'&&selectedInst) renderProfile(document.getElementById('tab-instructors'),selectedInst);
+    renderMine();
   }catch(e){
     errEl.textContent='Error saving: '+e.message;errEl.style.display='block';
   }
@@ -1519,159 +1046,11 @@ window.deleteFlag=async function(){
     await deleteDoc(doc(db,'classFlags',docId));
     classFlags=classFlags.filter(f=>f.id!==docId);
     closeFlagDialog();
-    if(activeTab==='conflicts') renderConflicts();
-    if(activeTab==='my-availability') renderMine();
+    renderMine();
   }catch(e){ alert('Error: '+e.message); }
 };
 
-window.resolveFlagById=async function(docId){
-  try{
-    await updateDoc(doc(db,'classFlags',docId),{
-      status:'resolved',updatedBy:currentUser.uid,
-      updatedByName:currentProfile.displayName,updatedAt:serverTimestamp()
-    });
-    const f=classFlags.find(x=>x.id===docId);
-    if(f) f.status='resolved';
-    renderConflicts();
-  }catch(e){ alert('Error: '+e.message); }
-};
 
-// Extract the school year prefix from a class ID (e.g. "25-1081" → "25", "1081" → null)
-function classYear(classId) {
-  const m = (classId||'').match(/^(\d{2})-/);
-  return m ? m[1] : null;
-}
-// Two classes conflict only if they have the same year prefix (or neither has one)
-function sameYear(a, b) {
-  const ya=classYear(a), yb=classYear(b);
-  return ya===yb; // both null, or both same prefix
-}
-
-function detectConflicts(){
-  const C=[];
-  // Double-booked lead — only flag if same school year
-  const bl={};
-  allClasses.forEach(c=>{const p=matchProfile(c.instructor);if(!p)return;const k=`${p.uid}|${(c.day||'').slice(0,3).toLowerCase()}|${c.time}`;if(!bl[k])bl[k]=[];bl[k].push(c);});
-  Object.entries(bl).forEach(([,cls])=>{
-    if(cls.length>1){
-      // Group by year — only flag within-year collisions
-      const byYear={};
-      cls.forEach(c=>{const y=classYear(c.classId)||'_';if(!byYear[y])byYear[y]=[];byYear[y].push(c);});
-      Object.values(byYear).forEach(grp=>{
-        if(grp.length>1){const p=matchProfile(grp[0].instructor);
-          C.push({type:"Double-booked lead",detail:`${p?.displayName||grp[0].instructor} is lead on ${grp.length} overlapping classes in the same school year: ${grp.map(c=>c.classId).join(', ')}`,tags:[p?.displayName,...grp.map(c=>c.classId)]});}
-      });
-    }
-  });
-  // Lead also shadow — year-aware
-  allClasses.forEach(c=>{const lead=matchProfile(c.instructor);if(!lead)return;
-    c.shadows.forEach(s=>{const sp=matchProfile(s);if(sp&&sp.uid===lead.uid)
-      C.push({type:"Lead also listed as shadow",detail:`${lead.displayName} is both lead and shadow on ${c.classId}.`,tags:[lead.displayName,c.classId]});});});
-  // Inactive assigned
-  allClasses.forEach(c=>{
-    const lead=matchProfile(c.instructor);
-    if(lead&&lead.active===false) C.push({type:"Inactive instructor — lead",detail:`${lead.displayName} is inactive but assigned as lead on ${c.classId}.`,tags:[lead.displayName,c.classId]});
-    c.shadows.forEach(s=>{const sp=matchProfile(s);if(sp&&sp.active===false)
-      C.push({type:"Inactive instructor — shadow",detail:`${sp.displayName} is inactive but listed as shadow on ${c.classId}.`,tags:[sp.displayName,c.classId]});});});
-  // Assigned outside availability — check all 4 slots a class occupies
-  allClasses.forEach(c=>{
-    const day=DAYS.find(d=>(c.day||'').toLowerCase().startsWith(d.toLowerCase()));if(!day) return;
-    const classSlots=[...assignedSlotsForClass(c)].map(k=>k.split('|')[1]);
-    if(!classSlots.length) return;
-    const check=(csvName,role)=>{
-      const p=matchProfile(csvName);if(!p||p.active===false)return;
-      // Flag if none of the class slots are marked available
-      const hasAny=classSlots.some(s=>(p.availability?.[day]||{})[s]&&(p.availability[day][s]!=='none'));
-      if(!hasAny) C.push({type:"Assigned outside stated availability",
-        detail:`${p.displayName} is ${role} on ${c.classId} (${day} ${c.time}) but hasn't marked any of those slots as available.`,
-        tags:[p.displayName,c.classId,day,c.time]});
-    };
-    if(c.instructor) check(c.instructor,'lead');
-    c.shadows.forEach(s=>check(s,'shadow'));
-  });
-  return C;
-}
-
-// ── SHADOW TRACKER ──
-function renderShadows(){
-  const el=document.getElementById("tab-shadows");
-  const rels=[];
-  allClasses.forEach(c=>c.shadows.forEach(s=>{const p=matchProfile(s);if(p) rels.push({profile:p,cls:c});}));
-  if(!rels.length){el.innerHTML=`<div class="empty">No shadow instructors in current class data.<br><br>Add a <code>Shadows</code> column to your CSV with semicolon-separated names.</div>`;return;}
-  const byUid={};
-  rels.forEach(r=>{if(!byUid[r.profile.uid])byUid[r.profile.uid]={profile:r.profile,classes:[]};byUid[r.profile.uid].classes.push(r.cls);});
-  const cleared=rels.filter(r=>gsd(r.cls.classId,r.profile.uid).cleared).length;
-  el.innerHTML=`
-    <div class="metrics" style="grid-template-columns:repeat(3,1fr);">
-      <div class="metric"><div class="metric-label">Shadow instructors</div><div class="metric-value purple">${Object.keys(byUid).length}</div></div>
-      <div class="metric"><div class="metric-label">Assignments</div><div class="metric-value">${rels.length}</div></div>
-      <div class="metric"><div class="metric-label">Cleared to lead</div><div class="metric-value ok">${cleared}</div></div>
-    </div>
-    ${Object.values(byUid).sort((a,b)=>(a.profile.displayName||'').localeCompare(b.profile.displayName||'')).map(({profile:p,classes})=>{
-      const c=ac(p.displayName);
-      return`<div style="margin-bottom:24px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div style="width:32px;height:32px;border-radius:50%;background:${c.bg};color:${c.txt};display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">${ini(p.displayName)}</div>
-          <span style="font-family:'Fraunces',serif;font-size:18px;font-weight:700;color:#d2a8ff;">${p.displayName}</span>
-          <span style="font-size:12px;color:var(--muted);">${classes.length} class${classes.length!==1?'es':''}</span>
-        </div>
-        ${classes.map(cls=>{const cid=cls.classId;const d=gsd(cid,p.uid);const eid=`${cid.replace(/\W/g,'_')}_${p.uid.slice(0,8)}`;
-          return`<div class="shadow-tracker-card">
-            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-              <div><div style="font-weight:700;font-size:14px;color:#d2a8ff;">${cid}</div>
-                <div style="font-size:12px;color:var(--muted);">${[cls.day,cls.time,cls.instructor?`Lead: ${cls.instructor}`:''].filter(Boolean).join(' · ')}</div>
-              </div>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <button class="sc-btn" onclick="sadj('${cid}','${p.uid}','${eid}',-1)">−</button>
-                <div style="text-align:center;"><div class="sc-val" id="sv-${eid}">${d.sessions}</div><div style="font-size:10px;color:var(--muted);">sessions</div></div>
-                <button class="sc-btn" onclick="sadj('${cid}','${p.uid}','${eid}',1)">+</button>
-              </div>
-            </div>
-            <textarea class="shadow-notes" rows="2" placeholder="Notes…" id="sn-${eid}"
-              onchange="snote('${cid}','${p.uid}','${eid}')" oninput="snote('${cid}','${p.uid}','${eid}')">${d.notes}</textarea>
-            <label class="cleared-label${d.cleared?' is-cleared':''}" id="sc-${eid}">
-              <input type="checkbox" ${d.cleared?'checked':''} onchange="sclr('${cid}','${p.uid}','${eid}',this)"/>
-              Cleared to lead independently
-            </label>
-          </div>`;}).join('')}
-      </div>`;}).join('')}`;
-}
-const gsd=(cid,uid)=>{try{return JSON.parse(localStorage.getItem(`bm_sh_${cid}_${uid}`))||{sessions:0,notes:'',cleared:false};}catch{return{sessions:0,notes:'',cleared:false};}};
-const ssd=(cid,uid,d)=>{try{localStorage.setItem(`bm_sh_${cid}_${uid}`,JSON.stringify(d));}catch{}};
-window.sadj=(cid,uid,eid,delta)=>{const d=gsd(cid,uid);d.sessions=Math.max(0,d.sessions+delta);ssd(cid,uid,d);const e=document.getElementById(`sv-${eid}`);if(e)e.textContent=d.sessions;};
-window.snote=(cid,uid,eid)=>{const ta=document.getElementById(`sn-${eid}`);if(!ta)return;const d=gsd(cid,uid);d.notes=ta.value;ssd(cid,uid,d);};
-window.sclr=(cid,uid,eid,cb)=>{const d=gsd(cid,uid);d.cleared=cb.checked;ssd(cid,uid,d);const l=document.getElementById(`sc-${eid}`);if(l)l.classList.toggle('is-cleared',d.cleared);};
-
-window.saveProfileAvail=async function(uid){
-  const btn=document.getElementById('prof-save-btn');
-  const stat=document.getElementById('prof-save-status');
-  if(btn){btn.disabled=true;btn.textContent='Saving...';}
-  const draft=(window._profileDraft||{})[uid]||{};
-  try{
-    await updateDoc(doc(db,'instructors',uid),{
-      availability:draft,
-      availabilityUpdatedAt:serverTimestamp()
-    });
-    // Update local allProfiles cache
-    const p=allProfiles.find(x=>x.uid===uid);
-    if(p) p.availability=JSON.parse(JSON.stringify(draft));
-    if(stat){stat.textContent='Saved';stat.className='save-status saved';}
-  }catch(e){
-    if(stat){stat.textContent='Error: '+e.message;stat.className='save-status';}
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent='Save';}
-  }
-};
-
-window.resetProfileDraft=function(uid){
-  const p=allProfiles.find(x=>x.uid===uid);
-  if(!p) return;
-  window._profileDraft=window._profileDraft||{};
-  window._profileDraft[uid]=JSON.parse(JSON.stringify(p.availability||{}));
-  buildGrid('prof-av-grid',window._profileDraft[uid],true,uid);
-  const stat=document.getElementById('prof-save-status');
-  if(stat){stat.textContent='Reset to last saved';stat.className='save-status';}
-};
 
 
 // ── EXTRA SESSION HELPERS ──
@@ -1692,228 +1071,6 @@ function sessionFullName(s){
     'hw-support': 'HW Support',
     'chess-club':  'Chess Club',
   }[s.type||'hw-support'] || s.name || 'Session';
-}
-
-// ── CLASSROOM SCHEDULE ──
-const ROOMS = [
-  {id:'P1', label:'P1', color:'#ef4444', light:'rgba(239,68,68,.15)'},
-  {id:'P2', label:'P2', color:'#f97316', light:'rgba(249,115,22,.15)'},
-  {id:'P3', label:'P3', color:'#eab308', light:'rgba(234,179,8,.15)'},
-  {id:'P4', label:'P4', color:'#22c55e', light:'rgba(34,197,94,.15)'},
-  {id:'P5', label:'P5', color:'#3b82f6', light:'rgba(59,130,246,.15)'},
-  {id:'P6', label:'P6', color:'#a855f7', light:'rgba(168,85,247,.15)'},
-  // Future rooms — add id/label/color when known
-  {id:'P7', label:'P7 (future)', color:'#6b7280', light:'rgba(107,114,128,.1)'},
-  {id:'P8', label:'P8 (future)', color:'#6b7280', light:'rgba(107,114,128,.1)'},
-];
-
-function renderClassroom(){
-  const el = document.getElementById('tab-classroom');
-
-  // Load class stats from ClassCluster localStorage
-  let classStatsMap = {};
-  try {
-    const stored = localStorage.getItem('bm_class_stats');
-    if(stored) JSON.parse(stored).forEach(c=>{ classStatsMap[c.classId]=c; });
-  } catch(e){}
-
-  // In-person classes
-  const ipClasses = allClasses.filter(c => c.delivery === 'in-person');
-  const knownRoomIds = new Set(ROOMS.map(r=>r.id));
-  const hwWithRoom = extraSessions.filter(s => s.room && knownRoomIds.has((s.room||'').toUpperCase()));
-
-  // Rooms to show: always base 6, plus any extras in use
-  const usedRooms = new Set([
-    ...ipClasses.map(c=>(c.room||'').toUpperCase()),
-    ...hwWithRoom.map(s=>(s.room||'').toUpperCase()),
-  ].filter(r=>r&&r!=='ZOOM'&&!r.startsWith('ZOOM')));
-  const activeRooms = ROOMS.filter(r => ['P1','P2','P3','P4','P5','P6'].includes(r.id) || usedRooms.has(r.id));
-
-  // Unassigned in-person classes
-  const unassigned = ipClasses.filter(c => {
-    const room = (c.room||'').toUpperCase();
-    return !room || (!knownRoomIds.has(room) && room !== 'ZOOM' && !room.startsWith('ZOOM'));
-  });
-
-  // Helper: convert "H:MM" to minutes from midnight
-  function tm(t){ const m=(t||'').match(/(\d+):(\d+)/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
-
-  // Grade display helpers
-  const GRADE_LABELS = ['JK','SK','1','2','3','4','5','6','7','8','9','10','11','12'];
-  function gradeLabel(g){ return GRADE_LABELS[g+2] || String(g); }
-  function abilityLabel(v){
-    const BOOK_LEVEL_MAP=[
-      {name:'KJr',min:-1,max:-0.5},{name:'KSr',min:-0.5,max:0},
-      {name:'1A',min:0,max:0.5},{name:'1A R',min:0.5,max:1},
-      {name:'1B',min:1,max:1.5},{name:'1B R',min:1.5,max:2},
-      {name:'2A',min:2,max:2.5},{name:'2B',min:2.5,max:3},
-      {name:'2C',min:3,max:3.5},{name:'2D',min:3.5,max:4},
-      {name:'3A',min:4,max:4.5},{name:'3B',min:4.5,max:5},
-      {name:'3C',min:5,max:5.5},{name:'3D',min:5.5,max:6},
-      {name:'4A',min:6,max:7},{name:'4B',min:7,max:8},
-      {name:'Bk5',min:8,max:9},{name:'Bk6',min:9,max:10},
-      {name:'Bk7',min:10,max:11},{name:'Bk8',min:11,max:12},
-      {name:'D1',min:11.5,max:12},{name:'D2',min:12,max:12.25},
-      {name:'M10',min:12.25,max:14},{name:'M20',min:14,max:16},
-      {name:'M30',min:16,max:18},{name:'M31',min:18,max:20},
-    ];
-    for(const b of BOOK_LEVEL_MAP){ if(v>=b.min&&v<b.max) return b.name; }
-    return v.toFixed(1);
-  }
-
-  // Pixel height per minute — base unit for block sizing
-  const PX_PER_MIN = 1.8;
-  const SLOT_HEIGHT = 15 * PX_PER_MIN; // height of one 15-min slot label row
-
-  el.innerHTML = DAYS.map((day, dayIdx) => {
-    const dayClasses = ipClasses.filter(c =>
-      (c.day||'').toLowerCase().startsWith(day.toLowerCase()) &&
-      knownRoomIds.has((c.room||'').toUpperCase())
-    );
-    const dayHw = hwWithRoom.filter(s =>
-      (s.day||'').toLowerCase().startsWith(day.toLowerCase())
-    );
-    const allSlots = slotsForDay(day);
-    if(!allSlots.length) return '';
-
-    const dayStart = tm(allSlots[0]);
-    const dayEnd   = tm(allSlots[allSlots.length-1]) + 15;
-    const totalMins = dayEnd - dayStart;
-    const gridHeight = totalMins * PX_PER_MIN;
-
-    const totalItems = dayClasses.length + dayHw.length;
-    const collapseId = 'cr-day-' + day;
-
-    // Time axis labels
-    const timeAxis = allSlots.filter((_,i)=>i%4===0).map(slot=>{
-      const mins = tm(slot) - dayStart;
-      return '<div style="position:absolute;left:0;top:' + (mins*PX_PER_MIN) + 'px;font-size:10px;color:var(--muted);white-space:nowrap;transform:translateY(-50%);">' + slot + '</div>';
-    }).join('');
-
-    // Grid lines
-    const gridLines = allSlots.map(slot=>{
-      const mins = tm(slot) - dayStart;
-      const isHour = slot.endsWith(':00');
-      return '<div style="position:absolute;left:0;right:0;top:' + (mins*PX_PER_MIN) + 'px;border-top:' + (isHour?'1px solid var(--border)':'1px solid rgba(255,255,255,.04)') + ';pointer-events:none;"></div>';
-    }).join('');
-
-    // Build blocks for each room
-    const roomCols = activeRooms.map(room => {
-      const blocks = [];
-
-      // Regular classes
-      dayClasses.filter(c=>(c.room||'').toUpperCase()===room.id).forEach(cls=>{
-        const startMins = tm(cls.time);
-        if(startMins===null) return;
-        const duration = 60; // standard class duration
-        const top = (startMins - dayStart) * PX_PER_MIN;
-        const height = duration * PX_PER_MIN - 2;
-        const stats = classStatsMap[cls.classId];
-        const instFirst = (cls.instructor||'').split(' ')[0];
-        const code = (cls.classId||'').replace(/^\d{2}-/,'');
-        const blockBg = cls.program==='writing'
-          ? `repeating-linear-gradient(45deg,${room.color},${room.color} 6px,${room.color}cc 6px,${room.color}cc 12px)`
-          : room.color;
-        const healthColor = stats?.health==='critical'?'#f85149':stats?.health==='warning'?'#d29922':null;
-
-        const statsHtml = stats?.stats ? [
-          '<div style="font-size:9px;opacity:.85;margin-top:2px;">',
-          'Gr ' + gradeLabel(stats.stats.minGrade) + '–' + gradeLabel(stats.stats.maxGrade),
-          ' (avg ' + gradeLabel(Math.round(stats.stats.meanGrade)) + ')',
-          '</div>',
-          '<div style="font-size:9px;opacity:.85;">',
-          'Lv ' + abilityLabel(stats.stats.minAb) + '–' + abilityLabel(stats.stats.maxAb),
-          ' (avg ' + abilityLabel(stats.stats.meanAbility) + ')',
-          '</div>',
-        ].join('') : '';
-
-        const hasFlag = classFlags.find(f=>f.classId===cls.classId);
-
-        blocks.push(
-          '<div onclick="openFlagDialog(\'' + cls.classId + '\')" ' +
-          'style="position:absolute;left:2px;right:2px;top:' + top + 'px;height:' + height + 'px;' +
-          'background:' + blockBg + ';border-radius:5px;padding:4px 6px;cursor:pointer;overflow:hidden;' +
-          (stats?.health==='critical' ? 'outline:2px solid #f85149;outline-offset:-2px;' : '') +
-          'box-shadow:0 1px 3px rgba(0,0,0,.3);" ' +
-          'title="' + cls.classId + ' · ' + (cls.instructor||'') + '">' +
-          '<div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' +
-          code + (instFirst?' · '+instFirst:'') +
-          (hasFlag?'<span style="float:right;font-size:9px;background:rgba(0,0,0,.3);padding:1px 4px;border-radius:3px;margin-left:4px;">' +
-            (hasFlag.status==='urgent'?'⚠':hasFlag.status==='planned'?'📋':'●') + '</span>':'') +
-          '</div>' +
-          (healthColor?'<div style="font-size:9px;color:'+healthColor+';font-weight:600;">' + (stats.health==='critical'?'Critical':'Warning') + '</div>':'') +
-          '<div style="color:rgba(255,255,255,.85);">' + statsHtml + '</div>' +
-          '</div>'
-        );
-      });
-
-      // HW sessions
-      dayHw.filter(s=>(s.room||'').toUpperCase()===room.id).forEach(s=>{
-        const startMins = tm(s.windowStart);
-        const endMins   = tm(s.windowEnd);
-        if(startMins===null||endMins===null) return;
-        const top    = (startMins - dayStart) * PX_PER_MIN;
-        const height = (endMins - startMins) * PX_PER_MIN - 2;
-        const host   = (s.instructors||[]).find(i=>i.host);
-
-        blocks.push(
-          '<div style="position:absolute;left:2px;right:2px;top:' + top + 'px;height:' + height + 'px;' +
-          'background:' + sessionColor(s) + ';border-radius:5px;padding:4px 6px;overflow:hidden;' +
-          'box-shadow:0 1px 3px rgba(0,0,0,.3);" title="' + s.name + '">' +
-          '<div style="font-size:11px;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + sessionFullName(s) + '</div>' +
-          (host?'<div style="font-size:9px;color:rgba(255,255,255,.85);">' + host.displayName.split(' ')[0] + ' (host)</div>':'') +
-          '<div style="font-size:9px;color:rgba(255,255,255,.85);">' + s.windowStart + '–' + s.windowEnd + '</div>' +
-          '</div>'
-        );
-      });
-
-      return '<div style="flex:1;min-width:110px;position:relative;height:' + gridHeight + 'px;border-left:1px solid var(--border);">' +
-        blocks.join('') +
-        '</div>';
-    }).join('');
-
-    return '<div style="margin-bottom:12px;border:1px solid var(--border);border-radius:12px;overflow:hidden;">' +
-      '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--surface);cursor:pointer;" onclick="toggleDaySection(\'' + collapseId + '\')">' +
-        '<div style="display:flex;align-items:center;gap:10px;">' +
-          '<span style="font-weight:700;font-size:14px;">' + day + '</span>' +
-          '<span style="font-size:12px;color:var(--muted);">' + dayClasses.length + ' class' + (dayClasses.length!==1?'es':'') + (dayHw.length?' · '+dayHw.length+' HW':'') + '</span>' +
-        '</div>' +
-        '<span id="' + collapseId + '-icon" style="color:var(--muted);font-size:12px;">' + (dayIdx===0?'▲':'▼') + '</span>' +
-      '</div>' +
-      '<div id="' + collapseId + '" style="display:' + (dayIdx===0?'block':'none') + ';overflow-x:auto;">' +
-        '<div style="display:flex;padding:8px 0;">' +
-          // Time axis
-          '<div style="width:44px;flex-shrink:0;position:relative;height:' + gridHeight + 'px;">' + timeAxis + '</div>' +
-          // Room column headers + body
-          '<div style="flex:1;display:flex;flex-direction:column;">' +
-            // Headers
-            '<div style="display:flex;border-bottom:1px solid var(--border);padding-bottom:8px;margin-bottom:4px;">' +
-              activeRooms.map(r=>
-                '<div style="flex:1;min-width:110px;text-align:center;font-size:12px;font-weight:700;color:' + r.color + ';border-left:1px solid var(--border);padding:4px;">' +
-                '<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:' + r.color + ';margin-right:4px;vertical-align:middle;"></span>' + r.label +
-                '</div>'
-              ).join('') +
-            '</div>' +
-            // Grid + blocks
-            '<div style="display:flex;position:relative;">' +
-              // Grid lines overlay
-              '<div style="position:absolute;inset:0;pointer-events:none;">' + gridLines + '</div>' +
-              roomCols +
-            '</div>' +
-          '</div>' +
-        '</div>' +
-      '</div>' +
-    '</div>';
-  }).join('')
-  + (unassigned.length ? '<div style="margin-top:16px;"><div class="section-label" style="margin-bottom:10px;color:var(--amber);">Unassigned in-person classes (' + unassigned.length + ')</div><div style="display:flex;flex-wrap:wrap;gap:6px;">' +
-    unassigned.map(cls=>
-      '<div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:6px 12px;font-size:12px;">' +
-      '<span style="font-weight:600;color:var(--accent);">' + cls.classId + '</span>' +
-      '<span style="color:var(--muted);margin-left:6px;">' + (cls.day||'') + ' ' + (cls.time||'') + '</span>' +
-      '<span style="color:var(--muted);margin-left:6px;">' + (cls.instructor||'') + '</span>' +
-      '</div>'
-    ).join('') +
-    '</div></div>' : '');
 }
 
 
