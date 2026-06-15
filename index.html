@@ -2051,12 +2051,18 @@ document.addEventListener("DOMContentLoaded",function(){
         import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
         import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
         import('./firebase-config.js'),
-      ]).then(([{initializeApp},{getAuth,onAuthStateChanged},{getFirestore,doc,getDoc},{firebaseConfig}])=>{
-        const app=initializeApp(firebaseConfig,'cc-session');
+      ]).then(([{initializeApp,getApps},{getAuth,onAuthStateChanged},{getFirestore,doc,getDoc},{firebaseConfig}])=>{
+        // Use the default app name so Auth persistence is shared with availability.html/login.html
+        const app=getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
         const auth=getAuth(app);
         const db=getFirestore(app);
+        let settled=false;
+        const finish=()=>{ if(settled) return; settled=true; window._ccAuthReady=true; ccTryApplyPreset(); };
+        // Fallback in case onAuthStateChanged is slow or storage is blocked
+        setTimeout(finish, 3000);
         onAuthStateChanged(auth, async user=>{
-          if(!user){ window._ccAuthReady=true; ccTryApplyPreset(); return; }
+          console.log('[CC session] onAuthStateChanged fired, user:', user?.uid||null);
+          if(!user){ finish(); return; }
           try{
             const ps=await getDoc(doc(db,'instructors',user.uid));
             if(ps.exists()){
@@ -2069,11 +2075,10 @@ document.addEventListener("DOMContentLoaded",function(){
               const banner=document.getElementById('cc-user-banner');
               if(banner && !isAdminRole){ banner.textContent=profile.displayName; banner.style.display=''; }
             }
-          }catch(e){}
-          window._ccAuthReady=true;
-          ccTryApplyPreset();
+          }catch(e){ console.log('[CC session] profile lookup error:', e); }
+          finish();
         });
-      }).catch(()=>{ window._ccAuthReady=true; ccTryApplyPreset(); });
+      }).catch((e)=>{ console.log('[CC session] firebase import error:', e); window._ccAuthReady=true; ccTryApplyPreset(); });
     }
   } catch(e){ window._ccAuthReady=true; }
 });
