@@ -152,10 +152,7 @@ async function writeSession(user) {
 // If already signed in, go straight to index
 onAuthStateChanged(auth, async user => {
   if (user) {
-    try {
-      const s = JSON.parse(localStorage.getItem('bm_session')||'{}');
-      if(!s.displayName) await writeSession(user);
-    } catch(e) {}
+    await writeSession(user);
     window.location.href = "index.html";
   }
 });
