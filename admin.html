@@ -485,6 +485,8 @@ function renderPage() {
       </div>
     </div>
   `;
+  // For regular admins, Extra sessions is the default tab — load it immediately
+  if(!isSuperAdmin) loadHwSessions();
 }
 
 window.adminTab = function(tab, btn) {
