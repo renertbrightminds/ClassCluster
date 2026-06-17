@@ -534,7 +534,9 @@ async function fetchClasses(){
   async function fetchCSV(url, program){
     if(!url) return [];
     try{
-      const r=await fetch("https://corsproxy.io/?"+encodeURIComponent(url),{cache:"no-cache"});
+      // Append timestamp to bust any server-side or CDN caching
+      const bustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+      const r=await fetch("https://corsproxy.io/?"+encodeURIComponent(bustUrl),{cache:"no-store"});
       if(!r.ok) return [];
       return parseCSV(await r.text(), program);
     }catch{ return []; }

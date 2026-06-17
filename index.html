@@ -1476,8 +1476,9 @@ function fetchData() {
 
   function fetchCSV(url) {
     if(!url) return Promise.resolve(null);
-    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(url);
-    return fetch(proxyUrl, { cache:"no-cache" })
+    const bustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+    const proxyUrl = "https://corsproxy.io/?" + encodeURIComponent(bustUrl);
+    return fetch(proxyUrl, { cache:"no-store" })
       .then(r => r.ok ? r.text() : null)
       .catch(() => null);
   }
