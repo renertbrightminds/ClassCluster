@@ -2039,12 +2039,12 @@ document.addEventListener("DOMContentLoaded",function(){
   try {
     const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
     if(session.displayName && session.uid){
-      const isAdminRole = ['admin','super-admin'].includes(session.role);
-      window._ccIsAdmin      = isAdminRole;
-      window._ccPresetFilter = isAdminRole ? null : session.displayName;
+      const isSuperAdmin = session.role === 'super-admin';
+      window._ccIsAdmin      = isSuperAdmin;
+      window._ccPresetFilter = isSuperAdmin ? null : session.displayName;
       window._ccSessionUid   = session.uid;
       const nameEl = document.getElementById('cc-user-name');
-      if(nameEl && !isAdminRole){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
+      if(nameEl && !isSuperAdmin){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
       window._ccAuthReady = true;
       ccTryApplyPreset();
     } else {
@@ -2070,13 +2070,13 @@ document.addEventListener("DOMContentLoaded",function(){
             const ps=await getDoc(doc(db,'instructors',user.uid));
             if(ps.exists()){
               const profile=ps.data();
-              const isAdminRole=['admin','super-admin'].includes(profile.role);
-              window._ccIsAdmin=isAdminRole;
-              window._ccPresetFilter=isAdminRole?null:profile.displayName;
+              const isSuperAdmin=profile.role==='super-admin';
+              window._ccIsAdmin=isSuperAdmin;
+              window._ccPresetFilter=isSuperAdmin?null:profile.displayName;
               window._ccSessionUid=user.uid;
               try{ localStorage.setItem('bm_session', JSON.stringify({uid:user.uid,displayName:profile.displayName,role:profile.role||'instructor'})); }catch(e){}
               const nameEl=document.getElementById('cc-user-name');
-              if(nameEl && !isAdminRole){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
+              if(nameEl && !isSuperAdmin){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
             }
           }catch(e){}
           finish();
