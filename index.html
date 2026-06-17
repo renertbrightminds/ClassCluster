@@ -342,8 +342,9 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
       ⚙ Filter Classes<span id="active-filter-count"></span>
     </button>
     <button id="placement-toggle-btn" onclick="togglePlacementPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">🔍 Place Student</button>
-    <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
-    <a href="availability.html" class="nav-link" id="av-link">👥 Availability & Scheduling</a>
+    <span id="cc-user-name" style="display:none;font-size:12px;color:var(--muted);font-weight:500;"></span>
+    <span id="cc-filter-notice" style="display:none;font-size:11px;color:var(--muted);"></span>
+    <a href="availability.html" class="nav-link" id="av-link">👥 Availability</a>
     <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
     <button id="signout-btn" onclick="ccSignOut()" class="nav-link">Sign out</button>
   </div>
@@ -1644,6 +1645,16 @@ function toggleFltChip(btn) {
     if (!classFilters[group].includes(val)) classFilters[group].push(val);
   } else {
     classFilters[group] = classFilters[group].filter(v=>v!==val);
+    // If the instructor manually deselects the preset chip, clear the preset
+    if(group === 'instructors' && window._ccPresetFilter && val === window._ccPresetFilter){
+      window._ccPresetFilter = null;
+      const notice = document.getElementById('cc-filter-notice');
+      if(notice) notice.style.display = 'none';
+      // Rebuild panel to remove "Showing your classes" label
+      buildFilterPanel(allAnalysed);
+      applyClassFilter();
+      return;
+    }
   }
   applyClassFilter();
 }
@@ -1961,6 +1972,7 @@ function ccTryApplyPreset(){
   const match = csvInstructors.find(n => n.toLowerCase() === name.toLowerCase()) ||
                 csvInstructors.find(n => n.split(" ")[0].toLowerCase() === firstName);
 
+
   if(!match){
     // Name not found in CSV — show all classes rather than nothing
     console.log("CC preset: no CSV match for", name, "— showing all");
@@ -1971,16 +1983,10 @@ function ccTryApplyPreset(){
   applyClassFilter();
 
   // Show a banner so the instructor knows they're filtered
-  const banner = document.getElementById("cc-user-banner");
-  if(banner){
-    banner.textContent = "Showing your classes — ";
-    banner.style.display = "";
-    const link = document.createElement("a");
-    link.href = "#";
-    link.textContent = "show all";
-    link.style.color = "var(--accent)";
-    link.onclick = e => { e.preventDefault(); clearInstructorPreset(); };
-    banner.appendChild(link);
+  const notice = document.getElementById("cc-filter-notice");
+  if(notice){
+    notice.innerHTML = 'Showing your classes — <a href="#" onclick="clearInstructorPreset(event)" style="color:var(--accent);">show all</a>';
+    notice.style.display = "";
   }
 }
 
@@ -2001,9 +2007,11 @@ function clearInstructorPreset(e){
   });
   classFilters.instructors = [];
   applyClassFilter();
-  // Hide banner
-  const banner = document.getElementById("cc-user-banner");
-  if(banner) banner.style.display = "none";
+  // Hide filter notice
+  const notice = document.getElementById("cc-filter-notice");
+  if(notice) notice.style.display = "none";
+  // Rebuild filter panel so "Showing your classes" label disappears
+  buildFilterPanel(allAnalysed);
 }
 
 document.addEventListener("DOMContentLoaded",function(){
@@ -2035,9 +2043,47 @@ document.addEventListener("DOMContentLoaded",function(){
       window._ccIsAdmin      = isAdminRole;
       window._ccPresetFilter = isAdminRole ? null : session.displayName;
       window._ccSessionUid   = session.uid;
+      const nameEl = document.getElementById('cc-user-name');
+      if(nameEl && !isAdminRole){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
+      window._ccAuthReady = true;
+      ccTryApplyPreset();
+    } else {
+      // No session yet (e.g. first login before availability.html has run) —
+      // look up the profile directly from Firebase so classes are filtered immediately
+      Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
+        import('./firebase-config.js'),
+      ]).then(([{initializeApp,getApps},{getAuth,onAuthStateChanged},{getFirestore,doc,getDoc},{firebaseConfig}])=>{
+        // Use the default app name so Auth persistence is shared with availability.html/login.html
+        const app=getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const auth=getAuth(app);
+        const db=getFirestore(app);
+        let settled=false;
+        const finish=()=>{ if(settled) return; settled=true; window._ccAuthReady=true; ccTryApplyPreset(); };
+        // Fallback in case onAuthStateChanged is slow or storage is blocked
+        setTimeout(finish, 3000);
+        onAuthStateChanged(auth, async user=>{
+          if(!user){ finish(); return; }
+          try{
+            const ps=await getDoc(doc(db,'instructors',user.uid));
+            if(ps.exists()){
+              const profile=ps.data();
+              const isAdminRole=['admin','super-admin'].includes(profile.role);
+              window._ccIsAdmin=isAdminRole;
+              window._ccPresetFilter=isAdminRole?null:profile.displayName;
+              window._ccSessionUid=user.uid;
+              try{ localStorage.setItem('bm_session', JSON.stringify({uid:user.uid,displayName:profile.displayName,role:profile.role||'instructor'})); }catch(e){}
+              const nameEl=document.getElementById('cc-user-name');
+              if(nameEl && !isAdminRole){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
+            }
+          }catch(e){}
+          finish();
+        });
+      }).catch(()=>{ window._ccAuthReady=true; ccTryApplyPreset(); });
     }
-  } catch(e){}
-  window._ccAuthReady = true;
+  } catch(e){ window._ccAuthReady=true; }
 });
 </script>
 
