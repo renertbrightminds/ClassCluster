@@ -7,6 +7,7 @@
 <style>
   .nav-link { background:transparent; border:1px solid var(--border); color:var(--muted); padding:8px 18px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
   .nav-link:hover { border-color:var(--accent); color:var(--accent); }
+  .nav-link.active { border-color:var(--accent); color:var(--accent); background:rgba(88,166,255,.08); cursor:default; }
   .shadow-badge { font-size:10px; font-weight:600; padding:1px 7px; border-radius:8px; margin-left:6px; vertical-align:middle; background:rgba(188,140,255,.15); color:#d2a8ff; }
   .shadow-section { margin-top:18px; border-top:1px solid var(--border); padding-top:16px; }
   .shadow-instructor-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid #0a0f18; }
@@ -344,7 +345,10 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
     <button id="placement-toggle-btn" onclick="togglePlacementPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;">🔍 Place Student</button>
     <span id="cc-user-name" style="display:none;font-size:12px;color:var(--muted);font-weight:500;"></span>
     <span id="cc-filter-notice" style="display:none;font-size:11px;color:var(--muted);"></span>
-    <a href="availability.html" class="nav-link" id="av-link">👥 Availability</a>
+    <a href="index.html" class="nav-link active">Classes</a>
+    <a href="availability.html" class="nav-link">Availability</a>
+    <a id="scheduling-nav" href="scheduling.html" class="nav-link" style="display:none;">Scheduling</a>
+    <a id="admin-nav" href="admin.html" class="nav-link" style="display:none;">Admin</a>
     <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
     <button id="signout-btn" onclick="ccSignOut()" class="nav-link">Sign out</button>
   </div>
@@ -2040,11 +2044,18 @@ document.addEventListener("DOMContentLoaded",function(){
     const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
     if(session.displayName && session.uid){
       const isSuperAdmin = session.role === 'super-admin';
+      const isAdminRole = ['admin','super-admin'].includes(session.role);
       window._ccIsAdmin      = isSuperAdmin;
       window._ccPresetFilter = isSuperAdmin ? null : session.displayName;
       window._ccSessionUid   = session.uid;
       const nameEl = document.getElementById('cc-user-name');
       if(nameEl){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
+      if(isAdminRole){
+        const sn = document.getElementById('scheduling-nav');
+        const an = document.getElementById('admin-nav');
+        if(sn) sn.style.display='';
+        if(an) an.style.display='';
+      }
       window._ccAuthReady = true;
       ccTryApplyPreset();
     } else {
@@ -2071,12 +2082,19 @@ document.addEventListener("DOMContentLoaded",function(){
             if(ps.exists()){
               const profile=ps.data();
               const isSuperAdmin=profile.role==='super-admin';
+              const isAdminRole=['admin','super-admin'].includes(profile.role);
               window._ccIsAdmin=isSuperAdmin;
               window._ccPresetFilter=isSuperAdmin?null:profile.displayName;
               window._ccSessionUid=user.uid;
               try{ localStorage.setItem('bm_session', JSON.stringify({uid:user.uid,displayName:profile.displayName,role:profile.role||'instructor'})); }catch(e){}
               const nameEl=document.getElementById('cc-user-name');
               if(nameEl){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
+              if(isAdminRole){
+                const sn=document.getElementById('scheduling-nav');
+                const an=document.getElementById('admin-nav');
+                if(sn) sn.style.display='';
+                if(an) an.style.display='';
+              }
             }
           }catch(e){}
           finish();

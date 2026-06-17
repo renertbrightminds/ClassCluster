@@ -68,6 +68,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:18p
 .logo{font-family:'Fraunces',serif;font-size:20px;font-weight:900;}
 .nav-link{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
 .nav-link:hover{border-color:var(--accent);color:var(--accent);}
+.nav-link.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.08);cursor:default;}
 main{max-width:900px;margin:0 auto;padding:28px 24px 80px;}
 .page-title{font-family:'Fraunces',serif;font-size:26px;font-weight:900;margin-bottom:4px;}
 .page-sub{color:var(--muted);font-size:13px;margin-bottom:28px;}
@@ -150,8 +151,10 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
   <div class="logo">Bright Minds</div>
   <div style="display:flex;gap:8px;align-items:center;">
     <span id="user-name" style="font-size:12px;color:var(--muted);"></span>
-    <a href="availability.html" class="nav-link">← Availability</a>
-    <a href="index.html" class="nav-link">ClassCluster</a>
+    <a href="index.html" class="nav-link">Classes</a>
+    <a href="availability.html" class="nav-link">Availability</a>
+    <a href="scheduling.html" class="nav-link">Scheduling</a>
+    <a href="admin.html" class="nav-link active">Admin</a>
     <button onclick="signOut()" class="nav-link">Sign out</button>
     <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
   </div>
