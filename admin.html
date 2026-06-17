@@ -488,8 +488,12 @@ function renderPage() {
       </div>
     </div>
   `;
-  // For regular admins, Extra sessions is the default tab — load it immediately
-  if(!isSuperAdmin) loadHwSessions();
+  // For regular admins, Extra sessions is the default tab — show and load it immediately
+  if(!isSuperAdmin) {
+    const hwDiv = document.getElementById('admin-hw');
+    if(hwDiv) hwDiv.style.display = '';
+    loadHwSessions();
+  }
 }
 
 window.adminTab = function(tab, btn) {
