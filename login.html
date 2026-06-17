@@ -127,21 +127,36 @@ applyTheme(localStorage.getItem(THEME_KEY)||'dark');
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 import { firebaseConfig } from "./firebase-config.js";
 
 const app  = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+const db   = getFirestore(app);
 
-// If already signed in, go straight to availability
-onAuthStateChanged(auth, user => {
-  // Only auto-redirect if session exists (prevents redirect loop after sign out)
+// Write bm_session from a profile doc so index.html can use it immediately
+async function writeSession(user) {
+  try {
+    const ps = await getDoc(doc(db, 'instructors', user.uid));
+    if(ps.exists()){
+      const p = ps.data();
+      localStorage.setItem('bm_session', JSON.stringify({
+        uid: user.uid,
+        displayName: p.displayName,
+        role: p.role || 'instructor',
+      }));
+    }
+  } catch(e) {}
+}
+
+// If already signed in, go straight to index
+onAuthStateChanged(auth, async user => {
   if (user) {
     try {
       const s = JSON.parse(localStorage.getItem('bm_session')||'{}');
-      if(s.displayName) window.location.href = "index.html";
-    } catch(e) {
-      window.location.href = "index.html";
-    }
+      if(!s.displayName) await writeSession(user);
+    } catch(e) {}
+    window.location.href = "index.html";
   }
 });
 
@@ -155,7 +170,8 @@ window.signIn = async function() {
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Signing in…';
   try {
-    await signInWithEmailAndPassword(auth, email, password);
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    await writeSession(cred.user);
     window.location.href = "index.html";
   } catch(e) {
     btn.disabled = false;
