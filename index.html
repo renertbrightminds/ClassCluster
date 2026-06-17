@@ -2044,7 +2044,7 @@ document.addEventListener("DOMContentLoaded",function(){
       window._ccPresetFilter = isSuperAdmin ? null : session.displayName;
       window._ccSessionUid   = session.uid;
       const nameEl = document.getElementById('cc-user-name');
-      if(nameEl && !isSuperAdmin){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
+      if(nameEl){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
       window._ccAuthReady = true;
       ccTryApplyPreset();
     } else {
@@ -2076,7 +2076,7 @@ document.addEventListener("DOMContentLoaded",function(){
               window._ccSessionUid=user.uid;
               try{ localStorage.setItem('bm_session', JSON.stringify({uid:user.uid,displayName:profile.displayName,role:profile.role||'instructor'})); }catch(e){}
               const nameEl=document.getElementById('cc-user-name');
-              if(nameEl && !isSuperAdmin){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
+              if(nameEl){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
             }
           }catch(e){}
           finish();
