@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sign In — Bright Minds</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Inter:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#05080f;--surface:#0d1117;--surface2:#111720;
+  --border:#1c2333;--text:#e6edf3;--muted:#768390;
+  --accent:#58a6ff;--green:#3fb950;--red:#f85149;
+}
+/* ── LIGHT THEME ── */
+[data-theme="light"]{
+  --bg:#f5f5f0;--surface:#ffffff;--surface2:#f0ede6;
+  --border:#ddd8ce;--text:#1a1a18;--muted:#6b6b66;
+  --accent:#185FA5;--green:#1a6b2e;--amber:#7a4f00;--red:#a32d2d;--purple:#534ab7;
+}
+[data-theme="light"] header{background:#ffffff;}
+[data-theme="light"] .nav-link{color:#6b6b66;}
+[data-theme="light"] .nav-link:hover{color:#185FA5;border-color:#185FA5;}
+[data-theme="light"] .tab.active{color:#185FA5;border-bottom-color:#185FA5;}
+[data-theme="light"] .ag-cell.none{background:#ece9e2;color:#aaa89e;}
+[data-theme="light"] .ag-cell.ip{background:rgba(26,107,46,.15);color:#1a6b2e;border-color:rgba(26,107,46,.3);}
+[data-theme="light"] .ag-cell.online{background:rgba(24,95,165,.12);color:#185FA5;border-color:rgba(24,95,165,.25);}
+[data-theme="light"] .ag-cell.both{background:rgba(83,74,183,.12);color:#534ab7;border-color:rgba(83,74,183,.25);}
+[data-theme="light"] .drag-mode-btn.active-ip{background:rgba(26,107,46,.15);border-color:rgba(26,107,46,.4);color:#1a6b2e;}
+[data-theme="light"] .drag-mode-btn.active-online{background:rgba(24,95,165,.12);border-color:rgba(24,95,165,.3);color:#185FA5;}
+[data-theme="light"] .drag-mode-btn.active-both{background:rgba(83,74,183,.12);border-color:rgba(83,74,183,.3);color:#534ab7;}
+[data-theme="light"] .drag-mode-btn.active-none{background:rgba(107,107,102,.12);border-color:rgba(107,107,102,.3);color:#6b6b66;}
+[data-theme="light"] .inst-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .inst-card:hover{border-color:#185FA5;}
+[data-theme="light"] .metric{background:#f0ede6;border-color:#ddd8ce;}
+[data-theme="light"] .card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .note-box{background:#f5f5f0;border-color:#ddd8ce;}
+[data-theme="light"] .rollup-table td{border-bottom-color:#ece9e2;}
+[data-theme="light"] .rollup-table tr:hover td{background:rgba(0,0,0,.03);}
+[data-theme="light"] .conflict-card{background:#fff5f5;border-color:rgba(163,45,45,.25);}
+[data-theme="light"] .shadow-tracker-card{background:#ffffff;border-color:rgba(83,74,183,.2);}
+[data-theme="light"] .shadow-notes{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+[data-theme="light"] .b-green{background:rgba(26,107,46,.12);color:#1a6b2e;}
+[data-theme="light"] .b-red{background:rgba(163,45,45,.1);color:#a32d2d;}
+[data-theme="light"] .b-amber{background:rgba(122,79,0,.1);color:#7a4f00;}
+[data-theme="light"] .b-purple{background:rgba(83,74,183,.1);color:#534ab7;}
+[data-theme="light"] .b-blue{background:rgba(24,95,165,.1);color:#185FA5;}
+[data-theme="light"] .b-gray{background:rgba(107,107,102,.1);color:#6b6b66;}
+[data-theme="light"] .profile-header{background:#ffffff;border-color:#ddd8ce;}
+/* ClassCluster light overrides */
+[data-theme="light"] .class-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .class-card:hover{border-color:#185FA5;}
+[data-theme="light"] #summary-bar{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .sort-btn{background:#ffffff;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .sort-btn.active{background:rgba(24,95,165,.08);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] #filter-overlay,
+[data-theme="light"] #placement-overlay{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .flt-chip{background:#f0ede6;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .flt-chip.active{background:rgba(24,95,165,.1);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] .alert.danger{background:rgba(163,45,45,.08);border-color:rgba(163,45,45,.2);}
+[data-theme="light"] .alert.warn{background:rgba(122,79,0,.08);border-color:rgba(122,79,0,.2);}
+[data-theme="light"] .alert.info{background:rgba(24,95,165,.06);border-color:rgba(24,95,165,.15);}
+[data-theme="light"] .alert.split{background:rgba(83,74,183,.06);border-color:rgba(83,74,183,.15);}
+[data-theme="light"] input,[data-theme="light"] select,[data-theme="light"] textarea{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px;}
+.logo{font-family:'Fraunces',serif;font-size:28px;font-weight:900;margin-bottom:4px;}
+.subtitle{color:var(--muted);font-size:13px;margin-bottom:32px;}
+.form-group{margin-bottom:16px;}
+label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px;}
+input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:10px 14px;outline:none;transition:border-color .15s;}
+input:focus{border-color:var(--accent);}
+.btn{width:100%;background:var(--accent);border:none;border-radius:8px;color:#05080f;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;padding:11px;cursor:pointer;margin-top:8px;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.error{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:8px;color:#ffa198;font-size:13px;padding:10px 14px;margin-top:16px;display:none;}
+.forgot{text-align:right;margin-top:8px;}
+.forgot a{color:var(--muted);font-size:12px;cursor:pointer;text-decoration:none;}
+.forgot a:hover{color:var(--accent);}
+.spinner{display:inline-block;width:14px;height:14px;border:2px solid rgba(5,8,15,.4);border-top-color:#05080f;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:6px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.reset-msg{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;color:#79c0ff;font-size:13px;padding:10px 14px;margin-top:16px;display:none;}
+
+</style>
+<script>
+// Theme — plain script (not module) so onclick attrs can call these functions
+var THEME_KEY = 'bm_theme';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t||'dark');
+  var btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = (t==='light') ? 'Light' : 'Dark';
+}
+function toggleTheme(){
+  var current = document.documentElement.getAttribute('data-theme')||'dark';
+  var next = current==='light' ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
+}
+// Apply immediately to avoid flash of wrong theme
+applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+</script>
+</head>
+<body>
+<div class="card">
+  <div class="logo">Bright Minds</div>
+  <div class="subtitle">Instructor scheduling — sign in to continue</div>
+
+  <div class="form-group">
+    <label>Email</label>
+    <input type="email" id="email" placeholder="you@example.com" autocomplete="email"/>
+  </div>
+  <div class="form-group">
+    <label>Password</label>
+    <input type="password" id="password" placeholder="••••••••" autocomplete="current-password"/>
+  </div>
+
+  <button class="btn" id="signin-btn" onclick="signIn()">Sign in</button>
+  <div class="forgot"><a onclick="sendReset()">Forgot password?</a></div>
+
+  <div class="error" id="error-box"></div>
+  <div class="reset-msg" id="reset-msg">Password reset email sent — check your inbox.</div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, sendPasswordResetEmail, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// Write bm_session from a profile doc so index.html can use it immediately
+async function writeSession(user) {
+  try {
+    const ps = await getDoc(doc(db, 'instructors', user.uid));
+    if(ps.exists()){
+      const p = ps.data();
+      localStorage.setItem('bm_session', JSON.stringify({
+        uid: user.uid,
+        displayName: p.displayName,
+        role: p.role || 'instructor',
+      }));
+    }
+  } catch(e) {}
+}
+
+// If already signed in, go straight to index
+onAuthStateChanged(auth, async user => {
+  if (user) {
+    await writeSession(user);
+    window.location.href = "index.html";
+  }
+});
+
+window.signIn = async function() {
+  const email    = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+  const btn      = document.getElementById("signin-btn");
+  const errorBox = document.getElementById("error-box");
+  errorBox.style.display = "none";
+  if (!email || !password) { showError("Please enter your email and password."); return; }
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Signing in…';
+  try {
+    const cred = await signInWithEmailAndPassword(auth, email, password);
+    await writeSession(cred.user);
+    window.location.href = "index.html";
+  } catch(e) {
+    btn.disabled = false;
+    btn.textContent = "Sign in";
+    showError(friendlyError(e.code));
+  }
+};
+
+window.sendReset = async function() {
+  const email = document.getElementById("email").value.trim();
+  const errorBox = document.getElementById("error-box");
+  const resetMsg = document.getElementById("reset-msg");
+  errorBox.style.display = "none";
+  resetMsg.style.display = "none";
+  if (!email) { showError("Enter your email address above first."); return; }
+  try {
+    await sendPasswordResetEmail(auth, email);
+    resetMsg.style.display = "block";
+  } catch(e) {
+    showError(friendlyError(e.code));
+  }
+};
+
+function showError(msg) {
+  const el = document.getElementById("error-box");
+  el.textContent = msg;
+  el.style.display = "block";
+}
+
+function friendlyError(code) {
+  switch(code) {
+    case "auth/user-not-found":
+    case "auth/wrong-password":
+    case "auth/invalid-credential": return "Incorrect email or password.";
+    case "auth/too-many-requests":  return "Too many attempts — try again later or reset your password.";
+    case "auth/invalid-email":      return "That doesn't look like a valid email address.";
+    default: return "Something went wrong. Please try again.";
+  }
+}
+
+// Allow Enter key to submit
+document.addEventListener("keydown", e => { if (e.key === "Enter") window.signIn(); });
+</script>
+
+</body>
+</html>

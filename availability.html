@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>My Availability — Bright Minds</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Inter:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#05080f;--surface:#0d1117;--surface2:#111720;
+  --border:#1c2333;--text:#e6edf3;--muted:#768390;
+  --accent:#58a6ff;--green:#3fb950;--amber:#d29922;--red:#f85149;--purple:#bc8cff;
+}
+/* ── LIGHT THEME ── */
+[data-theme="light"]{
+  --bg:#f5f5f0;--surface:#ffffff;--surface2:#f0ede6;
+  --border:#ddd8ce;--text:#1a1a18;--muted:#6b6b66;
+  --accent:#185FA5;--green:#1a6b2e;--amber:#7a4f00;--red:#a32d2d;--purple:#534ab7;
+}
+[data-theme="light"] header{background:#ffffff;}
+[data-theme="light"] .nav-link{color:#6b6b66;}
+[data-theme="light"] .nav-link:hover{color:#185FA5;border-color:#185FA5;}
+[data-theme="light"] .tab.active{color:#185FA5;border-bottom-color:#185FA5;}
+[data-theme="light"] .ag-cell.none{background:#ece9e2;color:#aaa89e;}
+[data-theme="light"] .ag-cell.ip{background:rgba(26,107,46,.15);color:#1a6b2e;border-color:rgba(26,107,46,.3);}
+[data-theme="light"] .ag-cell.online{background:rgba(24,95,165,.12);color:#185FA5;border-color:rgba(24,95,165,.25);}
+[data-theme="light"] .ag-cell.both{background:rgba(83,74,183,.12);color:#534ab7;border-color:rgba(83,74,183,.25);}
+[data-theme="light"] .drag-mode-btn.active-ip{background:rgba(26,107,46,.15);border-color:rgba(26,107,46,.4);color:#1a6b2e;}
+[data-theme="light"] .drag-mode-btn.active-online{background:rgba(24,95,165,.12);border-color:rgba(24,95,165,.3);color:#185FA5;}
+[data-theme="light"] .drag-mode-btn.active-both{background:rgba(83,74,183,.12);border-color:rgba(83,74,183,.3);color:#534ab7;}
+[data-theme="light"] .drag-mode-btn.active-none{background:rgba(107,107,102,.12);border-color:rgba(107,107,102,.3);color:#6b6b66;}
+[data-theme="light"] .inst-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .inst-card:hover{border-color:#185FA5;}
+[data-theme="light"] .metric{background:#f0ede6;border-color:#ddd8ce;}
+[data-theme="light"] .card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .note-box{background:#f5f5f0;border-color:#ddd8ce;}
+[data-theme="light"] .rollup-table td{border-bottom-color:#ece9e2;}
+[data-theme="light"] .rollup-table tr:hover td{background:rgba(0,0,0,.03);}
+[data-theme="light"] .conflict-card{background:#fff5f5;border-color:rgba(163,45,45,.25);}
+[data-theme="light"] .shadow-tracker-card{background:#ffffff;border-color:rgba(83,74,183,.2);}
+[data-theme="light"] .shadow-notes{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+[data-theme="light"] .b-green{background:rgba(26,107,46,.12);color:#1a6b2e;}
+[data-theme="light"] .b-red{background:rgba(163,45,45,.1);color:#a32d2d;}
+[data-theme="light"] .b-amber{background:rgba(122,79,0,.1);color:#7a4f00;}
+[data-theme="light"] .b-purple{background:rgba(83,74,183,.1);color:#534ab7;}
+[data-theme="light"] .b-blue{background:rgba(24,95,165,.1);color:#185FA5;}
+[data-theme="light"] .b-gray{background:rgba(107,107,102,.1);color:#6b6b66;}
+[data-theme="light"] .profile-header{background:#ffffff;border-color:#ddd8ce;}
+/* ClassCluster light overrides */
+[data-theme="light"] .class-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .class-card:hover{border-color:#185FA5;}
+[data-theme="light"] #summary-bar{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .sort-btn{background:#ffffff;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .sort-btn.active{background:rgba(24,95,165,.08);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] #filter-overlay,
+[data-theme="light"] #placement-overlay{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .flt-chip{background:#f0ede6;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .flt-chip.active{background:rgba(24,95,165,.1);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] .alert.danger{background:rgba(163,45,45,.08);border-color:rgba(163,45,45,.2);}
+[data-theme="light"] .alert.warn{background:rgba(122,79,0,.08);border-color:rgba(122,79,0,.2);}
+[data-theme="light"] .alert.info{background:rgba(24,95,165,.06);border-color:rgba(24,95,165,.15);}
+[data-theme="light"] .alert.split{background:rgba(83,74,183,.06);border-color:rgba(83,74,183,.15);}
+[data-theme="light"] input,[data-theme="light"] select,[data-theme="light"] textarea{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;min-height:100vh;}
+header{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:10px;}
+.logo{font-family:'Fraunces',serif;font-size:20px;font-weight:900;}
+.nav-link{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 14px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;transition:all .15s;}
+.nav-link:hover{border-color:var(--accent);color:var(--accent);}
+.nav-link.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.08);cursor:default;}
+main{max-width:1100px;margin:0 auto;padding:24px 20px 80px;}
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:24px;overflow-x:auto;}
+.tab{padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;white-space:nowrap;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;transition:color .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:16px;}
+.section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:10px;}
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+.metric{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;}
+.metric-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px;}
+.metric-value{font-size:24px;font-weight:700;font-family:'Fraunces',serif;}
+.ok{color:var(--green);}.warn{color:var(--amber);}.crit{color:var(--red);}.purple{color:var(--purple);}
+.inst-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+.inst-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;transition:border-color .15s;}
+.inst-card:hover{border-color:var(--accent);}
+.inst-card.inactive{opacity:.4;}
+.inst-avatar{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-bottom:8px;}
+.inst-name{font-weight:600;font-size:14px;margin-bottom:3px;}
+.inst-sub{font-size:11px;color:var(--muted);}
+.badge{display:inline-block;padding:2px 7px;border-radius:6px;font-size:10px;font-weight:600;margin:1px;}
+.b-green{background:rgba(63,185,80,.15);color:#3fb950;}
+.b-red{background:rgba(248,81,73,.12);color:#ffa198;}
+.b-amber{background:rgba(210,153,34,.12);color:#e3b341;}
+.b-purple{background:rgba(188,140,255,.15);color:#d2a8ff;}
+.b-blue{background:rgba(88,166,255,.1);color:#79c0ff;}
+.b-gray{background:rgba(118,131,144,.15);color:#adbac7;}
+.b-teal{background:rgba(20,184,166,.15);color:#2dd4bf;}
+.back-btn{background:transparent;border:none;color:var(--muted);font-size:13px;cursor:pointer;padding:0;margin-bottom:16px;font-family:inherit;display:flex;align-items:center;gap:5px;}
+.back-btn:hover{color:var(--text);}
+.profile-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;padding:20px;background:var(--surface);border:1px solid var(--border);border-radius:14px;}
+.profile-avatar{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;flex-shrink:0;}
+.profile-name{font-family:'Fraunces',serif;font-size:20px;font-weight:900;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:700px){.two-col{grid-template-columns:1fr;}.metrics{grid-template-columns:1fr 1fr;}}
+.note-box{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--muted);line-height:1.6;}
+/* Availability grid */
+.avail-grid{display:grid;grid-template-columns:80px repeat(6,1fr);gap:2px;font-size:13px;margin-top:8px;}
+.ag-header{font-size:13px;font-weight:700;text-align:center;color:var(--text);padding:6px 4px;}
+.ag-label{font-size:12px;color:var(--muted);display:flex;align-items:center;padding:2px 4px;white-space:nowrap;}
+.ag-cell{border-radius:5px;padding:5px 4px;text-align:center;cursor:pointer;transition:all .1s;border:1px solid transparent;font-size:11px;font-weight:700;user-select:none;min-height:26px;display:flex;align-items:center;justify-content:center;}
+.ag-cell.none{background:var(--surface2);color:#333a42;}
+.ag-cell.none:hover{border-color:var(--border);color:var(--muted);}
+.ag-cell.ip{background:rgba(63,185,80,.22);color:#56d364;border-color:rgba(63,185,80,.35);}
+.ag-cell.online{background:rgba(88,166,255,.22);color:#79c0ff;border-color:rgba(88,166,255,.35);}
+.ag-cell.both{background:rgba(188,140,255,.22);color:#d2a8ff;border-color:rgba(188,140,255,.35);}
+.ag-cell.readonly{cursor:default;}
+/* ── FLAG DIALOG ── */
+.flag-dialog-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;z-index:200;}
+.flag-dialog{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;width:420px;max-width:92vw;}
+.flag-dialog-title{font-family:'Fraunces',serif;font-size:18px;font-weight:700;margin-bottom:16px;}
+.flag-field{margin-bottom:14px;}
+.flag-field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;}
+.flag-field select,.flag-field textarea,.flag-field input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;outline:none;}
+.flag-field select:focus,.flag-field textarea:focus{border-color:var(--accent);}
+.flag-field textarea{resize:vertical;min-height:70px;}
+.flag-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:16px;}
+.flag-card{background:var(--surface);border-radius:12px;padding:14px 16px;margin-bottom:10px;border-left:4px solid var(--border);}
+.flag-card.urgent{border-left-color:#f85149;}
+.flag-card.planned{border-left-color:#d29922;}
+.flag-card.open{border-left-color:#58a6ff;}
+.flag-card.resolved{border-left-color:#3fb950;opacity:.6;}
+.flag-card.critical-class{border-left-color:#f85149;background:rgba(248,81,73,.04);}
+.flag-card.critical-class .flag-card-title{color:#ffa198;}
+.flag-card-title{font-weight:600;font-size:14px;margin-bottom:3px;}
+.flag-card-meta{font-size:11px;color:var(--muted);margin-bottom:8px;}
+.flag-status-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;}
+.fsb-urgent{background:rgba(248,81,73,.15);color:#ffa198;}
+.fsb-planned{background:rgba(210,153,34,.15);color:#e3b341;}
+.fsb-open{background:rgba(88,166,255,.12);color:#79c0ff;}
+.fsb-resolved{background:rgba(63,185,80,.12);color:#3fb950;}
+.ag-cell.assigned{background:rgba(210,153,34,.25);color:#e3b341;border-color:rgba(210,153,34,.4);cursor:default;}
+.ag-cell.hw{background:rgba(20,184,166,.2);color:#2dd4bf;border-color:rgba(20,184,166,.4);cursor:default;}
+[data-theme="light"] .ag-cell.assigned{background:rgba(122,79,0,.15);color:#7a4f00;border-color:rgba(122,79,0,.3);}
+[data-theme="light"] .ag-cell.hw{background:rgba(13,148,136,.12);color:#0f766e;border-color:rgba(13,148,136,.3);}
+.ag-cell.drag-preview{opacity:.6;transform:scale(.97);}
+.ag-day-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.ag-day-btn{background:transparent;border:1px solid var(--border);border-radius:5px;color:var(--muted);font-family:inherit;font-size:10px;font-weight:600;padding:2px 6px;cursor:pointer;white-space:nowrap;}
+.ag-day-btn:hover{border-color:var(--accent);color:var(--accent);}
+.avail-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:12px;font-size:12px;color:var(--muted);}
+.legend-dot{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:middle;}
+.drag-mode-bar{display:flex;gap:6px;align-items:center;margin-bottom:12px;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);flex-wrap:wrap;}
+.drag-mode-bar span{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;}
+.drag-mode-btn{padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:transparent;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .12s;}
+.drag-mode-btn:hover{border-color:var(--muted);color:var(--text);}
+.drag-mode-btn.active-ip{background:rgba(63,185,80,.22);border-color:rgba(63,185,80,.5);color:#56d364;}
+.drag-mode-btn.active-online{background:rgba(88,166,255,.22);border-color:rgba(88,166,255,.5);color:#79c0ff;}
+.drag-mode-btn.active-both{background:rgba(188,140,255,.22);border-color:rgba(188,140,255,.5);color:#d2a8ff;}
+.drag-mode-btn.active-none{background:rgba(118,131,144,.15);border-color:rgba(118,131,144,.4);color:#adbac7;}
+.ag-cell.drag-over{filter:brightness(1.4);transform:scale(1.05);}
+.btn{padding:9px 18px;border-radius:8px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#05080f;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text);opacity:1;}
+.save-status{font-size:12px;color:var(--muted);}
+.save-status.saved{color:var(--green);}
+.rollup-table{width:100%;border-collapse:collapse;font-size:12px;}
+.rollup-table th{padding:7px 10px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);border-bottom:1px solid var(--border);}
+.rollup-table td{padding:6px 10px;border-bottom:1px solid #0a0f18;vertical-align:middle;}
+.rollup-table tr:hover td{background:rgba(255,255,255,.015);}
+.pip{display:inline-block;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:600;margin:1px;}
+.pip-ip{background:rgba(63,185,80,.15);color:#56d364;}
+.pip-online{background:rgba(88,166,255,.1);color:#79c0ff;}
+.pip-both{background:rgba(188,140,255,.12);color:#d2a8ff;}
+.pip-shadow{background:rgba(188,140,255,.12);color:#d2a8ff;}
+.pip-class{background:rgba(210,153,34,.12);color:#e3b341;}
+.conflict-card{background:var(--surface);border:1px solid rgba(248,81,73,.3);border-radius:12px;padding:14px 18px;margin-bottom:10px;}
+.conflict-title{font-weight:600;color:#ffa198;margin-bottom:4px;font-size:14px;}
+.conflict-detail{font-size:13px;color:var(--muted);line-height:1.6;}
+.conflict-tag{background:rgba(248,81,73,.12);color:#ffa198;border-radius:6px;padding:2px 8px;font-size:11px;font-weight:600;display:inline-block;margin:2px;}
+.shadow-tracker-card{background:var(--surface);border:1px solid rgba(188,140,255,.2);border-radius:12px;padding:16px;margin-bottom:10px;}
+.sc-btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-family:inherit;}
+.sc-btn:hover{border-color:var(--purple);}
+.sc-val{font-family:'Fraunces',serif;font-size:22px;font-weight:900;color:#d2a8ff;min-width:32px;text-align:center;}
+.shadow-notes{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 12px;resize:none;width:100%;outline:none;margin-top:10px;line-height:1.6;}
+.shadow-notes:focus{border-color:var(--purple);}
+.cleared-label{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);margin-top:10px;cursor:pointer;}
+.cleared-label input{accent-color:var(--purple);cursor:pointer;}
+.cleared-label.is-cleared{color:#d2a8ff;font-weight:600;}
+.filter-row{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+.filter-row select,.filter-row input{background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:7px 10px;outline:none;}
+.filter-row select:focus,.filter-row input:focus{border-color:var(--accent);}
+.empty{color:var(--muted);font-size:13px;padding:28px;text-align:center;}
+.spinner-wrap{text-align:center;padding:60px;color:var(--muted);}
+.dot-spin{display:inline-block;animation:spin .9s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+<script>
+var THEME_KEY = 'bm_theme';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t||'dark');
+  var btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = (t==='light') ? '☀' : '☽';
+}
+function toggleTheme(){
+  var current = document.documentElement.getAttribute('data-theme')||'dark';
+  var next = current==='light' ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
+}
+applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+window.toggleDaySection=function(id){
+  var el=document.getElementById(id);
+  var icon=document.getElementById(id+'-icon');
+  if(!el) return;
+  var isOpen=el.style.display!=='none';
+  el.style.display=isOpen?'none':'block';
+  if(icon) icon.textContent=isOpen?'▼':'▲';
+};
+</script>
+</head>
+<body>
+<header>
+  <div class="logo">Bright Minds</div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <span id="user-label" style="font-size:12px;color:var(--muted);"></span>
+    <a href="index.html" class="nav-link">Classes</a>
+    <a href="availability.html" class="nav-link active">Availability</a>
+    <a id="scheduling-link" href="scheduling.html" class="nav-link" style="display:none;">Scheduling</a>
+    <a id="admin-link" href="admin.html" class="nav-link" style="display:none;">Admin</a>
+    <button onclick="openEmailChangeDialog()" class="nav-link">Change email</button>
+    <button onclick="doSignOut()" class="nav-link">Sign out</button>
+    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
+  </div>
+</header>
+<main>
+  <div class="spinner-wrap" id="spinner"><span class="dot-spin">⟳</span>&nbsp;Loading…</div>
+  <div id="app" style="display:none;">
+    <div id="tab-my-availability"></div>
+  </div>
+</main>
+    <div id="tab-my-availability"></div>
+    <div id="tab-instructors" style="display:none;"></div>
+    <div id="tab-rollup" style="display:none;"></div>
+    <div id="tab-conflicts" style="display:none;"></div>
+    <div id="tab-shadows" style="display:none;"></div>
+    <div id="tab-classroom" style="display:none;"></div>
+  </div>
+</main>
+
+<!-- Flag dialog -->
+<div class="flag-dialog-overlay" id="flag-dialog-overlay" style="display:none;" onclick="if(event.target===this)closeFlagDialog()">
+  <div class="flag-dialog">
+    <div class="flag-dialog-title" id="flag-dialog-title">Flag class</div>
+    <input type="hidden" id="flag-class-id"/>
+    <input type="hidden" id="flag-doc-id"/>
+    <div class="flag-field">
+      <label>Reason</label>
+      <select id="flag-reason" onchange="document.getElementById('flag-other-wrap').style.display=this.value==='other'?'':'none'">
+        <option value="instructor-leaving">Instructor leaving / unavailable</option>
+        <option value="needs-split">Class needs splitting</option>
+        <option value="placement-issue">Student placement issue</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="flag-field" id="flag-other-wrap" style="display:none;">
+      <label>Specify reason</label>
+      <input type="text" id="flag-other-text" placeholder="Describe the issue…"/>
+    </div>
+    <div class="flag-field">
+      <label>Status</label>
+      <select id="flag-status">
+        <option value="open">Open</option>
+        <option value="planned">Planned change</option>
+        <option value="urgent">Urgent</option>
+        <option value="resolved">Resolved</option>
+      </select>
+    </div>
+    <div class="flag-field">
+      <label>Notes</label>
+      <textarea id="flag-note" placeholder="Any additional context…"></textarea>
+    </div>
+    <div class="flag-actions">
+      <button class="btn btn-ghost" onclick="closeFlagDialog()">Cancel</button>
+      <button class="btn btn-danger" id="flag-delete-btn" onclick="deleteFlag()" style="display:none;">Remove flag</button>
+      <button class="btn btn-primary" onclick="saveFlag()">Save flag</button>
+    </div>
+    <div style="font-size:12px;color:var(--red);margin-top:8px;display:none;" id="flag-error"></div>
+  </div>
+</div>
+
+<!-- Email change dialog -->
+<div class="flag-dialog-overlay" id="email-change-overlay" style="display:none;" onclick="if(event.target===this)closeEmailChangeDialog()">
+  <div class="flag-dialog">
+    <div class="flag-dialog-title">Change email address</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Enter your current password to confirm, then your new email address.
+    </p>
+    <div class="flag-field">
+      <label>Current password</label>
+      <input type="password" id="ec-password" placeholder="Your current password"/>
+    </div>
+    <div class="flag-field">
+      <label>New email address</label>
+      <input type="email" id="ec-new-email" placeholder="new@example.com"/>
+    </div>
+    <div class="flag-field">
+      <label>Confirm new email</label>
+      <input type="email" id="ec-confirm-email" placeholder="new@example.com again"/>
+    </div>
+    <div class="flag-actions">
+      <button class="btn btn-ghost" onclick="closeEmailChangeDialog()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveEmailChange()">Update email</button>
+    </div>
+    <div style="font-size:12px;color:var(--red);margin-top:8px;display:none;" id="ec-error"></div>
+    <div style="font-size:12px;color:var(--green);margin-top:8px;display:none;" id="ec-success"></div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut, updateEmail, reauthenticateWithCredential, EmailAuthProvider } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig, CLASS_DATA_URL, WRITING_DATA_URL } from "./firebase-config.js";
+
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+const DAYS  = ['Mon','Tue','Wed','Thu','Fri','Sat'];
+
+// Per-day slot ranges
+const DAY_RANGE = {
+  Mon: {start:[15,0], end:[21,0]},
+  Tue: {start:[15,0], end:[21,0]},
+  Wed: {start:[15,0], end:[21,0]},
+  Thu: {start:[15,0], end:[21,0]},
+  Fri: {start:[13,0], end:[21,0]},
+  Sat: {start:[8,45], end:[16,0]},
+};
+function slotsForDay(day) {
+  const {start,end} = DAY_RANGE[day] || {start:[15,0],end:[21,0]};
+  const slots = [];
+  for (let h=start[0]; h<=end[0]; h++) {
+    for (let m=0; m<60; m+=15) {
+      if (h===start[0] && m<start[1]) continue;
+      if (h===end[0]   && m>=end[1])  continue;
+      if (h>end[0]) continue;
+      slots.push(`${h}:${m.toString().padStart(2,'0')}`);
+    }
+  }
+  return slots;
+}
+// Union of all slots (for rollup/conflict selectors)
+const SLOTS = [...new Set(DAYS.flatMap(slotsForDay))].sort((a,b)=>{
+  const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number);
+  return (ah*60+am)-(bh*60+bm);
+});
+// ── BOOK LEVELS (ordered by numeric value) ──
+// Derived from the ClassCluster CSV at runtime; this is the fallback order.
+const BOOK_LEVEL_MAP = [
+  {name:'KJr',        min:-1,   max:-0.5},
+  {name:'KSr',        min:-0.5, max:0},
+  {name:'1A Mammoth', min:0,    max:0.5},
+  {name:'1A Renert',  min:0.5,  max:1},
+  {name:'1B Mammoth', min:1,    max:1.5},
+  {name:'1B Renert',  min:1.5,  max:2},
+  {name:'2A',         min:2,    max:2.5},
+  {name:'2B',         min:2.5,  max:3},
+  {name:'2C',         min:3,    max:3.5},
+  {name:'2D',         min:3.5,  max:4},
+  {name:'3A',         min:4,    max:4.5},
+  {name:'3B',         min:4.5,  max:5},
+  {name:'3C',         min:5,    max:5.5},
+  {name:'3D',         min:5.5,  max:6},
+  {name:'4A',         min:6,    max:7},
+  {name:'4B',         min:7,    max:8},
+  {name:'Book 5',     min:8,    max:9},
+  {name:'Book 6',     min:9,    max:10},
+  {name:'Book 7',     min:10,   max:11},
+  {name:'Book 8',     min:11,   max:12},
+  {name:'D1',         min:11.5, max:12},
+  {name:'D2',         min:12,   max:12.25},
+  {name:'M10',        min:12.25,max:14},
+  {name:'M20',        min:14,   max:16},
+  {name:'M30',        min:16,   max:18},
+  {name:'M31',        min:18,   max:20},
+];
+// Derive sorted unique book names from live CSV data
+let bookLevels = BOOK_LEVEL_MAP.map(b=>b.name); // updated after CSV loads
+
+function numericToBookName(val){
+  for(const b of BOOK_LEVEL_MAP){ if(val>=b.min && val<b.max) return b.name; }
+  return null;
+}
+function updateBookLevelsFromClasses(classes){
+  const seen=new Set();
+  classes.forEach(c=>c.students.forEach(s=>{
+    const name=numericToBookName(s.ability);
+    if(name) seen.add(name);
+  }));
+  // Keep fallback order, filter to those seen in data (or all if none found)
+  const filtered=BOOK_LEVEL_MAP.map(b=>b.name).filter(n=>seen.has(n));
+  bookLevels = filtered.length>=2 ? filtered : BOOK_LEVEL_MAP.map(b=>b.name);
+}
+
+const GRADES = ['JK','SK','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5',
+                'Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
+
+const STATES = ['none','ip','online','both'];
+const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
+const TITLES = {none:'Unavailable',ip:'In-person only',online:'Online only',both:'Both IP & online'};
+
+let currentUser=null, currentProfile=null, allProfiles=[], allClasses=[], extraSessions=[], classFlags=[];
+let draftAvail={}, draftDayNotes={}, unsaved=false;
+
+const AVG=[
+  {bg:"rgba(88,166,255,.15)",txt:"#79c0ff"},{bg:"rgba(63,185,80,.15)",txt:"#56d364"},
+  {bg:"rgba(188,140,255,.15)",txt:"#d2a8ff"},{bg:"rgba(210,153,34,.15)",txt:"#e3b341"},
+  {bg:"rgba(248,81,73,.12)",txt:"#ffa198"},{bg:"rgba(240,165,0,.12)",txt:"#f0c040"},
+  {bg:"rgba(118,131,144,.15)",txt:"#adbac7"},
+];
+const ac=n=>AVG[(n||" ").charCodeAt(0)%AVG.length];
+const ini=n=>(n||"?").split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+const clone=o=>JSON.parse(JSON.stringify(o||{}));
+
+window.addEventListener('beforeunload', function(e){
+  if(unsaved){ e.preventDefault(); e.returnValue=''; }
+});
+
+// (No tab navigation needed — single view)
+
+// Handle sign-out redirect from ClassCluster
+if(new URLSearchParams(window.location.search).get('signout')==='1'){
+  try{ localStorage.removeItem('bm_session'); }catch(e){}
+  fbSignOut(auth).finally(()=>{ window.location.href='login.html'; });
+}
+
+// ── ROLE HELPERS ──
+function isAdmin(profile){ return profile?.role==='admin'||profile?.role==='super-admin'; }
+function isSuperAdmin(profile){ return profile?.role==='super-admin'; }
+
+onAuthStateChanged(auth, async user=>{
+  if (!user){window.location.href="login.html";return;}
+  currentUser=user;
+  const [ps,all]=await Promise.all([getDoc(doc(db,"instructors",user.uid)),getDocs(collection(db,"instructors"))]);
+  if (!ps.exists()){
+    // Try to find profile by email — handles re-keying after bulk account recreation
+    const emailMatch = all.docs.find(d =>
+      (d.data().email||'').toLowerCase() === (user.email||'').toLowerCase()
+    );
+    if(emailMatch){
+      // Copy profile to new UID key, delete old doc
+      const oldData = emailMatch.data();
+      try {
+        await setDoc(doc(db,'instructors',user.uid), {...oldData, uid:user.uid});
+        await deleteDoc(doc(db,'instructors',emailMatch.id));
+        // Re-fetch with new UID
+        const relinked = await getDoc(doc(db,'instructors',user.uid));
+        if(!relinked.exists()){ document.getElementById("spinner").innerHTML='<p style="color:var(--red)">Profile re-link failed. Contact an administrator.</p>'; return; }
+        currentProfile={uid:user.uid,...relinked.data()};
+      } catch(e) {
+        document.getElementById("spinner").innerHTML=`<p style="color:var(--red)">Profile linking error: ${e.message}<br><small style="color:var(--muted);">Email: ${user.email} · UID: ${user.uid}</small></p>`;
+        return;
+      }
+    } else {
+      document.getElementById("spinner").innerHTML=`<p style="color:var(--red)">No profile found for ${user.email}.<br><small style="color:var(--muted);">Contact an administrator.</small></p>`;
+      return;
+    }
+  } else {
+  currentProfile={uid:user.uid,...ps.data()};
+  // Write session for ClassCluster to read (no Firebase needed there)
+  try {
+    localStorage.setItem('bm_session', JSON.stringify({
+      uid:         user.uid,
+      displayName: currentProfile.displayName,
+      role:        currentProfile.role || 'instructor',
+    }));
+  } catch(e){}
+  // Apply theme: localStorage wins (most recently set by user),
+  // fall back to Firestore preference if localStorage has nothing
+  const localTheme = localStorage.getItem('bm_theme');
+  if(!localTheme && currentProfile.theme){
+    try{ localStorage.setItem('bm_theme', currentProfile.theme); }catch(e){}
+    applyTheme(currentProfile.theme);
+  } else if(localTheme && currentProfile.theme && localTheme !== currentProfile.theme){
+    // localStorage differs from Firestore — update Firestore to match
+    try{ await updateDoc(doc(db,'instructors',currentUser.uid),{theme:localTheme}); }catch(e){}
+  }
+  // Allow theme toggle to save back to Firestore
+  window._saveThemePref = async function(t){
+    try{ await updateDoc(doc(db,'instructors',currentUser.uid),{theme:t}); }catch(e){}
+  };
+  allProfiles=all.docs.map(d=>({uid:d.id,...d.data()})).sort((a,b)=>(a.displayName||"").localeCompare(b.displayName||""));
+  draftAvail=clone(currentProfile.availability||{});
+  draftDayNotes=clone(currentProfile.dayNotes||{});
+  document.getElementById("user-label").textContent=currentProfile.displayName;
+  if (isAdmin(currentProfile)) {
+    document.getElementById("admin-link").style.display="";
+    document.getElementById("scheduling-link").style.display="";
+  }
+  allClasses=await fetchClasses();
+  try{
+    // Read from extraSessions (new) and hwSessions (legacy) — merge both
+    const [newSnap, legacySnap] = await Promise.all([
+      getDocs(collection(db,'extraSessions')).catch(()=>({docs:[]})),
+      getDocs(collection(db,'hwSessions')).catch(()=>({docs:[]})),
+    ]);
+    const newDocs = newSnap.docs.map(d=>({id:d.id,...d.data()}));
+    // Legacy docs get type:'hw-support' if not already set
+    const legacyDocs = legacySnap.docs
+      .map(d=>({id:'legacy_'+d.id,...d.data(),type:d.data().type||'hw-support',_legacy:true,_legacyId:d.id}))
+      .filter(d=>!newDocs.some(n=>n._legacyId===d._legacyId)); // skip already-migrated
+    extraSessions=[...newDocs,...legacyDocs];
+  }catch(e){ extraSessions=[]; }
+  try{
+    const flagSnap=await getDocs(collection(db,'classFlags'));
+    classFlags=flagSnap.docs.map(d=>({id:d.id,...d.data()}));
+  }catch(e){ classFlags=[]; }
+  updateBookLevelsFromClasses(allClasses);
+  // Debug helpers — accessible from browser console
+  window._debug = { allClasses, allProfiles, classesForProfile, assignedSlotsForProfile, matchProfile };
+  document.getElementById("spinner").style.display="none";
+  document.getElementById("app").style.display="";
+  if(isAdmin(currentProfile)) document.getElementById("scheduling-link").style.display="";
+  renderMine();
+  } // end else (profile found by UID)
+});
+
+async function fetchClasses(){
+  async function fetchCSV(url, program){
+    if(!url) return [];
+    try{
+      // Append timestamp to bust any server-side or CDN caching
+      const bustUrl = url + (url.includes('?') ? '&' : '?') + '_=' + Date.now();
+      const r=await fetch("https://corsproxy.io/?"+encodeURIComponent(bustUrl),{cache:"no-store"});
+      if(!r.ok) return [];
+      return parseCSV(await r.text(), program);
+    }catch{ return []; }
+  }
+  const [math, writing] = await Promise.all([
+    fetchCSV(CLASS_DATA_URL, 'math'),
+    fetchCSV(WRITING_DATA_URL, 'writing'),
+  ]);
+  return [...math, ...writing];
+}
+
+function parseCSV(text, program='math'){
+  const lines=text.trim().split(/\r?\n/);
+  const hdr=lines[0].split(",").map(h=>h.trim().toLowerCase());
+  const ci=hdr.indexOf("classid")>=0?hdr.indexOf("classid"):hdr.indexOf("class");
+  const di=hdr.indexOf("day"),ti=hdr.indexOf("time"),ii=hdr.indexOf("instructor");
+  const shi=hdr.indexOf("shadows"),deli=hdr.indexOf("delivery"),oi=hdr.indexOf("comment");
+  const ri=hdr.indexOf("room");
+  if (ci<0) return [];
+  const map={},meta={};
+  for (let i=1;i<lines.length;i++){
+    const c=lines[i].split(",").map(v=>v.trim());
+    if (c.length<2||!c[ci]) continue;
+    const cn=c[ci];
+    if (!map[cn]){map[cn]=[];meta[cn]={classId:cn,
+      day:di>=0?c[di]:"",time:ti>=0?c[ti]:"",instructor:ii>=0?c[ii]:"",
+      shadows:shi>=0?c[shi].split(";").map(s=>s.trim()).filter(Boolean):[],
+      delivery:deli>=0?(c[deli].toLowerCase().includes("online")?"online":"in-person"):"",
+      room:ri>=0?c[ri].trim():"",
+      program,
+      comment:oi>=0?c[oi]:""};
+    }
+    const ni=hdr.indexOf("name"),gi=hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
+    if (ni>=0&&gi>=0&&bi>=0&&c[ni]) map[cn].push({name:c[ni],grade:parseFloat(c[gi])||0,ability:parseFloat(c[bi])||0});
+  }
+  return Object.entries(map).map(([cn,students])=>({...meta[cn],className:cn,students}));
+}
+
+// Match CSV name → Firestore profile by UID (not string-matching)
+function matchProfile(csvName){
+  if (!csvName) return null;
+  const t=csvName.trim();
+  let p=allProfiles.find(x=>x.displayName===t);
+  if (p) return p;
+  const first=t.split(" ")[0].toLowerCase();
+  return allProfiles.find(x=>(x.displayName||"").split(" ")[0].toLowerCase()===first)||null;
+}
+
+function classesForProfile(profile){
+  const lead=allClasses.filter(c=>matchProfile(c.instructor)?.uid===profile.uid);
+  const shadow=allClasses.filter(c=>c.shadows.some(s=>matchProfile(s)?.uid===profile.uid));
+  return {lead,shadow};
+}
+
+// ── MY AVAILABILITY ──
+function renderMine(){
+  const el=document.getElementById("tab-my-availability");
+  const p=currentProfile, c=ac(p.displayName);
+  const {lead,shadow}=classesForProfile(p);
+  const myHwSessions=extraSessions
+    .map(s=>({session:s, inst:(s.instructors||[]).find(i=>i.uid===p.uid)}))
+    .filter(x=>x.inst)
+    .sort((a,b)=>{
+      const d={Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5};
+      return (d[a.session.day]??9)-(d[b.session.day]??9);
+    });
+
+  const gradeOpts=GRADES.map(g=>`<option value="${g}" ${(p.gradeMin||'')===(g)?'selected':''}>${g}</option>`).join('');
+  const gradeOptsMax=GRADES.map(g=>`<option value="${g}" ${(p.gradeMax||'')===(g)?'selected':''}>${g}</option>`).join('');
+  const levelOpts=bookLevels.map(l=>`<option value="${l}" ${(p.levelMin||'')===(l)?'selected':''}>${l}</option>`).join('');
+  const levelOptsMax=bookLevels.map(l=>`<option value="${l}" ${(p.levelMax||'')===(l)?'selected':''}>${l}</option>`).join('');
+
+  const inputStyle='background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 12px;outline:none;width:100%;';
+  const selectStyle='background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;outline:none;';
+
+  el.innerHTML=`
+    <div class="profile-header">
+      <div class="profile-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
+      <div>
+        <div class="profile-name">${p.displayName}</div>
+        <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
+          ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':''}
+          ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
+          ${p.maxNew===0?'<span class="badge b-amber">No new classes</span>':p.maxNew?`<span class="badge b-green">Open to ${p.maxNew} new</span>`:''}
+        </div>
+      </div>
+    </div>
+
+    <!-- Preferences card -->
+    <div class="card">
+      <div class="section-label" style="margin-bottom:14px;">Teaching preferences</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Grade range</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="pref-grade-min" style="${selectStyle}flex:1;"><option value="">Min grade</option>${gradeOpts}</select>
+            <span style="color:var(--muted);font-size:13px;">→</span>
+            <select id="pref-grade-max" style="${selectStyle}flex:1;"><option value="">Max grade</option>${gradeOptsMax}</select>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Level range</div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <select id="pref-level-min" style="${selectStyle}flex:1;"><option value="">Min level</option>${levelOpts}</select>
+            <span style="color:var(--muted);font-size:13px;">→</span>
+            <select id="pref-level-max" style="${selectStyle}flex:1;"><option value="">Max level</option>${levelOptsMax}</select>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">General comment</div>
+        <textarea id="pref-comment" rows="3" style="${inputStyle}resize:vertical;" placeholder="Any general notes about your availability or preferences…">${p.comment||''}</textarea>
+      </div>
+    </div>
+
+    <!-- Availability grid -->
+    <div class="card">
+      <div class="section-label">Weekly availability</div>
+      <div id="avail-grid-wrap"></div>
+      <div class="avail-legend">
+        <span><span class="legend-dot" style="background:rgba(63,185,80,.35)"></span>In-person free</span>
+        <span><span class="legend-dot" style="background:rgba(88,166,255,.35)"></span>Online free</span>
+        <span><span class="legend-dot" style="background:rgba(188,140,255,.35)"></span>Both free</span>
+        <span><span class="legend-dot" style="background:rgba(210,153,34,.35)"></span>Class assigned</span>
+        <span><span class="legend-dot" style="background:rgba(20,184,166,.3)"></span>HW Support</span>
+        <span><span class="legend-dot" style="background:var(--surface2);border:1px solid #1c2333;"></span>Unavailable</span>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;margin-bottom:20px;">
+      <span class="save-status" id="save-status"></span>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="resetDraft()">Reset</button>
+        <button class="btn btn-primary" id="save-btn" onclick="saveAvail()">Save</button>
+      </div>
+    </div>
+
+    ${lead.length||shadow.length||myHwSessions.length?`<div class="card">
+      <div class="section-label">Your assigned classes & sessions</div>
+      ${lead.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
+        <span style="font-weight:600;color:var(--accent);">${cls.classId}</span>
+        <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
+        <span class="pip ${cls.delivery==='online'?'pip-online':'pip-ip'}">${cls.delivery==='online'?'🌐':'🏫'}</span>
+        ${cls.program==='writing'?'<span class="pip" style="background:rgba(240,165,0,.15);color:#f0a500;">Writing</span>':''}
+      </div>`).join('')}
+      ${shadow.map(cls=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
+        <span style="font-weight:600;color:#d2a8ff;">${cls.classId}</span>
+        <span style="color:var(--muted);">${[cls.day,cls.time].filter(Boolean).join(' · ')}</span>
+        <span class="pip pip-shadow">Shadow</span>
+        ${cls.instructor?`<span style="color:var(--muted);font-size:11px;">Lead: ${cls.instructor}</span>`:''}
+      </div>`).join('')}
+      ${myHwSessions.map(({session,inst})=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #0a0f18;font-size:13px;">
+        <span style="font-weight:600;color:${sessionColor(session)};">${session.name}</span>
+        <span style="color:var(--muted);">${session.day} · ${inst.start}–${inst.end}</span>
+        <span class="pip" style="background:${sessionColor(session)}26;color:${sessionColor(session)};">${inst.host?'Host':sessionFullName(session)}</span>
+        <span class="pip ${session.delivery==='online'?'pip-online':'pip-ip'}">${session.delivery==='online'?'🌐':'🏫'}</span>
+      </div>`).join('')}
+    </div>`:''}`;
+  buildGrid("avail-grid-wrap",draftAvail,true);
+}
+
+function buildGrid(wrapperId,avail,editable,targetUid){
+  const w=document.getElementById(wrapperId); if(!w) return;
+  const pfx = targetUid ? targetUid.slice(0,6)+'_' : '';
+  let h='';
+
+  // Drag-mode toolbar (editable only)
+  if(editable){
+    h+=`<div class="drag-mode-bar">
+      <span>Draw mode:</span>
+      <button class="drag-mode-btn active-ip" id="${pfx}dm-ip"   onclick="setDragMode('ip','${pfx}')"    >IP</button>
+      <button class="drag-mode-btn"           id="${pfx}dm-online" onclick="setDragMode('online','${pfx}')">Online</button>
+      <button class="drag-mode-btn"           id="${pfx}dm-both"   onclick="setDragMode('both','${pfx}')"  >Both</button>
+      <button class="drag-mode-btn"           id="${pfx}dm-none"   onclick="setDragMode('none','${pfx}')"  >Clear</button>
+      <span style="color:var(--border);margin:0 4px;">|</span>
+      <span style="font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0;">Click a cell or click &amp; drag to fill a range</span>
+    </div>`;
+  }
+
+  // Pre-compute assigned/HW slots for the profile being displayed
+  // Only applies when showing own profile (editable) or reading a profile (readonly)
+  const profileUid = targetUid || (typeof currentUser !== 'undefined' ? currentUser.uid : null);
+  const blockedSlots = profileUid ? (()=>{
+    const profile = allProfiles.find(p=>p.uid===profileUid) || currentProfile;
+    if(!profile) return {assigned:new Map(), hw:new Map()};
+    const assigned = new Map(); // key → class code
+    const hw = new Map();       // key → session object
+    // Classes
+    try {
+      const {lead, shadow} = classesForProfile(profile);
+      [...lead, ...shadow].forEach(cls=>{
+        const day=DAYS.find(d=>(cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
+        if(!day||!cls.time) return;
+        const m=cls.time.match(/(\d+):(\d+)/); if(!m) return;
+        let mins=parseInt(m[1])*60+parseInt(m[2]);
+        const code = cls.classId || cls.className || '?';
+        for(let i=0;i<4;i++){
+          assigned.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, code);
+          mins+=15;
+        }
+      });
+    } catch(e){}
+    // HW sessions
+    (extraSessions||[]).forEach(s=>{
+      const inst=(s.instructors||[]).find(i=>i.uid===profileUid);
+      if(!inst) return;
+      const day=DAYS.find(d=>(s.day||'').toLowerCase().startsWith(d.toLowerCase()));
+      if(!day) return;
+      const sm=inst.start.match(/(\d+):(\d+)/), em=inst.end.match(/(\d+):(\d+)/);
+      if(!sm||!em) return;
+      let mins=parseInt(sm[1])*60+parseInt(sm[2]);
+      const end=parseInt(em[1])*60+parseInt(em[2]);
+      const label = sessionLabel(s);
+      while(mins<end){
+        hw.set(`${day}|${Math.floor(mins/60)}:${(mins%60).toString().padStart(2,'0')}`, s);
+        mins+=15;
+      }
+    });
+    return {assigned, hw};
+  })() : {assigned:new Map(), hw:new Map()};
+
+  // Per-day columns
+  h+=`<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:4px;" id="${wrapperId}-cols">`;
+  DAYS.forEach(day=>{
+    const slots=slotsForDay(day);
+    h+=`<div style="flex-shrink:0;min-width:90px;">`;
+    h+=`<div class="ag-header">${day}</div>`;
+    slots.forEach(slot=>{
+      const key=`${day}|${slot}`;
+      const classCode=blockedSlots.assigned.get(key);
+      const hwSession=!classCode && blockedSlots.hw.get(key);
+      const hwLabel=hwSession ? sessionLabel(hwSession) : null;
+      const st=(avail[day]||{})[slot]||'none';
+      const timeLabel=`<span style="font-size:12px;color:var(--muted);min-width:42px;display:inline-block;">${slot}</span>`;
+      if(classCode){
+        // Strip year prefix for display (e.g. "25-1081" → "1081")
+        const displayCode = classCode.replace(/^\d{2}-/,'');
+        const existingFlag = classFlags.find(f=>f.classId===classCode);
+        const flagIndicator = existingFlag ? `<span style="position:absolute;top:1px;right:2px;font-size:7px;color:${existingFlag.status==='urgent'?'#f85149':existingFlag.status==='planned'?'#d29922':'#58a6ff'};">●</span>` : '';
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell assigned" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;position:relative;cursor:pointer;" title="${classCode}${existingFlag?' — '+existingFlag.status+' flag':''}" onclick="openFlagDialog('${classCode}')">${displayCode}${flagIndicator}</div></div>`;
+      } else if(hwLabel){
+        const hwColor = sessionColor(hwSession);
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell hw readonly" style="width:52px;font-size:9px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:${hwColor}22;border-color:${hwColor}66;color:${hwColor};" title="${hwSession.name||hwLabel}">${hwLabel}</div></div>`;
+      } else if(editable){
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st}" style="width:52px;" title="${TITLES[st]}" data-day="${day}" data-slot="${slot}" data-uid="${targetUid||''}">${st==='none'?'':LABELS[st]}</div></div>`;
+      } else {
+        h+=`<div style="display:flex;align-items:center;gap:5px;margin-bottom:3px;">${timeLabel}<div class="ag-cell ${st} readonly" style="width:52px;" title="${TITLES[st]}">${st==='none'?'':LABELS[st]}</div></div>`;
+      }
+    });
+    if(editable){
+      const dayNote=(typeof draftDayNotes!=='undefined'?draftDayNotes[day]:'') || '';
+      h+=`<textarea id="daynote-${day}" rows="2" placeholder="${day} notes…" style="margin-top:8px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:5px 7px;resize:none;outline:none;">${dayNote}</textarea>`;
+    } else {
+      const dayNote=(avail['_dayNotes']||{})[day]||'';
+      if(dayNote) h+=`<div style="margin-top:6px;font-size:11px;color:var(--muted);font-style:italic;">${dayNote}</div>`;
+    }
+    h+=`</div>`;
+  });
+  h+=`</div>`;
+  w.innerHTML=h;
+  if(editable) attachDragHandlers(wrapperId);
+}
+
+// ── DRAG SELECTION ──
+let dragMode='ip';   // current draw mode
+let isDragging=false;
+
+window.setDragMode=function(mode,pfx){
+  dragMode=mode;
+  pfx=pfx||'';
+  ['ip','online','both','none'].forEach(m=>{
+    const btn=document.getElementById(pfx+'dm-'+m);
+    if(!btn) return;
+    btn.className='drag-mode-btn'+(mode===m?' active-'+m:'');
+  });
+};
+
+function applyCell(el){
+  if(!el||!el.dataset.day) return;
+  const day=el.dataset.day, slot=el.dataset.slot, uid=el.dataset.uid||'';
+  // Write to the correct draft — own profile or admin editing another
+  const draft = uid && uid !== currentUser.uid
+    ? (window._profileDraft = window._profileDraft||{}, window._profileDraft[uid] = window._profileDraft[uid]||{}, window._profileDraft[uid])
+    : draftAvail;
+  if(!draft[day]) draft[day]={};
+  draft[day][slot]=dragMode;
+  el.className=`ag-cell ${dragMode}`;
+  el.title=TITLES[dragMode];
+  el.textContent=dragMode==='none'?'':LABELS[dragMode];
+  if(!uid || uid===currentUser.uid){ unsaved=true; setSS(''); }
+  else {
+    const s=document.getElementById('prof-save-status');
+    if(s){s.textContent='Unsaved changes';s.className='save-status';}
+  }
+}
+
+function attachDragHandlers(wrapperId){
+  const cols=document.getElementById(wrapperId+'-cols');
+  if(!cols) return;
+
+  cols.addEventListener('mousedown', e=>{
+    const cell=e.target.closest('.ag-cell:not(.readonly)');
+    if(!cell) return;
+    e.preventDefault();
+    isDragging=true;
+    applyCell(cell);
+  });
+
+  cols.addEventListener('mouseover', e=>{
+    if(!isDragging) return;
+    const cell=e.target.closest('.ag-cell:not(.readonly)');
+    if(cell) applyCell(cell);
+  });
+
+  // End drag on mouseup anywhere
+  document.addEventListener('mouseup', ()=>{ isDragging=false; }, {once:false});
+
+  // Touch support
+  cols.addEventListener('touchstart', e=>{
+    const cell=e.target.closest('.ag-cell:not(.readonly)');
+    if(!cell) return;
+    isDragging=true;
+    applyCell(cell);
+  }, {passive:true});
+
+  cols.addEventListener('touchmove', e=>{
+    if(!isDragging) return;
+    const touch=e.touches[0];
+    const el=document.elementFromPoint(touch.clientX, touch.clientY);
+    const cell=el?.closest('.ag-cell:not(.readonly)');
+    if(cell) applyCell(cell);
+  }, {passive:true});
+
+  cols.addEventListener('touchend', ()=>{ isDragging=false; }, {passive:true});
+}
+
+// Keep cycleSlot for read-only profile view (not used in editable grid anymore)
+window.cycleSlot=function(day,slot,el){
+  const cur=(draftAvail[day]||{})[slot]||'none';
+  const nxt=STATES[(STATES.indexOf(cur)+1)%STATES.length];
+  if(!draftAvail[day]) draftAvail[day]={};
+  draftAvail[day][slot]=nxt;
+  el.className=`ag-cell ${nxt}`; el.title=TITLES[nxt]; el.textContent=nxt==='none'?'':LABELS[nxt];
+  unsaved=true; setSS('');
+};
+
+window.resetDraft=function(){draftAvail=clone(currentProfile.availability||{});draftDayNotes=clone(currentProfile.dayNotes||{});unsaved=false;renderMine();setSS("Reset to last saved.");};
+window.saveAvail=async function(){
+  const btn=document.getElementById("save-btn"); btn.disabled=true; btn.textContent="Saving…";
+  // Collect per-day notes from textareas
+  DAYS.forEach(day=>{
+    const ta=document.getElementById('daynote-'+day);
+    if(ta) draftDayNotes[day]=ta.value;
+  });
+  // Collect preference fields
+  const gradeMin  = document.getElementById('pref-grade-min')?.value  || '';
+  const gradeMax  = document.getElementById('pref-grade-max')?.value  || '';
+  const levelMin  = document.getElementById('pref-level-min')?.value  || '';
+  const levelMax  = document.getElementById('pref-level-max')?.value  || '';
+  const comment   = document.getElementById('pref-comment')?.value    || '';
+  try{
+    await updateDoc(doc(db,"instructors",currentUser.uid),{
+      availability: draftAvail,
+      dayNotes:     draftDayNotes,
+      gradeMin, gradeMax, levelMin, levelMax, comment,
+      availabilityUpdatedAt: serverTimestamp(),
+    });
+    currentProfile.availability=clone(draftAvail);
+    currentProfile.dayNotes=clone(draftDayNotes);
+    currentProfile.gradeMin=gradeMin; currentProfile.gradeMax=gradeMax;
+    currentProfile.levelMin=levelMin; currentProfile.levelMax=levelMax;
+    currentProfile.comment=comment;
+    unsaved=false; setSS("✓ Saved",true);
+  }catch(e){setSS("Error: "+e.message);}
+  finally{btn.disabled=false;btn.textContent="Save";}
+};
+function setSS(msg,ok){const e=document.getElementById("save-status");if(!e)return;e.textContent=msg;e.className="save-status"+(ok?" saved":"");}
+
+// ── ROLLUP ──
+
+// Returns a Set of "day|slot" strings that an instructor is assigned to (lead or shadow)
+// A 60-min class blocks 4 x 15-min slots starting from the class time.
+function assignedSlotsForProfile(profile) {
+  const blocked = new Set();
+  const {lead, shadow} = classesForProfile(profile);
+  [...lead, ...shadow].forEach(cls => {
+    const day = DAYS.find(d => (cls.day||'').toLowerCase().startsWith(d.toLowerCase()));
+    if (!day || !cls.time) return;
+    const m = cls.time.match(/(\d+):(\d+)/);
+    if (!m) return;
+    let mins = parseInt(m[1])*60 + parseInt(m[2]);
+    for (let i=0; i<4; i++) {
+      const h = Math.floor(mins/60);
+      const mn = mins%60;
+      blocked.add(`${day}|${h}:${mn.toString().padStart(2,'0')}`);
+      mins += 15;
+    }
+  });
+  // Also block HW support session slots for this instructor
+  extraSessions.forEach(s => {
+    const inst = (s.instructors||[]).find(i => i.uid === profile.uid);
+    if (!inst) return;
+    const day = DAYS.find(d => (s.day||'').toLowerCase().startsWith(d.toLowerCase()));
+    if (!day) return;
+    const sm = inst.start.match(/(\d+):(\d+)/);
+    const em = inst.end.match(/(\d+):(\d+)/);
+    if (!sm || !em) return;
+    let mins = parseInt(sm[1])*60 + parseInt(sm[2]);
+    const endMins = parseInt(em[1])*60 + parseInt(em[2]);
+    while (mins < endMins) {
+      const h = Math.floor(mins/60);
+      const mn = mins%60;
+      blocked.add(`${day}|${h}:${mn.toString().padStart(2,'0')}`);
+      mins += 15;
+    }
+  });
+  return blocked;
+}
+
+// Returns HW session info for a profile at a given day|slot key
+function hwSessionForSlot(profile, key) {
+  for (const s of extraSessions) {
+    const inst = (s.instructors||[]).find(i => i.uid === profile.uid);
+    if (!inst) continue;
+    const day = DAYS.find(d => (s.day||'').toLowerCase().startsWith(d.toLowerCase()));
+    if (!day) continue;
+    const sm = inst.start.match(/(\d+):(\d+)/);
+    const em = inst.end.match(/(\d+):(\d+)/);
+    if (!sm || !em) continue;
+    let mins = parseInt(sm[1])*60 + parseInt(sm[2]);
+    const endMins = parseInt(em[1])*60 + parseInt(em[2]);
+    while (mins < endMins) {
+      const h = Math.floor(mins/60);
+      const mn = mins%60;
+      if (`${day}|${h}:${mn.toString().padStart(2,'0')}` === key) return s;
+      mins += 15;
+    }
+  }
+  return null;
+}
+
+
+
+// ── FLAG DIALOG FUNCTIONS ──
+window.openFlagDialog=function(classId){
+  const existing=classFlags.find(f=>f.classId===classId);
+  const cls=allClasses.find(c=>c.classId===classId);
+  document.getElementById('flag-dialog-title').textContent=
+    `Flag: ${classId}${cls?' · '+[cls.day,cls.time].filter(Boolean).join(' '):''}`;
+  document.getElementById('flag-class-id').value=classId;
+  document.getElementById('flag-doc-id').value=existing?.id||'';
+  document.getElementById('flag-reason').value=existing?.reason||'instructor-leaving';
+  document.getElementById('flag-other-wrap').style.display=
+    (existing?.reason==='other')?'':'none';
+  document.getElementById('flag-other-text').value=existing?.otherNote||'';
+  document.getElementById('flag-status').value=existing?.status||'open';
+  document.getElementById('flag-note').value=existing?.note||'';
+  document.getElementById('flag-delete-btn').style.display=existing?'':'none';
+  document.getElementById('flag-error').style.display='none';
+  document.getElementById('flag-dialog-overlay').style.display='flex';
+};
+
+window.closeFlagDialog=function(){
+  document.getElementById('flag-dialog-overlay').style.display='none';
+};
+
+window.saveFlag=async function(){
+  const classId=document.getElementById('flag-class-id').value;
+  const docId=document.getElementById('flag-doc-id').value;
+  const reason=document.getElementById('flag-reason').value;
+  const otherNote=document.getElementById('flag-other-text').value.trim();
+  const status=document.getElementById('flag-status').value;
+  const note=document.getElementById('flag-note').value.trim();
+  const errEl=document.getElementById('flag-error');
+  errEl.style.display='none';
+  if(reason==='other'&&!otherNote){
+    errEl.textContent='Please specify the reason.';errEl.style.display='block';return;
+  }
+  const cls=allClasses.find(c=>c.classId===classId);
+  const data={
+    classId, className:cls?.className||classId,
+    instructor:cls?.instructor||'',
+    reason, otherNote:reason==='other'?otherNote:'',
+    status, note,
+    updatedBy:currentUser.uid, updatedByName:currentProfile.displayName,
+    updatedAt:serverTimestamp(),
+  };
+  try{
+    if(docId){
+      await updateDoc(doc(db,'classFlags',docId),data);
+      const idx=classFlags.findIndex(f=>f.id===docId);
+      if(idx>=0) classFlags[idx]={...classFlags[idx],...data,id:docId};
+    } else {
+      data.createdBy=currentUser.uid;
+      data.createdByName=currentProfile.displayName;
+      data.createdAt=serverTimestamp();
+      const ref=await addDoc(collection(db,'classFlags'),data);
+      classFlags.push({...data,id:ref.id});
+    }
+    closeFlagDialog();
+    renderMine();
+  }catch(e){
+    errEl.textContent='Error saving: '+e.message;errEl.style.display='block';
+  }
+};
+
+window.deleteFlag=async function(){
+  const docId=document.getElementById('flag-doc-id').value;
+  if(!docId||!confirm('Remove this flag?')) return;
+  try{
+    await deleteDoc(doc(db,'classFlags',docId));
+    classFlags=classFlags.filter(f=>f.id!==docId);
+    closeFlagDialog();
+    renderMine();
+  }catch(e){ alert('Error: '+e.message); }
+};
+
+
+
+
+// ── EXTRA SESSION HELPERS ──
+function sessionLabel(s){
+  return {
+    'hw-support': 'HW',
+    'chess-club':  'Chess',
+  }[s.type||'hw-support'] || s.type || 'Session';
+}
+function sessionColor(s){
+  return {
+    'hw-support': '#2dd4bf',
+    'chess-club':  '#f59e0b',
+  }[s.type||'hw-support'] || '#2dd4bf';
+}
+function sessionFullName(s){
+  return {
+    'hw-support': 'HW Support',
+    'chess-club':  'Chess Club',
+  }[s.type||'hw-support'] || s.name || 'Session';
+}
+
+
+
+
+window.openEmailChangeDialog = function() {
+  ['ec-password','ec-new-email','ec-confirm-email'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value='';
+  });
+  document.getElementById('ec-error').style.display='none';
+  document.getElementById('ec-success').style.display='none';
+  document.getElementById('email-change-overlay').style.display='flex';
+};
+window.closeEmailChangeDialog = function() {
+  document.getElementById('email-change-overlay').style.display='none';
+};
+window.saveEmailChange = async function() {
+  const errEl = document.getElementById('ec-error');
+  const sucEl = document.getElementById('ec-success');
+  errEl.style.display='none'; sucEl.style.display='none';
+  const password  = document.getElementById('ec-password').value;
+  const newEmail  = document.getElementById('ec-new-email').value.trim().toLowerCase();
+  const confirm   = document.getElementById('ec-confirm-email').value.trim().toLowerCase();
+  if(!password)          { errEl.textContent='Please enter your current password.'; errEl.style.display='block'; return; }
+  if(!newEmail)          { errEl.textContent='Please enter a new email address.'; errEl.style.display='block'; return; }
+  if(newEmail!==confirm) { errEl.textContent='Email addresses do not match.'; errEl.style.display='block'; return; }
+  try {
+    // Re-authenticate first
+    const credential = EmailAuthProvider.credential(currentUser.email, password);
+    await reauthenticateWithCredential(currentUser, credential);
+    // Update Firebase Auth email
+    await updateEmail(currentUser, newEmail);
+    // Update Firestore profile
+    await updateDoc(doc(db, 'instructors', currentUser.uid), { email: newEmail });
+    sucEl.textContent='✓ Email updated successfully.';
+    sucEl.style.display='block';
+    setTimeout(closeEmailChangeDialog, 2000);
+  } catch(e) {
+    const msg = e.code==='auth/wrong-password' ? 'Incorrect password.'
+              : e.code==='auth/email-already-in-use' ? 'That email is already in use.'
+              : e.code==='auth/invalid-email' ? 'Invalid email address.'
+              : e.code==='auth/requires-recent-login' ? 'Please sign out and sign back in before changing your email.'
+              : e.message;
+    errEl.textContent = msg;
+    errEl.style.display='block';
+  }
+};
+
+window.doSignOut=async()=>{
+  try { localStorage.removeItem('bm_session'); } catch(e){}
+  await fbSignOut(auth);
+  window.location.href="login.html";
+};
+</script>
+</body>
+</html>

@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Admin — Bright Minds</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:wght@700;900&family=Inter:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#05080f;--surface:#0d1117;--surface2:#111720;
+  --border:#1c2333;--text:#e6edf3;--muted:#768390;
+  --accent:#58a6ff;--green:#3fb950;--amber:#d29922;--red:#f85149;--purple:#bc8cff;
+}
+/* ── LIGHT THEME ── */
+[data-theme="light"]{
+  --bg:#f5f5f0;--surface:#ffffff;--surface2:#f0ede6;
+  --border:#ddd8ce;--text:#1a1a18;--muted:#6b6b66;
+  --accent:#185FA5;--green:#1a6b2e;--amber:#7a4f00;--red:#a32d2d;--purple:#534ab7;
+}
+[data-theme="light"] header{background:#ffffff;}
+[data-theme="light"] .nav-link{color:#6b6b66;}
+[data-theme="light"] .nav-link:hover{color:#185FA5;border-color:#185FA5;}
+[data-theme="light"] .tab.active{color:#185FA5;border-bottom-color:#185FA5;}
+[data-theme="light"] .ag-cell.none{background:#ece9e2;color:#aaa89e;}
+[data-theme="light"] .ag-cell.ip{background:rgba(26,107,46,.15);color:#1a6b2e;border-color:rgba(26,107,46,.3);}
+[data-theme="light"] .ag-cell.online{background:rgba(24,95,165,.12);color:#185FA5;border-color:rgba(24,95,165,.25);}
+[data-theme="light"] .ag-cell.both{background:rgba(83,74,183,.12);color:#534ab7;border-color:rgba(83,74,183,.25);}
+[data-theme="light"] .drag-mode-btn.active-ip{background:rgba(26,107,46,.15);border-color:rgba(26,107,46,.4);color:#1a6b2e;}
+[data-theme="light"] .drag-mode-btn.active-online{background:rgba(24,95,165,.12);border-color:rgba(24,95,165,.3);color:#185FA5;}
+[data-theme="light"] .drag-mode-btn.active-both{background:rgba(83,74,183,.12);border-color:rgba(83,74,183,.3);color:#534ab7;}
+[data-theme="light"] .drag-mode-btn.active-none{background:rgba(107,107,102,.12);border-color:rgba(107,107,102,.3);color:#6b6b66;}
+[data-theme="light"] .inst-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .inst-card:hover{border-color:#185FA5;}
+[data-theme="light"] .metric{background:#f0ede6;border-color:#ddd8ce;}
+[data-theme="light"] .card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .note-box{background:#f5f5f0;border-color:#ddd8ce;}
+[data-theme="light"] .rollup-table td{border-bottom-color:#ece9e2;}
+[data-theme="light"] .rollup-table tr:hover td{background:rgba(0,0,0,.03);}
+[data-theme="light"] .conflict-card{background:#fff5f5;border-color:rgba(163,45,45,.25);}
+[data-theme="light"] .shadow-tracker-card{background:#ffffff;border-color:rgba(83,74,183,.2);}
+[data-theme="light"] .shadow-notes{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+[data-theme="light"] .b-green{background:rgba(26,107,46,.12);color:#1a6b2e;}
+[data-theme="light"] .b-red{background:rgba(163,45,45,.1);color:#a32d2d;}
+[data-theme="light"] .b-amber{background:rgba(122,79,0,.1);color:#7a4f00;}
+[data-theme="light"] .b-purple{background:rgba(83,74,183,.1);color:#534ab7;}
+[data-theme="light"] .b-blue{background:rgba(24,95,165,.1);color:#185FA5;}
+[data-theme="light"] .b-gray{background:rgba(107,107,102,.1);color:#6b6b66;}
+[data-theme="light"] .profile-header{background:#ffffff;border-color:#ddd8ce;}
+/* ClassCluster light overrides */
+[data-theme="light"] .class-card{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .class-card:hover{border-color:#185FA5;}
+[data-theme="light"] #summary-bar{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .sort-btn{background:#ffffff;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .sort-btn.active{background:rgba(24,95,165,.08);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] #filter-overlay,
+[data-theme="light"] #placement-overlay{background:#ffffff;border-color:#ddd8ce;}
+[data-theme="light"] .flt-chip{background:#f0ede6;border-color:#ddd8ce;color:#6b6b66;}
+[data-theme="light"] .flt-chip.active{background:rgba(24,95,165,.1);border-color:#185FA5;color:#185FA5;}
+[data-theme="light"] .alert.danger{background:rgba(163,45,45,.08);border-color:rgba(163,45,45,.2);}
+[data-theme="light"] .alert.warn{background:rgba(122,79,0,.08);border-color:rgba(122,79,0,.2);}
+[data-theme="light"] .alert.info{background:rgba(24,95,165,.06);border-color:rgba(24,95,165,.15);}
+[data-theme="light"] .alert.split{background:rgba(83,74,183,.06);border-color:rgba(83,74,183,.15);}
+[data-theme="light"] input,[data-theme="light"] select,[data-theme="light"] textarea{background:#f5f5f0;border-color:#ddd8ce;color:#1a1a18;}
+
+body{background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;font-size:14px;}
+header{display:flex;align-items:center;justify-content:space-between;padding:18px 32px;border-bottom:1px solid var(--border);}
+.logo{font-family:'Fraunces',serif;font-size:20px;font-weight:900;}
+.nav-link{background:transparent;border:1px solid var(--border);color:var(--muted);padding:7px 16px;border-radius:8px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;}
+.nav-link:hover{border-color:var(--accent);color:var(--accent);}
+.nav-link.active{border-color:var(--accent);color:var(--accent);background:rgba(88,166,255,.08);cursor:default;}
+main{max-width:900px;margin:0 auto;padding:28px 24px 80px;}
+.page-title{font-family:'Fraunces',serif;font-size:26px;font-weight:900;margin-bottom:4px;}
+.page-sub{color:var(--muted);font-size:13px;margin-bottom:28px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;}
+.card-title{font-size:14px;font-weight:600;margin-bottom:18px;display:flex;align-items:center;gap:8px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-group{display:flex;flex-direction:column;gap:5px;}
+label{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;}
+input,select{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:9px 12px;outline:none;}
+input:focus,select:focus{border-color:var(--accent);}
+.btn{padding:9px 18px;border-radius:8px;border:none;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:opacity .15s;}
+.btn:hover{opacity:.85;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn-primary{background:var(--accent);color:#05080f;}
+.btn-danger{background:var(--red);color:#fff;}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--muted);}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text);opacity:1;}
+.error{background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);border-radius:8px;color:#ffa198;font-size:12px;padding:8px 12px;margin-top:10px;display:none;}
+.success{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.3);border-radius:8px;color:#56d364;font-size:12px;padding:8px 12px;margin-top:10px;display:none;}
+.badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:600;}
+.b-admin{background:rgba(188,140,255,.15);color:#d2a8ff;}
+.b-instructor{background:rgba(88,166,255,.1);color:#79c0ff;}
+.b-inactive{background:rgba(248,81,73,.1);color:#ffa198;}
+.b-active{background:rgba(63,185,80,.12);color:#56d364;}
+.b-teal{background:rgba(20,184,166,.15);color:#2dd4bf;}
+.instructor-table{width:100%;border-collapse:collapse;font-size:13px;}
+.instructor-table th{padding:8px 12px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);border-bottom:1px solid var(--border);}
+.instructor-table td{padding:10px 12px;border-bottom:1px solid #0a0f18;vertical-align:middle;}
+.instructor-table tr:last-child td{border-bottom:none;}
+.instructor-table tr:hover td{background:rgba(255,255,255,.015);}
+.actions{display:flex;gap:6px;}
+.spinner{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:4px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.access-denied{text-align:center;padding:80px 24px;color:var(--muted);}
+.access-denied h2{font-family:'Fraunces',serif;font-size:24px;color:var(--text);margin-bottom:8px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:100;display:none;}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;width:420px;max-width:90vw;}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:20px;}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:20px;}
+.tab{padding:10px 20px;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;transition:color .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+.section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);margin-bottom:8px;}
+.hw-inst-row{display:grid;grid-template-columns:1fr 80px 80px 120px 32px;gap:8px;align-items:center;margin-bottom:6px;}
+.hw-session-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:10px;}
+.hw-session-title{font-weight:700;font-size:14px;margin-bottom:4px;}
+.hw-session-meta{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.bulk-row{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:1px solid #0a0f18;font-size:13px;}
+.bulk-row:last-child{border-bottom:none;}
+.bulk-status{font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;}
+.bs-pending{background:rgba(118,131,144,.15);color:#adbac7;}
+.bs-done{background:rgba(63,185,80,.15);color:#3fb950;}
+.bs-error{background:rgba(248,81,73,.12);color:#ffa198;}
+.bs-skipped{background:rgba(210,153,34,.12);color:#e3b341;}
+.progress-bar-wrap{background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;margin:12px 0;}
+.progress-bar{height:100%;background:var(--accent);border-radius:6px;transition:width .3s;}
+</style>
+<script>
+// Theme — plain script (not module) so onclick attrs can call these functions
+var THEME_KEY = 'bm_theme';
+function applyTheme(t){
+  document.documentElement.setAttribute('data-theme', t||'dark');
+  var btn = document.getElementById('theme-toggle');
+  if(btn) btn.textContent = (t==='light') ? '☀' : '☽';
+}
+function toggleTheme(){
+  var current = document.documentElement.getAttribute('data-theme')||'dark';
+  var next = current==='light' ? 'dark' : 'light';
+  applyTheme(next);
+  try{ localStorage.setItem(THEME_KEY, next); }catch(e){}
+  if(typeof window._saveThemePref === 'function') window._saveThemePref(next);
+}
+// Apply immediately to avoid flash of wrong theme
+applyTheme(localStorage.getItem(THEME_KEY)||'dark');
+</script>
+</head>
+<body>
+
+<header>
+  <div class="logo">Bright Minds</div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <span id="user-name" style="font-size:12px;color:var(--muted);"></span>
+    <a href="index.html" class="nav-link">Classes</a>
+    <a href="availability.html" class="nav-link">Availability</a>
+    <a href="scheduling.html" class="nav-link">Scheduling</a>
+    <a href="admin.html" class="nav-link active">Admin</a>
+    <button onclick="signOut()" class="nav-link">Sign out</button>
+    <button id="theme-toggle" onclick="toggleTheme()" class="nav-link" title="Toggle light/dark mode" style="font-size:14px;padding:6px 10px;">☽</button>
+  </div>
+</header>
+
+<main id="main">
+  <div style="text-align:center;padding:60px;color:var(--muted);">Loading…</div>
+</main>
+
+<!-- Reset password modal -->
+<div class="modal-overlay" id="reset-modal">
+  <div class="modal">
+    <div class="modal-title">Reset password for <span id="reset-name"></span></div>
+    <div class="form-group">
+      <label>New password (min 6 characters)</label>
+      <input type="password" id="reset-password" placeholder="••••••••"/>
+    </div>
+    <div class="error" id="reset-error"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeResetModal()">Cancel</button>
+      <button class="btn btn-primary" id="reset-confirm-btn" onclick="confirmReset()">Set password</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+import { initializeApp }   from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, onAuthStateChanged, signOut as fbSignOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, deleteDoc, serverTimestamp }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
+
+
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+// Secondary app instance for bulk account creation only.
+// Creating a user via the primary auth instance signs you out as the admin.
+// Using a separate named instance keeps the admin session intact.
+const app2  = initializeApp(firebaseConfig, 'bulk-creator');
+const auth2 = getAuth(app2);
+
+let currentUser = null;
+let allProfiles = [];
+let resetTargetUid = null;
+let isSuperAdmin = false;
+let isAdminUser = false;
+
+onAuthStateChanged(auth, async user => {
+  if (!user) { window.location.href = "login.html"; return; }
+  const profile = await getProfile(user.uid);
+  if (!profile || !['admin','super-admin'].includes(profile.role)) {
+    document.getElementById("main").innerHTML = `
+      <div class="access-denied">
+        <h2>Access denied</h2>
+        <p>This page is for administrators only.</p>
+        <a href="availability.html" style="color:var(--accent);font-size:13px;margin-top:16px;display:inline-block;">← Back to availability</a>
+      </div>`;
+    return;
+  }
+  currentUser = {...user, profile};
+  isSuperAdmin = profile.role === 'super-admin';
+  isAdminUser  = profile.role === 'admin' || profile.role === 'super-admin';
+  document.getElementById("user-name").textContent = profile.displayName;
+  await loadAll();
+  renderPage();
+});
+
+async function getProfile(uid) {
+  try {
+    const snap = await getDoc(doc(db, "instructors", uid));
+    return snap.exists() ? snap.data() : null;
+  } catch { return null; }
+}
+
+async function loadAll() {
+  const snap = await getDocs(collection(db, "instructors"));
+  allProfiles = snap.docs.map(d => ({uid: d.id, ...d.data()}));
+  allProfiles.sort((a,b) => (a.displayName||"").localeCompare(b.displayName||""));
+}
+
+function renderPage() {
+  const main = document.getElementById("main");
+  main.innerHTML = `
+    <div class="page-title">Admin</div>
+    <div style="display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:24px;">
+      ${isSuperAdmin?'<button class="tab active" onclick="adminTab(\'accounts\',this)">Accounts</button>':''}
+      <button class="tab ${isSuperAdmin?'':'active'}" onclick="adminTab('hw',this)">Extra sessions</button>
+    </div>
+    <div id="admin-accounts" style="${isSuperAdmin?'':'display:none'}">
+
+    <!-- Create account -->
+    <div class="card">
+      <div class="card-title">➕ Create instructor profile</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Creates a Firestore profile. Use <strong>Step 2</strong> below to create their login account when you're ready.
+      </p>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Full name</label>
+          <input type="text" id="new-name" placeholder="e.g. Alice Schroeder"/>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="new-email" placeholder="alice@example.com"/>
+        </div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr;">
+        <div class="form-group">
+          <label>Role</label>
+          <select id="new-role">
+            <option value="junior-instructor">Junior Instructor</option>
+            <option value="instructor">Instructor</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;">
+        <div class="form-group">
+          <label>Level preference</label>
+          <input type="text" id="new-level" placeholder="e.g. 2A–4B"/>
+        </div>
+        <div class="form-group">
+          <label>Max new classes</label>
+          <input type="number" id="new-maxnew" placeholder="Leave blank if unknown" min="0"/>
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Notes</label>
+        <input type="text" id="new-notes" placeholder="Any scheduling notes…"/>
+      </div>
+      <button class="btn btn-primary" id="create-btn" onclick="createAccount()">Create profile</button>
+      <div class="error" id="create-error"></div>
+      <div class="success" id="create-success"></div>
+    </div>
+
+    <!-- Step 1: Import profiles from CSV -->
+    <div class="card" id="import-card">
+      <div class="card-title">📥 Step 1 — Import instructor profiles from ClassCluster</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Reads lead instructor names from your ClassCluster CSV and creates Firestore profiles
+        for anyone not already in the system. No accounts are created yet — just profiles.
+      </p>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-ghost" onclick="previewImport()">Preview instructors to import</button>
+        <button class="btn btn-primary" id="import-run-btn" onclick="runImport()" style="display:none;">Import profiles</button>
+      </div>
+      <div id="import-preview" style="margin-bottom:8px;"></div>
+      <div class="error" id="import-error"></div>
+      <div class="success" id="import-success"></div>
+    </div>
+
+    <!-- Email import tool -->
+    <div class="card" id="email-import-card">
+      <div class="card-title">✉️ Update instructor emails from CSV</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Upload a CSV with <strong>Name</strong> and <strong>Email</strong> columns to update Firestore email fields in bulk.
+        You'll see a preview with match confirmation before anything is saved.
+      </p>
+      <div style="margin-bottom:12px;">
+        <label style="display:inline-block;cursor:pointer;">
+          <input type="file" id="email-csv-file" accept=".csv" style="display:none;" onchange="previewEmailImport()"/>
+          <span class="btn btn-ghost">📂 Choose CSV file</span>
+        </label>
+        <span id="email-csv-filename" style="font-size:12px;color:var(--muted);margin-left:10px;"></span>
+      </div>
+      <div id="email-import-preview"></div>
+      <div style="display:none;margin-top:12px;" id="email-import-actions">
+        <button class="btn btn-primary" onclick="runEmailImport()">Save email updates</button>
+        <button class="btn btn-ghost" style="margin-left:8px;" onclick="clearEmailImport()">Clear</button>
+      </div>
+      <div class="error" id="email-import-error"></div>
+      <div class="success" id="email-import-success"></div>
+    </div>
+
+    <!-- Step 2: Bulk create accounts -->
+    <div class="card" id="bulk-card">
+      <div class="card-title">⚡ Step 2 — Bulk create login accounts</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Creates login accounts for all Firestore profiles that have an email but no login yet.
+        No emails are sent — instructors won't be notified until you're ready.
+      </p>
+      <div class="form-row" style="grid-template-columns:1fr 1fr;margin-bottom:16px;">
+        <div class="form-group">
+          <label>Temporary password for all accounts</label>
+          <input type="password" id="bulk-password" placeholder="Min 6 characters"/>
+        </div>
+        <div class="form-group">
+          <label>Confirm password</label>
+          <input type="password" id="bulk-password-confirm" placeholder="Repeat password"/>
+        </div>
+      </div>
+      <div id="bulk-preview" style="margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" onclick="previewBulk()">Preview accounts to create</button>
+        <button class="btn btn-primary" id="bulk-run-btn" onclick="runBulkCreate()" style="display:none;">Create all accounts</button>
+      </div>
+      <div class="error" id="bulk-error"></div>
+    </div>
+
+    <!-- Instructor list -->
+    <div class="card">
+      <div class="card-title">👥 All instructors (${allProfiles.length})</div>
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;">
+        <input type="text" id="inst-search" placeholder="Search by name or email…"
+          oninput="filterInstTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:13px;padding:8px 12px;outline:none;min-width:220px;flex:1;"/>
+        <select id="inst-filter-role" onchange="filterInstTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;outline:none;">
+          <option value="">All roles</option>
+          <option value="junior-instructor">Junior Instructor</option>
+          <option value="instructor">Instructor</option>
+          <option value="admin">Admin</option>
+          <option value="super-admin">Super-admin</option>
+        </select>
+        <select id="inst-filter-status" onchange="filterInstTable()"
+          style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:8px 10px;outline:none;">
+          <option value="">All statuses</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+        <span id="inst-count" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+      </div>
+      <div id="inst-list">
+        ${allProfiles.map(p=>`
+          <div class="inst-table-row" style="display:flex;align-items:flex-start;gap:12px;padding:12px 0;border-bottom:1px solid #0a0f18;flex-wrap:wrap;"
+              data-name="${(p.displayName||'').toLowerCase().replace(/"/g,'')}"
+              data-email="${(p.email||'').toLowerCase()}"
+              data-role="${p.role||'instructor'}"
+              data-active="${p.active!==false}">
+            <div style="flex:1;min-width:140px;">
+              <div style="font-weight:600;font-size:13px;">${p.displayName||'—'}</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:2px;">${p.email||'—'}</div>
+            </div>
+            <div style="display:flex;gap:5px;align-items:center;flex-shrink:0;flex-wrap:wrap;">
+              <span class="badge ${p.role==='super-admin'?'b-purple':p.role==='admin'?'b-admin':p.role==='junior-instructor'?'b-teal':'b-instructor'}">${p.role==='junior-instructor'?'Junior':p.role||'instructor'}</span>
+              <span class="badge ${p.active===false?'b-inactive':'b-active'}">${p.active===false?'Inactive':'Active'}</span>
+              ${p.maxNew!=null?`<span class="badge b-gray">Max ${p.maxNew}</span>`:''}
+            </div>
+            <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;flex-shrink:0;">
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="openResetModal('${p.uid}')">Reset pw</button>
+              ${isSuperAdmin?`
+              <select id="role-sel-${p.uid}" style="background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:4px 6px;outline:none;">
+                <option value="junior-instructor" ${(p.role||'')==='junior-instructor'?'selected':''}>Junior</option>
+                <option value="instructor" ${(p.role||'instructor')==='instructor'?'selected':''}>Instructor</option>
+                <option value="admin" ${(p.role||'')==='admin'?'selected':''}>Admin</option>
+                <option value="super-admin" ${(p.role||'')==='super-admin'?'selected':''}>Super-admin</option>
+              </select>
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="saveRole('${p.uid}')">Save</button>
+              <button class="btn btn-ghost" style="font-size:11px;padding:4px 9px;" onclick="toggleActive('${p.uid}',${p.active!==false})">${p.active===false?'Reactivate':'Deactivate'}</button>
+              <button class="btn btn-danger" style="font-size:11px;padding:4px 9px;" onclick="deleteProfile('${p.uid}','${(p.displayName||'').replace(/'/g,'\\\'') }')">Delete</button>
+              `:''}
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>
+  </div>
+    <div id="admin-hw" style="display:none;">
+      <div id="hw-list"></div>
+      <div class="card">
+        <div class="card-title" id="hw-form-title">➕ New Extra session</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Session name</label>
+            <input type="text" id="hw-name" placeholder="e.g. Wednesday Online HW Support"/>
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="hw-type">
+              <option value="hw-support">HW Support</option>
+              <option value="chess-club">Chess Club</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Delivery</label>
+            <select id="hw-delivery">
+              <option value="online">Online</option>
+              <option value="in-person">In-person</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Day</label>
+            <select id="hw-day">
+              <option>Mon</option><option>Tue</option><option>Wed</option>
+              <option>Thu</option><option>Fri</option><option>Sat</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Session window</label>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <input type="text" id="hw-win-start" placeholder="18:00" style="flex:1;"/>
+              <span style="color:var(--muted);">to</span>
+              <input type="text" id="hw-win-end" placeholder="20:30" style="flex:1;"/>
+            </div>
+          </div>
+        </div>
+        <div class="form-row" style="grid-template-columns:1fr 1fr;">
+          <div class="form-group">
+            <label>Room (for in-person sessions)</label>
+            <input type="text" id="hw-room" placeholder="e.g. P1"/>
+          </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <div class="section-label" style="margin-bottom:10px;">Instructors</div>
+          <div id="hw-inst-rows"></div>
+          <button class="btn btn-ghost" style="font-size:12px;margin-top:8px;" onclick="addHwInstRow()">+ Add instructor</button>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="saveHwSession()">Save session</button>
+          <button class="btn btn-ghost" onclick="clearHwForm()">Clear</button>
+        </div>
+        <div class="error" id="hw-error"></div>
+        <div class="success" id="hw-success"></div>
+      </div>
+      <!-- Migration always at bottom -->
+      <div class="card" style="border-color:rgba(210,153,34,.3);margin-top:16px;">
+        <div class="card-title" style="color:#e3b341;">🔄 Migrate existing HW sessions</div>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+          Click to copy sessions from the old <code>hwSessions</code> collection into
+          <code>extraSessions</code>. One-time migration only.
+        </p>
+        <button class="btn btn-ghost" onclick="migrateHwSessions()">Run migration</button>
+        <div class="success" id="migrate-success"></div>
+        <div class="error" id="migrate-error"></div>
+      </div>
+    </div>
+  `;
+  // For regular admins, Extra sessions is the default tab — show and load it immediately
+  if(!isSuperAdmin) {
+    const hwDiv = document.getElementById('admin-hw');
+    if(hwDiv) hwDiv.style.display = '';
+    loadHwSessions();
+  }
+}
+
+window.adminTab = function(tab, btn) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if(btn) btn.classList.add('active');
+  document.getElementById('admin-accounts').style.display = tab==='accounts' ? '' : 'none';
+  document.getElementById('admin-hw').style.display = tab==='hw' ? '' : 'none';
+  if(tab==='hw') loadHwSessions();
+};
+
+window.filterInstTable = function() {
+  const q      = (document.getElementById('inst-search')?.value||'').toLowerCase();
+  const role   = document.getElementById('inst-filter-role')?.value||'';
+  const status = document.getElementById('inst-filter-status')?.value||'';
+  let visible  = 0;
+  document.querySelectorAll('#inst-list .inst-table-row').forEach(row => {
+    const name   = (row.dataset.name||'').toLowerCase();
+    const email  = (row.dataset.email||'').toLowerCase();
+    const rRole  = row.dataset.role||'';
+    const active = row.dataset.active;
+    let show = true;
+    if(q && !name.includes(q) && !email.includes(q)) show = false;
+    if(role && rRole !== role) show = false;
+    if(status === 'active'   && active === 'false') show = false;
+    if(status === 'inactive' && active !== 'false') show = false;
+    row.style.display = show ? '' : 'none';
+    if(show) visible++;
+  });
+  const countEl = document.getElementById('inst-count');
+  if(countEl) countEl.textContent = visible + ' of ' + allProfiles.length;
+};
+
+window.createAccount = async function() {
+  const name   = document.getElementById("new-name").value.trim();
+  const email  = document.getElementById("new-email").value.trim();
+  const role   = document.getElementById("new-role").value;
+  const level  = document.getElementById("new-level").value.trim();
+  const maxNew = document.getElementById("new-maxnew").value;
+  const notes  = document.getElementById("new-notes").value.trim();
+  const errEl  = document.getElementById("create-error");
+  const sucEl  = document.getElementById("create-success");
+  errEl.style.display = "none"; sucEl.style.display = "none";
+  if (!name || !email) { showMsg(errEl, "Name and email are required."); return; }
+  const btn = document.getElementById("create-btn");
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Creating…';
+  try {
+    // Create a pending Firestore profile keyed by email (safe, no auth disruption)
+    // The profile will be re-keyed to the auth UID when the instructor first signs in
+    // via the bulk account creation step, or when they reset their password.
+    const tempId = "pending_" + email.toLowerCase().replace(/[^a-z0-9]/g, "_");
+    // Check if email already exists in profiles
+    const existing = allProfiles.find(p => (p.email||"").toLowerCase() === email.toLowerCase());
+    if(existing) { showMsg(errEl, "An account with this email already exists."); return; }
+    await setDoc(doc(db, "instructors", tempId), {
+      displayName: name,
+      email:       email,
+      role:        role,
+      active:      true,
+      levelMin:    "",
+      levelMax:    level || "",
+      maxNew:      maxNew !== "" ? parseInt(maxNew) : null,
+      notes:       notes || "",
+      comment:     "",
+      createdAt:   serverTimestamp(),
+      availability: {},
+    });
+    showMsg(sucEl, `Profile created for ${name}. Use "Step 2 — Bulk create login accounts" to create their login, or have them use "Forgot password" on the login page with ${email}.`);
+    ["new-name","new-email","new-level","new-maxnew","new-notes"].forEach(id => document.getElementById(id).value = "");
+    await loadAll();
+    renderPage();
+  } catch(e) {
+    showMsg(errEl, friendlyError(e.code));
+  } finally {
+    btn.disabled = false; btn.textContent = "Create account";
+  }
+};
+
+window.deleteProfile = async function(uid, name) {
+  if(!confirm(`Permanently delete ${name}'s profile from Firestore?\n\nThis removes them from the instructor list. Their Firebase Auth account (if any) will need to be deleted separately from the Firebase console.\n\nThis cannot be undone.`)) return;
+  try {
+    await deleteDoc(doc(db, 'instructors', uid));
+    await loadAll();
+    renderPage();
+  } catch(e) {
+    alert('Error deleting profile: ' + e.message);
+  }
+};
+
+window.saveRole = async function(uid) {
+  const sel = document.getElementById('role-sel-' + uid);
+  if(!sel) return;
+  const newRole = sel.value;
+  const p = allProfiles.find(x => x.uid === uid);
+  if(p && p.role === newRole) return; // no change
+  if(!confirm(`Change ${p?.displayName||'this instructor'}'s role to ${newRole}?`)) {
+    sel.value = p?.role || 'instructor'; // reset dropdown
+    return;
+  }
+  try {
+    await updateDoc(doc(db, "instructors", uid), {role: newRole});
+    await loadAll(); renderPage();
+  } catch(e) {
+    alert('Error saving role: ' + e.message);
+  }
+};
+
+window.toggleActive = async function(uid, currentlyActive) {
+  const msg = currentlyActive ? "Deactivate this instructor?" : "Reactivate this instructor?";
+  if (!confirm(msg)) return;
+  await updateDoc(doc(db, "instructors", uid), {active: !currentlyActive});
+  await loadAll(); renderPage();
+};
+
+window.openResetModal = function(uid) {
+  const p = allProfiles.find(x => x.uid === uid) || {};
+  resetTargetUid = {uid, email: p.email||''};
+  document.getElementById("reset-name").textContent = p.displayName||uid;
+  document.getElementById("reset-password").value = "";
+  document.getElementById("reset-error").style.display = "none";
+  document.getElementById("reset-modal").style.display = "flex";
+};
+
+window.closeResetModal = function() {
+  document.getElementById("reset-modal").style.display = "none";
+  resetTargetUid = null;
+};
+
+window.confirmReset = async function() {
+  if (!resetTargetUid) return;
+  const btn = document.getElementById("reset-confirm-btn");
+  const errEl = document.getElementById("reset-error");
+  errEl.style.display = "none";
+  // Send password reset email — the Firebase Admin SDK would allow setting directly,
+  // but from the client we send a reset email to the instructor's address.
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sending…';
+  try {
+    await sendPasswordResetEmail(auth, resetTargetUid.email);
+    closeResetModal();
+    alert(`Password reset email sent to ${resetTargetUid.email}`);
+  } catch(e) {
+    showMsg(errEl, friendlyError(e.code));
+  } finally {
+    btn.disabled = false; btn.textContent = "Set password";
+  }
+};
+
+window.signOut = async function() {
+  await fbSignOut(auth);
+  window.location.href = "login.html";
+};
+
+function showMsg(el, msg) { el.textContent = msg; el.style.display = "block"; }
+
+function friendlyError(code) {
+  switch(code) {
+    case "auth/email-already-in-use": return "An account with this email already exists.";
+    case "auth/invalid-email":        return "Invalid email address.";
+    case "auth/weak-password":        return "Password must be at least 6 characters.";
+    default: return "Something went wrong (" + code + "). Please try again.";
+  }
+}
+// ── ODS PROFILE DATA (seeded from Bright_Minds_math_instructor_availability.ods) ──
+const ODS_PROFILES = {
+  "Alice":    {levelMin:"KJr",  levelMax:"2A",       maxNew:3,  notes:"Preference for opening classes Saturday / Tuesday.", active:true},
+  "Alyna":    {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Andy":     {levelMin:"2C",   levelMax:"",          maxNew:2,  notes:"Can remove breaks on Saturday and teach instead of assessing.", active:true},
+  "Angela":   {levelMin:"KJr",  levelMax:"Book 6",    maxNew:0,  notes:"Maxed out. No extra classes. Can substitute occasionally.", active:true},
+  "Ben":      {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Caleb":    {levelMin:"KJr",  levelMax:"4A",        maxNew:null,notes:"Would like to work in-person all day or online — no mixes.", active:true},
+  "Cameron":  {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Chantel":  {levelMin:"KJr",  levelMax:"2D",        maxNew:null,notes:"May change semester to semester.", active:true},
+  "Daisy":    {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Danielle": {levelMin:"3D",   levelMax:"Book 8",    maxNew:3,  notes:"Currently abroad — Saturday morning only until back in Calgary.", active:true},
+  "Diya":     {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Doina":    {levelMin:"",     levelMax:"",          maxNew:0,  notes:"", active:true},
+  "Elena B":  {levelMin:"3A",   levelMax:"D2",        maxNew:10, notes:"", active:true},
+  "Frank":    {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Gurinder": {levelMin:"3C",   levelMax:"Book 7",    maxNew:1,  notes:"Available Mon–Fri 5–7:30 PM. Would like to give away M-10 Wednesday class.", active:true},
+  "Jasmine":  {levelMin:"KSr",  levelMax:"2D",        maxNew:7,  notes:"Prefer back-to-back classes. Can teach morning classes.", active:true},
+  "Jibola":   {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Juliette": {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Kian":     {levelMin:"KJr",  levelMax:"M31",       maxNew:6,  notes:"Prefer in person, okay with both.", active:true},
+  "Lekha":    {levelMin:"1A Mammoth",levelMax:"4B",   maxNew:null,notes:"", active:true},
+  "Liam":     {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Marina":   {levelMin:"",     levelMax:"",          maxNew:null,notes:"TUESDAY IS NOT A GOOD DAY (per March 2/26 WhatsApp).", active:true},
+  "Myrna":    {levelMin:"",     levelMax:"",          maxNew:0,  notes:"No longer with Bright Minds as of mid January 2026.", active:false},
+  "Naz":      {levelMin:"KJr",  levelMax:"Book 6",    maxNew:15, notes:"Flexible — prefer multiple classes in one day. Happy to sub online.", active:true},
+  "Nicha":    {levelMin:"2A",   levelMax:"M31",       maxNew:3,  notes:"", active:true},
+  "Penekeh":  {levelMin:"3A",   levelMax:"M31",       maxNew:2,  notes:"", active:true},
+  "Pria":     {levelMin:"KSr",  levelMax:"3B",        maxNew:5,  notes:"May change semester to semester.", active:true},
+  "Priyal":   {levelMin:"3D",   levelMax:"M31",       maxNew:3,  notes:"Prefer Friday evenings and Saturday mornings. Check in before assigning.", active:true},
+  "Rita":     {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Ryan":     {levelMin:"KJr",  levelMax:"4A",        maxNew:0,  notes:"Not taking new classes.", active:true},
+  "Saika":    {levelMin:"2C",   levelMax:"M30",       maxNew:3,  notes:"Available Tuesday, Wednesday, and Saturday morning.", active:true},
+  "Salina":   {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Sameem":   {levelMin:"",     levelMax:"",          maxNew:0,  notes:"No longer with Bright Minds as of mid January 2026.", active:false},
+  "Shweta":   {levelMin:"",     levelMax:"",          maxNew:0,  notes:"No longer with Bright Minds as of mid January 2026.", active:false},
+  "Sumaira":  {levelMin:"",     levelMax:"",          maxNew:null,notes:"", active:true},
+  "Tara":     {levelMin:"1A Mammoth",levelMax:"4A",   maxNew:0,  notes:"Only wants the 2 current classes for now (per March 2/26 WhatsApp).", active:true},
+  "Trisha":   {levelMin:"",     levelMax:"4B",        maxNew:0,  notes:"Not taking new classes.", active:true},
+};
+
+// Match a raw CSV name to an ODS profile key (first-name match, same logic as availability.html)
+function matchOdsProfile(rawName) {
+  const trimmed = (rawName||"").trim();
+  if (ODS_PROFILES[trimmed]) return trimmed;
+  const first = trimmed.split(" ")[0].toLowerCase();
+  return Object.keys(ODS_PROFILES).find(k => k.split(" ")[0].toLowerCase() === first) || null;
+}
+
+// ── CSV IMPORT ──
+async function fetchCsvNames() {
+  const { CLASS_DATA_URL } = await import("./firebase-config.js");
+  const proxy = "https://corsproxy.io/?" + encodeURIComponent(CLASS_DATA_URL);
+  const r = await fetch(proxy, {cache:"no-cache"});
+  if (!r.ok) throw new Error("Could not fetch ClassCluster CSV (HTTP " + r.status + ")");
+  const text = await r.text();
+  const lines = text.trim().split(String.fromCharCode(10)).filter(Boolean);
+  const hdr = lines[0].split(",").map(h=>h.trim().toLowerCase());
+  const ii = hdr.indexOf("instructor");
+  if (ii < 0) throw new Error("No 'instructor' column found in CSV.");
+  const names = new Set();
+  for (let i=1; i<lines.length; i++) {
+    const cols = lines[i].split(",").map(v=>v.trim());
+    const name = cols[ii];
+    if (name) names.add(name.trim());
+  }
+  return [...names].filter(Boolean).sort();
+}
+
+// Names already in Firestore (by displayName, case-insensitive first word)
+function existingFirstNames() {
+  return new Set(allProfiles.map(p => (p.displayName||"").split(" ")[0].toLowerCase()));
+}
+
+let importCandidates = [];
+
+window.previewImport = async function() {
+  const previewEl = document.getElementById("import-preview");
+  const errEl     = document.getElementById("import-error");
+  const sucEl     = document.getElementById("import-success");
+  const runBtn    = document.getElementById("import-run-btn");
+  errEl.style.display = "none"; sucEl.style.display = "none";
+  previewEl.innerHTML = `<div style="color:var(--muted);font-size:13px;">Fetching CSV…</div>`;
+
+  try {
+    const csvNames = await fetchCsvNames();
+    const existing = existingFirstNames();
+
+    // Find names in CSV not yet in Firestore
+    importCandidates = csvNames.filter(name => {
+      const first = name.split(" ")[0].toLowerCase();
+      return !existing.has(first);
+    });
+
+    if (!importCandidates.length) {
+      previewEl.innerHTML = `<div style="color:var(--green);font-size:13px;">✓ All instructors in the CSV already have profiles in Firestore.</div>`;
+      runBtn.style.display = "none";
+      return;
+    }
+
+    previewEl.innerHTML = `
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px;">
+        ${importCandidates.length} instructor${importCandidates.length!==1?'s':''} found in CSV not yet in Firestore:
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;border:1px solid var(--border);overflow:hidden;max-height:280px;overflow-y:auto;">
+        ${importCandidates.map(name => {
+          const key = matchOdsProfile(name);
+          const ods = key ? ODS_PROFILES[key] : null;
+          const badge = ods
+            ? (ods.active===false
+                ? '<span class="badge b-inactive" style="margin-left:6px;">Inactive</span>'
+                : '<span class="badge b-active" style="margin-left:6px;">Active</span>')
+            : '<span class="badge b-instructor" style="margin-left:6px;">No ODS data</span>';
+          const levels = ods&&(ods.levelMin||ods.levelMax)
+            ? `<span style="color:var(--muted);font-size:11px;margin-left:8px;">${ods.levelMin||'?'} → ${ods.levelMax||'?'}</span>`
+            : '';
+          const safeN = name.replace(/[^a-zA-Z0-9]/g,'_');
+          return `<div class="bulk-row" id="irow-${safeN}">
+            <span style="font-weight:500;">${name}${badge}${levels}</span>
+            <span class="bulk-status bs-pending" id="istat-${safeN}">Pending</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+    runBtn.style.display = "";
+  } catch(e) {
+    previewEl.innerHTML = "";
+    showMsg(errEl, "Error: " + e.message);
+  }
+};
+
+window.runImport = async function() {
+  const errEl  = document.getElementById("import-error");
+  const sucEl  = document.getElementById("import-success");
+  const runBtn = document.getElementById("import-run-btn");
+  const prevBtn = document.querySelector('[onclick="previewImport()"]');
+  errEl.style.display = "none"; sucEl.style.display = "none";
+
+  if (!importCandidates.length) { showMsg(errEl, "Nothing to import — run Preview first."); return; }
+
+  runBtn.disabled = true; runBtn.innerHTML = '<span class="spinner"></span>Importing…';
+  if (prevBtn) prevBtn.disabled = true;
+
+  let done=0, skipped=0, errors=0;
+
+  for (const name of importCandidates) {
+    const safeId = name.replace(/[^a-zA-Z0-9]/g,'_');
+    const statEl = document.getElementById(`istat-${safeId}`);
+
+    const key = matchOdsProfile(name);
+    const ods = key ? ODS_PROFILES[key] : null;
+
+    // Use a temporary Firestore doc ID (name-based); will be replaced by auth UID when account is created
+    const tempId = "pending_" + name.toLowerCase().replace(/[ ]+/g,'_').replace(/[^a-z0-9_]/g,'');
+
+    try {
+      await setDoc(doc(db, "instructors", tempId), {
+        displayName:  name,
+        email:        "",           // no email yet — added when account is created
+        role:         "instructor",
+        active:       ods ? ods.active : true,
+        levelMin:     ods ? (ods.levelMin||"") : "",
+        levelMax:     ods ? (ods.levelMax||"") : "",
+        maxNew:       ods ? ods.maxNew : null,
+        notes:        ods ? (ods.notes||"") : "",
+        availability: {},
+        createdAt:    serverTimestamp(),
+      });
+      if (statEl) { statEl.textContent="✓ Imported"; statEl.className="bulk-status bs-done"; }
+      done++;
+    } catch(e) {
+      if (statEl) { statEl.textContent=e.message||e.code; statEl.className="bulk-status bs-error"; }
+      errors++;
+    }
+    await new Promise(r=>setTimeout(r,150));
+  }
+
+  runBtn.disabled = false; runBtn.textContent = "Import profiles";
+  if (prevBtn) prevBtn.disabled = false;
+  showMsg(sucEl, `Done — ${done} profile${done!==1?'s':''} imported${errors?`, ${errors} error${errors!==1?'s':''}`:''}.`);
+  importCandidates = [];
+  await loadAll();
+  renderPage();
+};
+
+// ── BULK ACCOUNT CREATION ──
+
+// Fetch the set of UIDs that already have Firebase Auth accounts
+// We detect this by checking if the Firestore profile has an 'email' field set
+// (email is only written when the account is created via createAccount or bulk)
+function profilesWithoutAccounts() {
+  // Include all active profiles that have an email address.
+  // The bulk create step handles "already exists" gracefully by skipping them.
+  return allProfiles.filter(p => p.active !== false && p.email);
+}
+
+window.previewBulk = function() {
+  const pw  = document.getElementById("bulk-password").value;
+  const pw2 = document.getElementById("bulk-password-confirm").value;
+  const err = document.getElementById("bulk-error");
+  const preview = document.getElementById("bulk-preview");
+  err.style.display = "none";
+
+  if (!pw) { showMsg(err, "Please enter a temporary password."); return; }
+  if (pw.length < 6) { showMsg(err, "Password must be at least 6 characters."); return; }
+  if (pw !== pw2) { showMsg(err, "Passwords don't match."); return; }
+
+  const toCreate = profilesWithoutAccounts();
+  if (!toCreate.length) {
+    preview.innerHTML = `<div style="color:var(--green);font-size:13px;">✓ All active instructor profiles already have accounts.</div>`;
+    document.getElementById("bulk-run-btn").style.display = "none";
+    return;
+  }
+
+  preview.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+      <div style="font-size:13px;color:var(--muted);">
+        <span id="bulk-selected-count">${toCreate.length}</span> of ${toCreate.length} selected.
+        Uncheck any instructors who don't need login access yet.
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="setBulkAll(true)">Select all</button>
+        <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="setBulkAll(false)">Deselect all</button>
+      </div>
+    </div>
+    <div style="background:var(--surface2);border-radius:8px;border:1px solid var(--border);overflow:hidden;max-height:320px;overflow-y:auto;">
+      ${toCreate.map(p=>`
+        <div class="bulk-row" style="display:flex;align-items:center;gap:10px;">
+          <input type="checkbox" id="bchk-${p.uid}" checked
+            onchange="updateBulkCount(${toCreate.length})"
+            style="accent-color:var(--accent);cursor:pointer;width:15px;height:15px;flex-shrink:0;"/>
+          <span style="font-weight:500;flex:1;">${p.displayName||'—'}</span>
+          <span style="font-size:11px;color:var(--muted);">${p.email||''}</span>
+          <span class="bulk-status bs-pending" id="bstat-${p.uid}">Pending</span>
+        </div>`).join('')}
+    </div>`;
+
+  document.getElementById("bulk-run-btn").style.display = "";
+};
+
+window.setBulkAll = function(checked) {
+  document.querySelectorAll('[id^="bchk-"]').forEach(cb => cb.checked = checked);
+  const total = document.querySelectorAll('[id^="bchk-"]').length;
+  updateBulkCount(total);
+};
+
+window.updateBulkCount = function(total) {
+  const selected = document.querySelectorAll('[id^="bchk-"]:checked').length;
+  const el = document.getElementById('bulk-selected-count');
+  if(el) el.textContent = selected;
+};
+
+window.runBulkCreate = async function() {
+  const pw  = document.getElementById("bulk-password").value;
+  const pw2 = document.getElementById("bulk-password-confirm").value;
+  const err = document.getElementById("bulk-error");
+  err.style.display = "none";
+
+  if (!pw || pw.length < 6) { showMsg(err, "Password must be at least 6 characters."); return; }
+  if (pw !== pw2) { showMsg(err, "Passwords don't match."); return; }
+
+  // Only include profiles whose checkbox is checked
+  const allProfilesToCreate = profilesWithoutAccounts();
+  const toCreate = allProfilesToCreate.filter(p => {
+    const cb = document.getElementById(`bchk-${p.uid}`);
+    return cb ? cb.checked : true;
+  });
+
+  if (!toCreate.length) { showMsg(err, "No accounts selected — tick the checkboxes for the instructors you want to create accounts for."); return; }
+
+  const btn = document.getElementById("bulk-run-btn");
+  const previewBtn = document.querySelector('[onclick="previewBulk()"]');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>Sending…';
+  if (previewBtn) previewBtn.disabled = true;
+
+  // Add progress bar
+  const preview = document.getElementById("bulk-preview");
+  const barWrap = document.createElement("div");
+  barWrap.className = "progress-bar-wrap";
+  barWrap.innerHTML = `<div class="progress-bar" id="bulk-progress-bar" style="width:0%"></div>`;
+  preview.insertBefore(barWrap, preview.firstChild);
+
+  let done=0, errors=0, skipped=0;
+
+  for (const profile of toCreate) {
+    const statEl = document.getElementById(`bstat-${profile.uid}`);
+
+    if (!profile.email) {
+      if (statEl) { statEl.textContent="No email — skipped"; statEl.className="bulk-status bs-skipped"; }
+      skipped++;
+      continue;
+    }
+
+    try {
+      // Use secondary auth instance so admin session is not disrupted
+      const cred = await createUserWithEmailAndPassword(auth2, profile.email, pw);
+
+      if (statEl) { statEl.textContent="✓ Done"; statEl.className="bulk-status bs-done"; }
+      done++;
+    } catch(e) {
+      if (e.code==="auth/email-already-in-use") {
+        if (statEl) { statEl.textContent="Already exists"; statEl.className="bulk-status bs-skipped"; }
+        skipped++;
+      } else {
+        if (statEl) { statEl.textContent=e.message||e.code; statEl.className="bulk-status bs-error"; }
+        errors++;
+      }
+    }
+
+    const pct = Math.round(((done+errors+skipped)/toCreate.length)*100);
+    const bar = document.getElementById("bulk-progress-bar");
+    if (bar) bar.style.width = pct+"%";
+    await new Promise(r=>setTimeout(r,400));
+  }
+
+  btn.disabled = false; btn.textContent = "Create all accounts";
+  if (previewBtn) previewBtn.disabled = false;
+
+  const summary = document.createElement("div");
+  summary.style.cssText = "font-size:13px;margin-top:10px;";
+  summary.innerHTML = `<span style="font-weight:600;color:${errors?'var(--amber)':'var(--green)'};">Done — ${done} created${skipped?`, ${skipped} skipped`:''}${errors?`, ${errors} failed`:''}.</span>`;
+  preview.appendChild(summary);
+
+  // Reload profiles to reflect new accounts
+  await loadAll();
+  renderPage();
+};
+
+// ── EMAIL IMPORT ──
+let emailImportRows = []; // [{csvName, csvEmail, matchedUid, matchedName}]
+
+window.previewEmailImport = function() {
+  const file = document.getElementById('email-csv-file').files[0];
+  const errEl = document.getElementById('email-import-error');
+  const previewEl = document.getElementById('email-import-preview');
+  const actionsEl = document.getElementById('email-import-actions');
+  const filenameEl = document.getElementById('email-csv-filename');
+  errEl.style.display = 'none';
+  document.getElementById('email-import-success').style.display = 'none';
+  if(!file) return;
+  filenameEl.textContent = file.name;
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    const lines = e.target.result.split('\n').map(l=>l.trim()).filter(Boolean);
+    if(!lines.length) { showMsg(errEl, 'CSV is empty.'); return; }
+
+    // Parse header
+    const hdr = lines[0].split(',').map(h=>h.trim().toLowerCase());
+    const ni = hdr.indexOf('name'), ei = hdr.indexOf('email');
+    if(ni<0||ei<0) { showMsg(errEl, 'CSV must have "Name" and "Email" columns.'); return; }
+
+    // Parse rows
+    const csvRows = lines.slice(1).map(line => {
+      const parts = line.split(',');
+      return { csvName: (parts[ni]||'').trim(), csvEmail: (parts[ei]||'').trim().toLowerCase() };
+    }).filter(r => r.csvName && r.csvEmail);
+
+    if(!csvRows.length) { showMsg(errEl, 'No data rows found.'); return; }
+
+    // Match each CSV row to a Firestore profile
+    emailImportRows = csvRows.map(row => {
+      const nameLower = row.csvName.toLowerCase();
+      // 1. Exact full name match
+      let match = allProfiles.find(p => (p.displayName||'').toLowerCase() === nameLower);
+      let matchType = 'exact';
+      if(!match) {
+        // 2. First name match — only if unique
+        const firstName = nameLower.split(' ')[0];
+        const firstNameMatches = allProfiles.filter(p =>
+          (p.displayName||'').toLowerCase().split(' ')[0] === firstName
+        );
+        if(firstNameMatches.length === 1) {
+          match = firstNameMatches[0];
+          matchType = 'first-name';
+        } else if(firstNameMatches.length > 1) {
+          matchType = 'ambiguous';
+        } else {
+          matchType = 'no-match';
+        }
+      }
+      return {
+        csvName: row.csvName,
+        csvEmail: row.csvEmail,
+        matchedUid: match?.uid || null,
+        matchedName: match?.displayName || null,
+        matchType,
+      };
+    });
+
+    // Build preview table
+    const selStyle = 'background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:inherit;font-size:11px;padding:4px 6px;outline:none;max-width:200px;';
+    const profileOptions = allProfiles
+      .sort((a,b)=>(a.displayName||'').localeCompare(b.displayName||''))
+      .map(p=>`<option value="${p.uid}">${p.displayName}</option>`)
+      .join('');
+
+    previewEl.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px;">
+        ${emailImportRows.length} rows parsed. Review matches below — correct any that are wrong before saving.
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:12px;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">CSV Name</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Email</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Matched profile</th>
+              <th style="padding:6px 8px;text-align:left;color:var(--muted);font-weight:600;">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${emailImportRows.map((row, i) => {
+              const statusColor = row.matchType==='exact'?'var(--green)':row.matchType==='first-name'?'var(--amber)':'var(--red)';
+              const statusText = {exact:'✓ Exact match','first-name':'~ First name','ambiguous':'⚠ Ambiguous','no-match':'✗ No match'}[row.matchType]||row.matchType;
+              return `<tr style="border-bottom:1px solid #0a0f18;">
+                <td style="padding:6px 8px;">${row.csvName}</td>
+                <td style="padding:6px 8px;color:var(--muted);">${row.csvEmail}</td>
+                <td style="padding:6px 8px;">
+                  <select id="email-match-${i}" style="${selStyle}">
+                    <option value="">— skip —</option>
+                    ${allProfiles.sort((a,b)=>(a.displayName||'').localeCompare(b.displayName||'')).map(p=>
+                      `<option value="${p.uid}" ${row.matchedUid===p.uid?'selected':''}>${p.displayName}</option>`
+                    ).join('')}
+                  </select>
+                </td>
+                <td style="padding:6px 8px;color:${statusColor};font-weight:500;">${statusText}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+
+    actionsEl.style.display = '';
+  };
+  reader.readAsText(file);
+};
+
+window.runEmailImport = async function() {
+  const errEl = document.getElementById('email-import-error');
+  const sucEl = document.getElementById('email-import-success');
+  errEl.style.display = 'none'; sucEl.style.display = 'none';
+
+  const updates = [];
+  emailImportRows.forEach((row, i) => {
+    const sel = document.getElementById(`email-match-${i}`);
+    const uid = sel?.value;
+    if(!uid) return; // skipped
+    updates.push({ uid, email: row.csvEmail, csvName: row.csvName });
+  });
+
+  if(!updates.length) { showMsg(errEl, 'No rows selected — nothing to save.'); return; }
+  if(!confirm(`Update email addresses for ${updates.length} instructor${updates.length!==1?'s':''}?`)) return;
+
+  let done = 0, errors = 0;
+  for(const u of updates) {
+    try {
+      await updateDoc(doc(db, 'instructors', u.uid), { email: u.email });
+      done++;
+    } catch(e) {
+      console.error('Email update failed for', u.csvName, e);
+      errors++;
+    }
+  }
+
+  showMsg(sucEl, `✓ Updated ${done} email${done!==1?'s':''}${errors?`, ${errors} failed`:''}.`);
+  await loadAll();
+  renderPage();
+};
+
+window.clearEmailImport = function() {
+  emailImportRows = [];
+  document.getElementById('email-csv-file').value = '';
+  document.getElementById('email-csv-filename').textContent = '';
+  document.getElementById('email-import-preview').innerHTML = '';
+  document.getElementById('email-import-actions').style.display = 'none';
+  document.getElementById('email-import-error').style.display = 'none';
+  document.getElementById('email-import-success').style.display = 'none';
+};
+
+// ── MIGRATION: hwSessions → extraSessions ──
+window.migrateHwSessions = async function() {
+  const sucEl = document.getElementById('migrate-success');
+  const errEl = document.getElementById('migrate-error');
+  sucEl.style.display='none'; errEl.style.display='none';
+  try {
+    const snap = await getDocs(collection(db, 'hwSessions'));
+    if(!snap.docs.length) { showMsg(sucEl, 'No legacy HW sessions found — nothing to migrate.'); return; }
+    let migrated = 0;
+    for(const d of snap.docs) {
+      const data = {...d.data(), type: d.data().type||'hw-support', migratedAt: serverTimestamp()};
+      await setDoc(doc(db, 'extraSessions', d.id), data);
+      migrated++;
+    }
+    showMsg(sucEl, `✓ Migrated ${migrated} session${migrated!==1?'s':''} to extraSessions.`);
+    await loadHwSessions();
+  } catch(e) {
+    showMsg(errEl, 'Migration error: ' + e.message);
+  }
+};
+
+// ── HW SUPPORT SESSIONS ──
+let hwSessions = [];
+let editingHwId = null;
+let hwInstCount = 0;
+
+async function loadHwSessions() {
+  try {
+    const snap = await getDocs(collection(db, "extraSessions"));
+    hwSessions = snap.docs.map(d => ({id: d.id, ...d.data()}))
+      .sort((a,b) => {
+        const dayOrder = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5};
+        return (dayOrder[a.day]??9) - (dayOrder[b.day]??9);
+      });
+    renderHwList();
+  } catch(e) {
+    console.error("loadHwSessions:", e);
+  }
+}
+
+const DAY_ORDER = {Mon:0,Tue:1,Wed:2,Thu:3,Fri:4,Sat:5,Sun:6};
+
+function renderHwList() {
+  const el = document.getElementById('hw-list');
+  if(!el) return;
+
+  // Preserve current filter state
+  const savedType     = document.getElementById('es-filter-type')?.value||'';
+  const savedDay      = document.getElementById('es-filter-day')?.value||'';
+  const savedDelivery = document.getElementById('es-filter-delivery')?.value||'';
+  const savedSort     = document.getElementById('es-sort')?.value||'day-time';
+
+  const selStyle = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 10px;outline:none;';
+  const filterBar = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;">
+    <select id="es-filter-type" onchange="applyEsFilters()" style="${selStyle}">
+      <option value="" ${!savedType?'selected':''}>All types</option>
+      <option value="hw-support" ${savedType==='hw-support'?'selected':''}>HW Support</option>
+      <option value="chess-club" ${savedType==='chess-club'?'selected':''}>Chess Club</option>
+    </select>
+    <select id="es-filter-day" onchange="applyEsFilters()" style="${selStyle}">
+      <option value="" ${!savedDay?'selected':''}>All days</option>
+      ${['Mon','Tue','Wed','Thu','Fri','Sat'].map(d=>`<option value="${d}" ${savedDay===d?'selected':''}>${d}</option>`).join('')}
+    </select>
+    <select id="es-filter-delivery" onchange="applyEsFilters()" style="${selStyle}">
+      <option value="" ${!savedDelivery?'selected':''}>All delivery</option>
+      <option value="online" ${savedDelivery==='online'?'selected':''}>Online</option>
+      <option value="in-person" ${savedDelivery==='in-person'?'selected':''}>In-person</option>
+    </select>
+    <select id="es-sort" onchange="applyEsFilters()" style="${selStyle}">
+      <option value="day-time" ${savedSort==='day-time'?'selected':''}>Sort: Day &amp; Time</option>
+      <option value="type-day" ${savedSort==='type-day'?'selected':''}>Sort: Type then Day</option>
+      <option value="type" ${savedSort==='type'?'selected':''}>Sort: Type</option>
+    </select>
+    <span id="es-count" style="font-size:12px;color:var(--muted);"></span>
+  </div>`;
+
+  if(!hwSessions.length) {
+    el.innerHTML = filterBar + '<div style="color:var(--muted);font-size:13px;">No extra sessions yet.</div>';
+    return;
+  }
+
+  el.innerHTML = filterBar + '<div id="es-session-list"></div>';
+  applyEsFilters();
+}
+
+window.applyEsFilters = function() {
+  const typeFilter     = document.getElementById('es-filter-type')?.value||'';
+  const dayFilter      = document.getElementById('es-filter-day')?.value||'';
+  const sort       = document.getElementById('es-sort')?.value||'day-time';
+  const listEl     = document.getElementById('es-session-list');
+  const countEl    = document.getElementById('es-count');
+  if(!listEl) return;
+
+  const TYPE_NAMES = {'hw-support':'HW Support','chess-club':'Chess Club'};
+
+  function toMins(t){ const m=(t||'').match(/(\d+):(\d+)/); return m?parseInt(m[1])*60+parseInt(m[2]):9999; }
+
+  const deliveryFilter = document.getElementById('es-filter-delivery')?.value||'';
+  let sessions = hwSessions.filter(s => {
+    if(typeFilter    && (s.type||'hw-support') !== typeFilter) return false;
+    if(dayFilter     && s.day !== dayFilter) return false;
+    if(deliveryFilter && (s.delivery||'') !== deliveryFilter) return false;
+    return true;
+  });
+
+  sessions = sessions.sort((a,b) => {
+    if(sort === 'type'){
+      return (a.type||'').localeCompare(b.type||'');
+    }
+    if(sort === 'type-day'){
+      const tc = (a.type||'').localeCompare(b.type||'');
+      if(tc!==0) return tc;
+      const dc = (DAY_ORDER[a.day]??9)-(DAY_ORDER[b.day]??9);
+      if(dc!==0) return dc;
+      return toMins(a.windowStart)-toMins(b.windowStart);
+    }
+    // day-time (default)
+    const dc = (DAY_ORDER[a.day]??9)-(DAY_ORDER[b.day]??9);
+    if(dc!==0) return dc;
+    return toMins(a.windowStart)-toMins(b.windowStart);
+  });
+
+  if(countEl) countEl.textContent = sessions.length + ' session' + (sessions.length!==1?'s':'');
+
+  if(!sessions.length){
+    listEl.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No sessions match these filters.</div>';
+    return;
+  }
+
+  listEl.innerHTML = sessions.map(s => {
+    const typeName  = TYPE_NAMES[s.type||'hw-support']||s.type||'Session';
+    const typeColor = {'hw-support':'var(--accent)','chess-club':'#f59e0b'}[s.type||'hw-support']||'var(--muted)';
+    const instRows  = (s.instructors||[]).map(i =>
+      `<div style="display:flex;gap:8px;align-items:center;font-size:12px;padding:3px 0;border-bottom:1px solid #0a0f18;">
+        <span style="font-weight:${i.host?'700':'400'};color:${i.host?'var(--accent)':'var(--text)'};">${i.displayName}${i.host?' (host)':''}</span>
+        <span style="color:var(--muted);">${i.start} – ${i.end}</span>
+      </div>`
+    ).join('');
+    return `<div class="hw-session-card" style="border-left:3px solid ${typeColor};">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+        <div>
+          <span class="hw-session-title">${s.name}</span>
+          <span style="margin-left:8px;font-size:11px;font-weight:600;color:${typeColor};">${typeName}</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost" style="font-size:11px;padding:4px 10px;" onclick="editHwSession('${s.id}')">Edit</button>
+          <button class="btn btn-danger" style="font-size:11px;padding:4px 10px;" onclick="deleteHwSession('${s.id}')">Delete</button>
+        </div>
+      </div>
+      <div class="hw-session-meta">${s.day} · ${s.windowStart}–${s.windowEnd} · ${s.delivery}${s.room?' · '+s.room:''}</div>
+      <div>${instRows}</div>
+    </div>`;
+  }).join('');
+};
+
+
+window.addHwInstRow = function(inst) {
+  hwInstCount++;
+  const id = 'hwr-' + hwInstCount;
+  const profileOpts = allProfiles
+    .filter(p => p.active !== false)
+    .sort((a,b) => (a.displayName||'').localeCompare(b.displayName||''))
+    .map(p => `<option value="${p.uid}" ${inst&&inst.uid===p.uid?'selected':''}>${p.displayName}</option>`)
+    .join('');
+  const row = document.createElement('div');
+  row.className = 'hw-inst-row';
+  row.id = id;
+  row.innerHTML = `
+    <select style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 8px;outline:none;">
+      <option value="">Select instructor</option>${profileOpts}
+    </select>
+    <input type="text" placeholder="Start" value="${inst?inst.start:''}" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 8px;outline:none;"/>
+    <input type="text" placeholder="End"   value="${inst?inst.end:''}"   style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:inherit;font-size:12px;padding:6px 8px;outline:none;"/>
+    <label style="display:flex;align-items:center;gap:5px;font-size:12px;color:var(--muted);cursor:pointer;">
+      <input type="checkbox" ${inst&&inst.host?'checked':''} style="accent-color:var(--accent);cursor:pointer;"/> Host
+    </label>
+    <button onclick="document.getElementById('${id}').remove()" style="background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.3);color:#ffa198;border-radius:6px;width:28px;height:28px;cursor:pointer;font-size:16px;line-height:1;">×</button>
+  `;
+  document.getElementById('hw-inst-rows').appendChild(row);
+};
+
+window.saveHwSession = async function() {
+  const errEl = document.getElementById('hw-error');
+  const sucEl = document.getElementById('hw-success');
+  errEl.style.display = 'none'; sucEl.style.display = 'none';
+
+  const name     = document.getElementById('hw-name').value.trim();
+  const type     = document.getElementById('hw-type').value||'hw-support';
+  const day      = document.getElementById('hw-day').value;
+  const delivery = document.getElementById('hw-delivery').value;
+  const winStart = document.getElementById('hw-win-start').value.trim();
+  const winEnd   = document.getElementById('hw-win-end').value.trim();
+  const room     = document.getElementById('hw-room').value.trim().toUpperCase();
+
+  if(!name || !winStart || !winEnd) {
+    showMsg(errEl, 'Name, window start, and window end are required.'); return;
+  }
+
+  // Collect instructor rows
+  const rows = document.querySelectorAll('#hw-inst-rows .hw-inst-row');
+  const instructors = [];
+  for(const row of rows) {
+    const sel   = row.querySelector('select');
+    const start = row.querySelectorAll('input[type="text"]')[0].value.trim();
+    const end   = row.querySelectorAll('input[type="text"]')[1].value.trim();
+    const host  = row.querySelector('input[type="checkbox"]').checked;
+    if(!sel.value) continue;
+    const profile = allProfiles.find(p => p.uid === sel.value);
+    instructors.push({ uid: sel.value, displayName: profile?.displayName||'', start, end, host });
+  }
+
+  if(!instructors.length) { showMsg(errEl, 'Add at least one instructor.'); return; }
+  if(!instructors.some(i => i.host)) { showMsg(errEl, 'At least one instructor must be designated as host.'); return; }
+
+  const data = { name, type, day, delivery, room: room||'', windowStart: winStart, windowEnd: winEnd, instructors, updatedAt: serverTimestamp() };
+
+  try {
+    if(editingHwId) {
+      await updateDoc(doc(db, 'extraSessions', editingHwId), data);
+      showMsg(sucEl, 'Session updated.');
+    } else {
+      await addDoc(collection(db, 'extraSessions'), data);
+      showMsg(sucEl, 'Session created.');
+    }
+    clearHwForm();
+    await loadHwSessions();
+  } catch(e) {
+    showMsg(errEl, 'Error: ' + e.message);
+  }
+};
+
+window.editHwSession = function(id) {
+  const s = hwSessions.find(x => x.id === id);
+  if(!s) return;
+  editingHwId = id;
+  document.getElementById('hw-form-title').textContent = 'Edit session';
+  document.getElementById('hw-name').value     = s.name;
+  document.getElementById('hw-day').value      = s.day;
+  document.getElementById('hw-delivery').value = s.delivery;
+  document.getElementById('hw-type').value      = s.type||'hw-support';
+  document.getElementById('hw-win-start').value = s.windowStart;
+  document.getElementById('hw-win-end').value   = s.windowEnd;
+  document.getElementById('hw-room').value       = s.room||'';
+  document.getElementById('hw-inst-rows').innerHTML = '';
+  hwInstCount = 0;
+  (s.instructors||[]).forEach(i => addHwInstRow(i));
+  document.getElementById('hw-form-title').scrollIntoView({behavior:'smooth'});
+};
+
+window.deleteHwSession = async function(id) {
+  if(!confirm('Delete this HW support session?')) return;
+  try {
+    await deleteDoc(doc(db, 'extraSessions', id));
+    await loadHwSessions();
+  } catch(e) { alert('Error: ' + e.message); }
+};
+
+window.clearHwForm = function() {
+  editingHwId = null;
+  document.getElementById('hw-form-title').textContent = 'New HW Support session';
+  ['hw-name','hw-win-start','hw-win-end','hw-room'].forEach(id => {
+    const el = document.getElementById(id); if(el) el.value = '';
+  });
+  document.getElementById('hw-inst-rows').innerHTML = '';
+  hwInstCount = 0;
+  document.getElementById('hw-error').style.display = 'none';
+  document.getElementById('hw-success').style.display = 'none';
+};
+
+</script>
+</body>
+</html>
