@@ -620,7 +620,7 @@ function renderMine(){
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
           ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':''}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
-          ${p.maxNew===0?'<span class="badge b-amber">No new classes</span>':p.maxNew?`<span class="badge b-green">Open to ${p.maxNew} new</span>`:''}
+          ${p.maxHours===0?'<span class="badge b-amber">No hours set</span>':p.maxHours?`<span class="badge b-green">Max ${p.maxHours}h/week</span>`:''}
           ${p.hwSupport?'<span class="badge b-teal">HW support</span>':''}
         </div>
       </div>
@@ -649,12 +649,12 @@ function renderMine(){
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div>
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Max new classes</div>
-          <input type="number" id="pref-max-new" min="0" max="20"
-            value="${p.maxNew!=null?p.maxNew:''}"
-            placeholder="e.g. 2"
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Max hours/week</div>
+          <input type="number" id="pref-max-hours" min="0" max="40"
+            value="${p.maxHours!=null?p.maxHours:''}"
+            placeholder="e.g. 10"
             style="${inputStyle}width:100%;box-sizing:border-box;"/>
-          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Leave blank if no limit</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Hours per week, leave blank if no limit</div>
         </div>
         <div>
           <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Extra sessions</div>
@@ -915,15 +915,15 @@ window.saveAvail=async function(){
   const levelMin  = document.getElementById('pref-level-min')?.value  || '';
   const levelMax  = document.getElementById('pref-level-max')?.value  || '';
   const comment   = document.getElementById('pref-comment')?.value    || '';
-  const maxNewRaw = document.getElementById('pref-max-new')?.value;
-  const maxNew    = maxNewRaw !== '' && maxNewRaw != null ? parseInt(maxNewRaw, 10) : null;
+  const maxHoursRaw = document.getElementById('pref-max-hours')?.value;
+  const maxHours    = maxHoursRaw !== '' && maxHoursRaw != null ? parseInt(maxHoursRaw, 10) : null;
   const hwSupport = document.getElementById('pref-hw-support')?.checked || false;
   try{
     await updateDoc(doc(db,"instructors",currentUser.uid),{
       availability: draftAvail,
       dayNotes:     draftDayNotes,
       gradeMin, gradeMax, levelMin, levelMax, comment,
-      ...(maxNew !== null ? {maxNew} : {}),
+      ...(maxHours !== null ? {maxHours} : {}),
       hwSupport,
       availabilityUpdatedAt: serverTimestamp(),
     });
@@ -932,7 +932,7 @@ window.saveAvail=async function(){
     currentProfile.gradeMin=gradeMin; currentProfile.gradeMax=gradeMax;
     currentProfile.levelMin=levelMin; currentProfile.levelMax=levelMax;
     currentProfile.comment=comment;
-    if(maxNew !== null) currentProfile.maxNew=maxNew;
+    if(maxHours !== null) currentProfile.maxHours=maxHours;
     currentProfile.hwSupport=hwSupport;
     unsaved=false; setSS("✓ Saved",true);
   }catch(e){setSS("Error: "+e.message);}

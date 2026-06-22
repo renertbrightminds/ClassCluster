@@ -799,8 +799,8 @@ window.renderInstructors=function renderInstructors(){
   el.innerHTML=`
     <div class="metrics">
       <div class="metric"><div class="metric-label">Active</div><div class="metric-value ok">${active.length}</div></div>
-      <div class="metric"><div class="metric-label">Open to new</div><div class="metric-value ok">${active.filter(p=>p.maxNew>0).length}</div></div>
-      <div class="metric"><div class="metric-label">Maxed out</div><div class="metric-value warn">${active.filter(p=>p.maxNew===0).length}</div></div>
+      <div class="metric"><div class="metric-label">Max hours/week</div><div class="metric-value ok">${active.filter(p=>p.maxHours>0).length}</div></div>
+      <div class="metric"><div class="metric-label">No hours set</div><div class="metric-value warn">${active.filter(p=>p.maxHours===0).length}</div></div>
       <div class="metric"><div class="metric-label">Inactive</div><div class="metric-value crit">${allProfiles.filter(p=>p.active===false).length}</div></div>
     </div>
     <div class="filter-row">
@@ -815,8 +815,8 @@ window.renderInstructors=function renderInstructors(){
       <select id="if-status" onchange="filterIG()">
         <option value="all">All statuses</option>
         <option value="active">Active</option>
-        <option value="open">Open to new</option>
-        <option value="maxed">Maxed</option>
+        <option value="open">Max hours/week</option>
+        <option value="maxed">0 hours set</option>
         <option value="inactive">Inactive</option>
       </select>
       <span id="ig-count" style="font-size:12px;color:var(--muted);"></span>
@@ -824,11 +824,11 @@ window.renderInstructors=function renderInstructors(){
     <div class="inst-grid" id="inst-grid">
       ${allProfiles.map(p=>{
         const c=ac(p.displayName);let lead=[],shadow=[];try{const r=classesForProfile(p);lead=r.lead;shadow=r.shadow;}catch(e){}
-        return`<div class="inst-card${p.active===false?' inactive':''}" data-n="${(p.displayName||'').toLowerCase()}" data-a="${p.active!==false}" data-m="${p.maxNew??''}" data-role="${p.role||'instructor'}" onclick="openProf('${p.uid}')">
+        return`<div class="inst-card${p.active===false?' inactive':''}" data-n="${(p.displayName||'').toLowerCase()}" data-a="${p.active!==false}" data-m="${p.maxHours??''}" data-role="${p.role||'instructor'}" onclick="openProf('${p.uid}')">
           <div class="inst-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
           <div class="inst-name">${p.displayName||'—'}</div>
           <div class="inst-sub" style="margin-bottom:5px;">${lead.length} class${lead.length!==1?'es':''}${shadow.length?` · <span style="color:#d2a8ff">${shadow.length} shadow</span>`:''}</div>
-          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':''}${p.active!==false&&p.maxNew===0?'<span class="badge b-amber">maxed</span>':''}${p.active!==false&&p.maxNew>0?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.hwSupport?'<span class="badge b-teal">HW</span>':''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
+          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':''}${p.active!==false&&p.maxHours===0?'<span class="badge b-amber">0h limit</span>':''}${p.active!==false&&p.maxHours>0?`<span class="badge b-green">Max ${p.maxHours}h/week</span>`:''}${p.hwSupport?'<span class="badge b-teal">HW</span>':''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
         </div>`;}).join('')}
     </div>`;
 }
@@ -874,7 +874,7 @@ function renderProfile(el,uid){
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
           ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':'<span class="badge b-blue">Instructor</span>'}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
-          ${p.maxNew===0?'<span class="badge b-amber">No new</span>':p.maxNew?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.hwSupport?'<span class="badge b-teal">HW support</span>':''}
+          ${p.maxHours===0?'<span class="badge b-amber">No hours set</span>':p.maxHours?`<span class="badge b-green">Max ${p.maxHours}h/week</span>`:''}${p.hwSupport?'<span class="badge b-teal">HW support</span>':''}
           ${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}
           ${isOwn?'<span class="badge b-blue">You</span>':''}
         </div>
