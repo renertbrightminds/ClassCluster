@@ -828,7 +828,7 @@ window.renderInstructors=function renderInstructors(){
           <div class="inst-avatar" style="background:${c.bg};color:${c.txt}">${ini(p.displayName)}</div>
           <div class="inst-name">${p.displayName||'—'}</div>
           <div class="inst-sub" style="margin-bottom:5px;">${lead.length} class${lead.length!==1?'es':''}${shadow.length?` · <span style="color:#d2a8ff">${shadow.length} shadow</span>`:''}</div>
-          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':''}${p.active!==false&&p.maxNew===0?'<span class="badge b-amber">maxed</span>':''}${p.active!==false&&p.maxNew>0?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
+          <div>${p.active===false?'<span class="badge b-red">inactive</span>':''}${p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':''}${p.active!==false&&p.maxNew===0?'<span class="badge b-amber">maxed</span>':''}${p.active!==false&&p.maxNew>0?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.hwSupport?'<span class="badge b-teal">HW</span>':''}${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}</div>
         </div>`;}).join('')}
     </div>`;
 }
@@ -874,7 +874,7 @@ function renderProfile(el,uid){
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
           ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':p.role==='junior-instructor'?'<span class="badge b-teal">Junior</span>':'<span class="badge b-blue">Instructor</span>'}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
-          ${p.maxNew===0?'<span class="badge b-amber">No new</span>':p.maxNew?`<span class="badge b-green">+${p.maxNew} new</span>`:''}
+          ${p.maxNew===0?'<span class="badge b-amber">No new</span>':p.maxNew?`<span class="badge b-green">+${p.maxNew} new</span>`:''}${p.hwSupport?'<span class="badge b-teal">HW support</span>':''}
           ${p.levelPref?`<span class="badge b-gray">${p.levelPref}</span>`:''}
           ${isOwn?'<span class="badge b-blue">You</span>':''}
         </div>
@@ -1076,11 +1076,15 @@ function renderRollup(){
         <option value="">Any level</option>
         ${bookLevels.map(l=>`<option value="${l}">${l}</option>`).join('')}
       </select>
+      <select id="rf-hw" onchange="buildRollup()">
+        <option value="">Any availability</option>
+        <option value="hw">HW support available</option>
+      </select>
     </div>
     <div id="rollup-wrap"></div>`;
 
   document.getElementById("rt-to").selectedIndex=SLOTS.length-1;
-  ["rt-from","rt-to","rf-grade","rf-level"].forEach(id=>{
+  ["rt-from","rt-to","rf-grade","rf-level","rf-hw"].forEach(id=>{
     document.getElementById(id)?.addEventListener("change",buildRollup);
   });
   buildRollup();
@@ -1100,6 +1104,7 @@ window.buildRollup=function(){
   const q       = (document.getElementById("rq")?.value||"").toLowerCase();
   const fGrade  = document.getElementById("rf-grade")?.value||"";
   const fLevel  = document.getElementById("rf-level")?.value||"";
+  const fHw     = document.getElementById("rf-hw")?.value||"";
   const wrap    = document.getElementById("rollup-wrap"); if(!wrap) return;
 
   function toMins(t){ const [h,m]=(t||"0:0").split(":").map(Number); return h*60+m; }
@@ -1132,6 +1137,8 @@ window.buildRollup=function(){
       const lMax = bookLevels.indexOf(p.levelMax||'');
       if(p.levelMin && p.levelMax && (li < lMin || li > lMax)) return false;
     }
+    // HW support filter
+    if(fHw==='hw' && !p.hwSupport) return false;
     return true;
   });
 
@@ -1169,7 +1176,7 @@ window.buildRollup=function(){
 
   // Summary bar
   let html = '';
-  const filterActive = fGrade || fLevel || q;
+  const filterActive = fGrade || fLevel || fHw || q;
   if(filterActive){
     const summary = insts.map(p=>{
       const gr = (p.gradeMin||p.gradeMax) ? `${p.gradeMin||'?'}–${p.gradeMax||'?'}` : '';

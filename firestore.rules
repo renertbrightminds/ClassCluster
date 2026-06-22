@@ -26,7 +26,8 @@ service cloud.firestore {
                     && request.auth.uid == uid
                     && request.resource.data.diff(resource.data).affectedKeys()
                          .hasOnly(['availability', 'availabilityUpdatedAt', 'dayNotes',
-                                   'gradeMin', 'gradeMax', 'levelMin', 'levelMax', 'comment', 'theme']);
+                                   'gradeMin', 'gradeMax', 'levelMin', 'levelMax', 'comment', 'theme',
+                                   'maxNew', 'hwSupport']);
 
       // Regular admins can update non-sensitive fields (not role or active)
       allow update: if request.auth != null
