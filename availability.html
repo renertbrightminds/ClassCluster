@@ -407,8 +407,7 @@ function updateBookLevelsFromClasses(classes){
   bookLevels = filtered.length>=2 ? filtered : BOOK_LEVEL_MAP.map(b=>b.name);
 }
 
-const GRADES = ['JK','SK','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5',
-                'Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
+const AGES = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]; // ages 4-18
 
 const STATES = ['none','ip','online','both'];
 const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
@@ -569,8 +568,8 @@ function parseCSV(text, program='math'){
       program,
       comment:oi>=0?c[oi]:""};
     }
-    const ni=hdr.indexOf("name"),gi=hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
-    if (ni>=0&&gi>=0&&bi>=0&&c[ni]) map[cn].push({name:c[ni],grade:parseFloat(c[gi])||0,ability:parseFloat(c[bi])||0});
+    const ni=hdr.indexOf("name"),gi=hdr.indexOf("age")>=0?hdr.indexOf("age"):hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
+    if (ni>=0&&gi>=0&&bi>=0&&c[ni]) map[cn].push({name:c[ni],age:parseFloat(c[gi])||0,ability:parseFloat(c[bi])||0});
   }
   return Object.entries(map).map(([cn,students])=>({...meta[cn],className:cn,students}));
 }
@@ -604,8 +603,8 @@ function renderMine(){
       return (d[a.session.day]??9)-(d[b.session.day]??9);
     });
 
-  const gradeOpts=GRADES.map(g=>`<option value="${g}" ${(p.gradeMin||'')===(g)?'selected':''}>${g}</option>`).join('');
-  const gradeOptsMax=GRADES.map(g=>`<option value="${g}" ${(p.gradeMax||'')===(g)?'selected':''}>${g}</option>`).join('');
+  const ageOpts=AGES.map(g=>`<option value="${g}" ${(p.ageMin||'')===(g)?'selected':''}>${g}</option>`).join('');
+  const ageOptsMax=AGES.map(g=>`<option value="${g}" ${(p.ageMax||'')===(g)?'selected':''}>${g}</option>`).join('');
   const levelOpts=bookLevels.map(l=>`<option value="${l}" ${(p.levelMin||'')===(l)?'selected':''}>${l}</option>`).join('');
   const levelOptsMax=bookLevels.map(l=>`<option value="${l}" ${(p.levelMax||'')===(l)?'selected':''}>${l}</option>`).join('');
 
@@ -631,11 +630,11 @@ function renderMine(){
       <div class="section-label" style="margin-bottom:14px;">Teaching preferences</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
         <div>
-          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Grade range</div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Age range</div>
           <div style="display:flex;align-items:center;gap:8px;">
-            <select id="pref-grade-min" style="${selectStyle}flex:1;"><option value="">Min grade</option>${gradeOpts}</select>
+            <select id="pref-age-min" style="${selectStyle}flex:1;"><option value="">Min age</option>${ageOpts}</select>
             <span style="color:var(--muted);font-size:13px;">→</span>
-            <select id="pref-grade-max" style="${selectStyle}flex:1;"><option value="">Max grade</option>${gradeOptsMax}</select>
+            <select id="pref-age-max" style="${selectStyle}flex:1;"><option value="">Max age</option>${ageOptsMax}</select>
           </div>
         </div>
         <div>
@@ -910,8 +909,8 @@ window.saveAvail=async function(){
     if(ta) draftDayNotes[day]=ta.value;
   });
   // Collect preference fields
-  const gradeMin  = document.getElementById('pref-grade-min')?.value  || '';
-  const gradeMax  = document.getElementById('pref-grade-max')?.value  || '';
+  const ageMin  = document.getElementById('pref-age-min')?.value  || '';
+  const ageMax  = document.getElementById('pref-age-max')?.value  || '';
   const levelMin  = document.getElementById('pref-level-min')?.value  || '';
   const levelMax  = document.getElementById('pref-level-max')?.value  || '';
   const comment   = document.getElementById('pref-comment')?.value    || '';
@@ -922,14 +921,14 @@ window.saveAvail=async function(){
     await updateDoc(doc(db,"instructors",currentUser.uid),{
       availability: draftAvail,
       dayNotes:     draftDayNotes,
-      gradeMin, gradeMax, levelMin, levelMax, comment,
+      ageMin, ageMax, levelMin, levelMax, comment,
       ...(maxHours !== null ? {maxHours} : {}),
       hwSupport,
       availabilityUpdatedAt: serverTimestamp(),
     });
     currentProfile.availability=clone(draftAvail);
     currentProfile.dayNotes=clone(draftDayNotes);
-    currentProfile.gradeMin=gradeMin; currentProfile.gradeMax=gradeMax;
+    currentProfile.ageMin=ageMin; currentProfile.ageMax=ageMax;
     currentProfile.levelMin=levelMin; currentProfile.levelMax=levelMax;
     currentProfile.comment=comment;
     if(maxHours !== null) currentProfile.maxHours=maxHours;

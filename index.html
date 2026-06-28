@@ -362,8 +362,8 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
     <div class="icon">📂</div>
     <div class="label">Drop a CSV or JSON file here, or click to browse</div>
     <div class="sub">
-      CSV columns: <code>ClassID, Name, Grade, Level, Day, Time, Instructor, Shadows, Delivery, Comment</code><br/>
-      JSON: array of <code>{"className":"…","day":"Monday","time":"16:00","students":[{"name","grade","ability"}]}</code>
+      CSV columns: <code>ClassID, Name, Age, Level, Day, Time, Instructor, Shadows, Delivery, Comment</code><br/>
+      JSON: array of <code>{"className":"…","day":"Monday","time":"16:00","students":[{"name","age","ability"}]}</code>
     </div>
     <button id="sample-btn" onclick="event.stopPropagation();loadSample()">Load sample data</button>
   </div>
@@ -392,7 +392,7 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
     <button class="sort-btn"        data-sort="health"      onclick="setSort('health')">Health<span class="sort-arrow">↑</span></button>
     <button class="sort-btn active" data-sort="datetime"    onclick="setSort('datetime')">Day &amp; Time<span class="sort-arrow">↑</span></button>
     <button class="sort-btn"        data-sort="level"       onclick="setSort('level')">Level<span class="sort-arrow">↑</span></button>
-    <button class="sort-btn"        data-sort="grade"       onclick="setSort('grade')">Grade<span class="sort-arrow">↑</span></button>
+    <button class="sort-btn"        data-sort="age"         onclick="setSort('age')">Age<span class="sort-arrow">↑</span></button>
     <button class="sort-btn"        data-sort="instructor"  onclick="setSort('instructor')">Instructor<span class="sort-arrow">↑</span></button>
     <button class="sort-btn"        data-sort="size"        onclick="setSort('size')">Class Size<span class="sort-arrow">↑</span></button>
   </div>
@@ -479,11 +479,8 @@ function sliderIdxToAbility(idx) {
 }
 
 // Grade integer → display label
-function gradeLabel(g) {
-  const n = Math.round(g);
-  if (n <= -1) return "JK";
-  if (n === 0) return "K";
-  return `Gr ${n}`;
+function ageLabel(a) {
+  return `${Math.round(a)} yrs`;
 }
 
 // ════════════════════════════════════════════════════════
@@ -494,22 +491,22 @@ const SIZE_WARN  = 10;
 const SIZE_CRIT  = 12;
 const SIZE_SMALL = 3;
 
-// Hard maximum grade spread by mean ability
-function maxGradeSpread(meanAbility) {
+// Hard maximum age spread by mean ability
+function maxAgeSpread(meanAbility) {
   if (meanAbility > 9) return 4;
   if (meanAbility > 2) return 3;
   return 2;
 }
 
-function warnGradeSpread(meanAbility) {
+function warnAgeSpread(meanAbility) {
   // Warn one below the hard limit
   if (meanAbility > 9) return 3;
   if (meanAbility > 2) return 2;
   return null; // no warn tier at the lowest level — just hard limit
 }
 
-function isPrecocious(student, meanGrade, meanAbility) {
-  return meanAbility >= 9 && student.ability >= 9 && student.grade < meanGrade - 1.5;
+function isPrecocious(student, meanAge, meanAbility) {
+  return meanAbility >= 9 && student.ability >= 9 && student.age < meanAge - 1.5;
 }
 
 // ════════════════════════════════════════════════════════
@@ -520,25 +517,25 @@ function analyseClass(cls) {
   const n = students.length;
   if (n === 0) return { ...cls, health:"healthy", alerts:[], studentFlags:[], stats:{} };
 
-  const meanGrade   = students.reduce((a,s)=>a+s.grade,   0)/n;
+  const meanAge     = students.reduce((a,s)=>a+s.age,     0)/n;
   const meanAbility = students.reduce((a,s)=>a+s.ability, 0)/n;
-  const grades      = students.map(s=>s.grade);
+  const ages        = students.map(s=>s.age);
   const abilities   = students.map(s=>s.ability);
-  const minGrade=Math.min(...grades), maxGrade=Math.max(...grades);
+  const minAge=Math.min(...ages), maxAge=Math.max(...ages);
   const minAb=Math.min(...abilities), maxAb=Math.max(...abilities);
-  const gradeSpread   = maxGrade - minGrade;
+  const ageSpread     = maxAge - minAge;
   const abilitySpread = maxAb - minAb;
-  const allowedSpread = maxGradeSpread(meanAbility);
+  const allowedSpread = maxAgeSpread(meanAbility);
 
-  const acceptGradeMin = minGrade - Math.max(0, allowedSpread - gradeSpread);
-  const acceptGradeMax = maxGrade + Math.max(0, allowedSpread - gradeSpread);
+  const acceptAgeMin   = minAge   - Math.max(0, allowedSpread - ageSpread);
+  const acceptAgeMax   = maxAge   + Math.max(0, allowedSpread - ageSpread);
   const acceptAbMin    = meanAbility - ABILITY_TOLERANCE;
   const acceptAbMax    = meanAbility + ABILITY_TOLERANCE;
 
   // ── Flag each student ──────────────────────────────────
   const studentFlags = students.map(s => {
     const flags = [];
-    const precocious  = isPrecocious(s, meanGrade, meanAbility);
+    const precocious  = isPrecocious(s, meanAge, meanAbility);
     const abilityDiff = Math.abs(s.ability - meanAbility);
 
     if (abilityDiff > ABILITY_TOLERANCE) {
@@ -549,16 +546,16 @@ function analyseClass(cls) {
     }
 
     if (precocious) {
-      flags.push({ type:"precocious", msg:"Young high-achiever — grade exception applies at this level" });
+      flags.push({ type:"precocious", msg:"Young high-achiever — age exception applies at this level" });
     } else {
-      const spreadViolated = gradeSpread > allowedSpread;
+      const spreadViolated = ageSpread > allowedSpread;
       if (spreadViolated) {
-        const others = students.filter(o=>o!==s).map(o=>o.grade);
+        const others = students.filter(o=>o!==s).map(o=>o.age);
         const spreadWithout = others.length ? Math.max(...others)-Math.min(...others) : 0;
         if (spreadWithout < allowedSpread) {
-          const dir = s.grade===maxGrade ? "Highest grade" : s.grade===minGrade ? "Lowest grade" : null;
+          const dir = s.age===maxAge ? "Oldest" : s.age===minAge ? "Youngest" : null;
           if (dir) flags.push({ type:"warn",
-            msg:`${dir} student — removing them would bring grade spread within guidelines` });
+            msg:`${dir} student — removing them would bring age spread within guidelines` });
         }
       }
     }
@@ -587,12 +584,12 @@ function analyseClass(cls) {
     alerts.push({ level:"warn", icon:"🟡",
       text:`Level spread of ${abilitySpread.toFixed(1)} is approaching the limit. Watch for outliers pulling away.` });
   }
-  if (gradeSpread > allowedSpread) {
+  if (ageSpread > allowedSpread) {
     alerts.push({ level:"danger", icon:"🔴",
-      text:`Grade spread is ${gradeSpread}. At mean level ${abilityToBook(meanAbility)}, the maximum allowed is ${allowedSpread}.` });
-  } else if (gradeSpread === allowedSpread) {
+      text:`Age spread is ${ageSpread}. At mean level ${abilityToBook(meanAbility)}, the maximum allowed is ${allowedSpread}.` });
+  } else if (ageSpread === allowedSpread) {
     alerts.push({ level:"warn", icon:"🟡",
-      text:`Grade spread is ${gradeSpread} — at the limit for this level. Consider whether the age mix is working.` });
+      text:`Age spread is ${ageSpread} — at the limit for this level. Consider whether the age mix is working.` });
   }
 
   const splitRec = buildSplitRecommendation(students, meanAbility, alerts);
@@ -610,9 +607,9 @@ function analyseClass(cls) {
                : "healthy";
 
   return { ...cls, health, alerts, studentFlags,
-    stats:{ n, meanGrade, meanAbility, gradeSpread, abilitySpread,
-            minGrade, maxGrade, minAb, maxAb, allowedSpread,
-            acceptGradeMin, acceptGradeMax, acceptAbMin, acceptAbMax }};
+    stats:{ n, meanAge, meanAbility, ageSpread, abilitySpread,
+            minAge, maxAge, minAb, maxAb, allowedSpread,
+            acceptAgeMin, acceptAgeMax, acceptAbMin, acceptAbMax }};
 }
 
 function deriveStatus(flags) {
@@ -625,29 +622,29 @@ function deriveStatus(flags) {
 // ════════════════════════════════════════════════════════
 // PLACEMENT FIT SCORING
 // ════════════════════════════════════════════════════════
-function scorePlacement(cls, studentGrade, studentAbility) {
+function scorePlacement(cls, studentAge, studentAbility) {
   const s = cls.stats;
   if (!s || s.n === 0) return null;
-  const { meanGrade, meanAbility, minGrade, maxGrade, minAb, maxAb, allowedSpread } = s;
+  const { meanAge, meanAbility, minAge, maxAge, minAb, maxAb, allowedSpread } = s;
 
-  const gradeDiff = Math.abs(studentGrade   - meanGrade);
+  const ageDiff   = Math.abs(studentAge     - meanAge);
   const abDiff    = Math.abs(studentAbility - meanAbility);
 
-  const newGradeSpread = Math.max(maxGrade, studentGrade) - Math.min(minGrade, studentGrade);
+  const newAgeSpread   = Math.max(maxAge,   studentAge)   - Math.min(minAge,   studentAge);
   const newAbSpread    = Math.max(maxAb,    studentAbility) - Math.min(minAb,  studentAbility);
 
-  const wouldBreakGrade  = newGradeSpread > allowedSpread;
-  const wouldWarnGrade   = newGradeSpread === allowedSpread;
+  const wouldBreakAge    = newAgeSpread   > allowedSpread;
+  const wouldWarnAge     = newAgeSpread   === allowedSpread;
   const wouldBreakAb    = newAbSpread    > ABILITY_TOLERANCE * 2;
 
-  if (gradeDiff <= 0.5 && abDiff <= 0.5 && !wouldBreakGrade && !wouldBreakAb)
+  if (ageDiff <= 0.5 && abDiff <= 0.5 && !wouldBreakAge && !wouldBreakAb)
     return "perfect";
-  if (abDiff <= ABILITY_TOLERANCE && !wouldBreakGrade && !wouldBreakAb)
+  if (abDiff <= ABILITY_TOLERANCE && !wouldBreakAge && !wouldBreakAb)
     return "good";
   // Spread exactly at limit → warning but still placeable
-  if (abDiff <= ABILITY_TOLERANCE && wouldWarnGrade && !wouldBreakAb)
+  if (abDiff <= ABILITY_TOLERANCE && wouldWarnAge && !wouldBreakAb)
     return "possible";
-  if (abDiff <= ABILITY_TOLERANCE * 1.5 && newGradeSpread <= allowedSpread)
+  if (abDiff <= ABILITY_TOLERANCE * 1.5 && newAgeSpread <= allowedSpread)
     return "possible";
   return null;
 }
@@ -667,7 +664,7 @@ function findAlternativeClasses(student, currentCls, allClasses) {
     if (!cls.stats || cls.stats.n === 0) continue;
     if ((cls.delivery || "") !== (currentCls.delivery || "")) continue;
 
-    const fit = scorePlacement(cls, student.grade, student.ability);
+    const fit = scorePlacement(cls, student.age, student.ability);
     if (!fit) continue;
 
     const sameDay = (cls.day || "").toLowerCase() === (currentCls.day || "").toLowerCase();
@@ -715,17 +712,17 @@ function buildSplitRecommendation(students, meanAbility, alerts) {
         <strong>Group B</strong> (mean ${abilityToBook(upperMeanAb)}): ${upper.map(s=>s.name).join(", ")}` };
   }
 
-  const byGrade  = [...students].sort((a,b)=>a.grade-b.grade);
-  const gMid     = Math.floor(byGrade.length/2);
-  const younger  = byGrade.slice(0,gMid);
-  const older    = byGrade.slice(gMid);
-  const yMeanG   = younger.reduce((a,s)=>a+s.grade,0)/younger.length;
-  const oMeanG   = older.reduce((a,s)=>a+s.grade,0)/older.length;
+  const byAge    = [...students].sort((a,b)=>a.age-b.age);
+  const gMid     = Math.floor(byAge.length/2);
+  const younger  = byAge.slice(0,gMid);
+  const older    = byAge.slice(gMid);
+  const yMeanG   = younger.reduce((a,s)=>a+s.age,0)/younger.length;
+  const oMeanG   = older.reduce((a,s)=>a+s.age,0)/older.length;
 
   return { level:"split", icon:"✂️",
-    text:`<strong>Recommended split by grade</strong> (levels are homogenous — class is too large):<br>
-      <strong>Group A</strong> (avg ${gradeLabel(yMeanG)}): ${younger.map(s=>s.name).join(", ")}<br>
-      <strong>Group B</strong> (avg ${gradeLabel(oMeanG)}): ${older.map(s=>s.name).join(", ")}` };
+    text:`<strong>Recommended split by age</strong> (levels are homogenous — class is too large):<br>
+      <strong>Group A</strong> (avg ${ageLabel(yMeanG)}): ${younger.map(s=>s.name).join(", ")}<br>
+      <strong>Group B</strong> (avg ${ageLabel(oMeanG)}): ${older.map(s=>s.name).join(", ")}` };
 }
 
 // ════════════════════════════════════════════════════════
@@ -738,7 +735,7 @@ function parseFile(text, filename) {
   // Accept 'class' or 'classid' as the class grouping column
   const ci  = hdr.indexOf("classid") >= 0 ? hdr.indexOf("classid") : hdr.indexOf("class");
   const ni  = hdr.indexOf("name");
-  const gi  = hdr.indexOf("grade");
+  const gi  = hdr.indexOf("age") >= 0 ? hdr.indexOf("age") : hdr.indexOf("grade");
   // Accept 'level' as alias for 'ability'
   const bi  = hdr.indexOf("ability") >= 0 ? hdr.indexOf("ability") : hdr.indexOf("level");
   const di  = hdr.indexOf("day"),   ti=hdr.indexOf("time");
@@ -746,7 +743,7 @@ function parseFile(text, filename) {
   const deli= hdr.indexOf("delivery");
   const shi = hdr.indexOf("shadows");
   const ri  = hdr.indexOf("room");
-  if ([ci,ni,gi,bi].includes(-1)) throw new Error("CSV must have columns: ClassID (or class), name, grade, ability (or level)");
+  if ([ci,ni,gi,bi].includes(-1)) throw new Error("CSV must have columns: ClassID (or class), name, age (or grade), ability (or level)");
   const map={};
   const classMeta={};
   for (let i=1;i<lines.length;i++){
@@ -765,7 +762,7 @@ function parseFile(text, filename) {
       room:       ri>=0   ? c[ri].trim().toUpperCase() : "",
       program:    'math', // overridden by fetchData after parsing
     }; }
-    map[cn].push({ name:c[ni], grade:Math.min(12, Math.max(-1, parseFloat(c[gi]))), ability:parseFloat(c[bi]) });
+    map[cn].push({ name:c[ni], age:Math.min(18, Math.max(4, parseFloat(c[gi]))), ability:parseFloat(c[bi]) });
   }
   return Object.entries(map).map(([className,students])=>({
     className, students,
@@ -854,13 +851,13 @@ function processClasses(classes) {
       health:     c.health,
       stats: c.stats ? {
         n:            c.stats.n,
-        meanGrade:    Math.round(c.stats.meanGrade*10)/10,
+        meanAge:    Math.round(c.stats.meanAge*10)/10,
         meanAbility:  Math.round(c.stats.meanAbility*100)/100,
-        minGrade:     c.stats.minGrade,
-        maxGrade:     c.stats.maxGrade,
+        minAge:     c.stats.minAge,
+        maxAge:     c.stats.maxAge,
         minAb:        c.stats.minAb,
         maxAb:        c.stats.maxAb,
-        gradeSpread:  c.stats.gradeSpread,
+        ageSpread:  c.stats.ageSpread,
         abilitySpread:Math.round(c.stats.abilitySpread*100)/100,
       } : null,
     }));
@@ -945,7 +942,7 @@ function sortKey(cls, key) {
     case "datetime":   return (DAY_ORDER[(cls.day||"").trim().toLowerCase().slice(0,3)] ?? 9) * 10000
                             + timeToMins(cls.time||"");
     case "level":      return s.meanAbility ?? 999;
-    case "grade":      return s.meanGrade ?? 999;
+    case "age":        return s.meanAge ?? 999;
     case "instructor": return (cls.instructor||"zzz").toLowerCase();
     case "size":       return s.n ?? 0;
     default:           return 0;
@@ -1009,8 +1006,8 @@ function buildCard(cls, idx) {
   const healthLabel = {critical:"Action required",warning:"Needs attention",healthy:"Healthy"}[cls.health];
   const healthIcon  = {critical:"🔴",warning:"🟡",healthy:"🟢"}[cls.health];
 
-  const gradeChipCls = s.gradeSpread > s.allowedSpread ? "crit"
-                     : s.gradeSpread === s.allowedSpread ? "warn"
+  const ageChipCls   = s.ageSpread > s.allowedSpread ? "crit"
+                     : s.ageSpread === s.allowedSpread ? "warn"
                      : "";
   const abChipCls    = s.abilitySpread>ABILITY_TOLERANCE*2 ? "crit" : s.abilitySpread>ABILITY_TOLERANCE*1.5 ? "warn" : "";
   const szChipCls    = s.n>=SIZE_CRIT ? "crit" : s.n>=SIZE_WARN ? "warn" : "";
@@ -1031,7 +1028,7 @@ function buildCard(cls, idx) {
   if (isSmall)     miniAlerts+=`<span class="mini-alert small">needs filling</span>`;
 
   const abRangeStr    = `${abilityToBook(s.acceptAbMin)} – ${abilityToBook(s.acceptAbMax)}`;
-  const gradeRangeStr = `${gradeLabel(Math.round(s.acceptGradeMin))} – ${gradeLabel(Math.round(s.acceptGradeMax))}`;
+  const ageRangeStr = `${ageLabel(Math.round(s.acceptAgeMin))} – ${ageLabel(Math.round(s.acceptAgeMax))}`;
 
   const deliveryBadge = cls.delivery
     ? (() => {
@@ -1069,7 +1066,7 @@ function buildCard(cls, idx) {
         <span class="card-chevron">▶</span>
         <div style="min-width:0;">
           <div class="card-header-name">${cls.className}${programBadge}${deliveryBadge}</div>
-          <div class="card-header-meta">${s.n} students &nbsp;·&nbsp; ${abRangeStr} &nbsp;·&nbsp; ${gradeRangeStr}${schedStr}${instructorStr}</div>
+          <div class="card-header-meta">${s.n} students &nbsp;·&nbsp; ${abRangeStr} &nbsp;·&nbsp; ${ageRangeStr}${schedStr}${instructorStr}</div>
           ${commentShort}
         </div>
       </div>
@@ -1089,15 +1086,15 @@ function buildCard(cls, idx) {
           <div class="s-label">Level range</div>
           <div class="s-val">${abilityToBook(s.minAb)} – ${abilityToBook(s.maxAb)} &nbsp;(spread ${s.abilitySpread.toFixed(1)})</div>
         </div>
-        <div class="stat-chip ${gradeChipCls}">
-          <div class="s-label">Grade range</div>
-          <div class="s-val">${gradeLabel(s.minGrade)} – ${gradeLabel(s.maxGrade)} &nbsp;(spread ${s.gradeSpread}, max ${s.allowedSpread})</div>
+        <div class="stat-chip ${ageChipCls}">
+          <div class="s-label">Age range</div>
+          <div class="s-val">${ageLabel(s.minAge)} – ${ageLabel(s.maxAge)} &nbsp;(spread ${s.ageSpread}, max ${s.allowedSpread})</div>
         </div>
       </div>
       ${alertsHTML ? `<div class="alerts">${alertsHTML}</div>` : ""}
       <div class="card-body">
         <div>
-          <div class="section-label">Level vs Grade</div>
+          <div class="section-label">Level vs Age</div>
           <div class="chart-wrap"><canvas id="chart-${idx}"></canvas></div>
           <div class="legend">
             <div class="legend-item"><span class="flag-dot green"></span>Within guidelines</div>
@@ -1208,12 +1205,12 @@ function buildTable(cls) {
     const flagIcon=s.flags.length?` <span style="font-size:11px;color:var(--muted)" title="${tip}">⚑</span>`:"";
     return `<tr title="${tip}">
       <td><span class="flag-dot ${dot}"></span>${s.name}${flagIcon}</td>
-      <td style="color:var(--muted)">${gradeLabel(s.grade)}</td>
+      <td style="color:var(--muted)">${ageLabel(s.age)}</td>
       <td style="color:var(--muted)">${abilityToBook(s.ability)}</td>
     </tr>`;
   }).join("");
   return `<table>
-    <thead><tr><th>Name</th><th>Grade</th><th>Level</th></tr></thead>
+    <thead><tr><th>Name</th><th>Age</th><th>Level</th></tr></thead>
     <tbody>${rows}</tbody>
   </table>`;
 }
@@ -1230,13 +1227,13 @@ function buildChart(idx, cls, candidate) {
   const colorMap = {ok:"#3fb950",warn:"#d29922",crit:"#f85149",precocious:"#bc8cff"};
 
   const points = cls.studentFlags.map(st=>({
-    x:st.ability, y:st.grade, name:st.name, status:st.status,
+    x:st.ability, y:st.age, name:st.name, status:st.status,
     tip:st.flags.map(f=>f.msg).join("\n"),
   }));
 
   // Candidate dot dataset — shown when placement filter is active
   const candidateData = (candidate && placementActive)
-    ? [{ x:candidate.ability, y:candidate.grade, name:"Candidate", status:"candidate", tip:"" }]
+    ? [{ x:candidate.ability, y:candidate.age, name:"Candidate", status:"candidate", tip:"" }]
     : [];
 
   const chart = new Chart(ctx.getContext("2d"),{
@@ -1253,10 +1250,10 @@ function buildChart(idx, cls, candidate) {
         borderWidth:2, pointRadius:10, pointHoverRadius:12,
         borderDash:[3,3] },
       // Vertical crosshair at mean ability
-      { type:"line", label:"", data:[{x:s.meanAbility,y:s.minGrade-0.5},{x:s.meanAbility,y:s.maxGrade+0.5}],
+      { type:"line", label:"", data:[{x:s.meanAbility,y:s.minAge-0.5},{x:s.meanAbility,y:s.maxAge+0.5}],
         borderColor:"rgba(88,166,255,0.25)", borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false },
       // Horizontal crosshair at mean grade
-      { type:"line", label:"", data:[{x:s.minAb-0.5,y:s.meanGrade},{x:s.maxAb+0.5,y:s.meanGrade}],
+      { type:"line", label:"", data:[{x:s.minAb-0.5,y:s.meanAge},{x:s.maxAb+0.5,y:s.meanAge}],
         borderColor:"rgba(88,166,255,0.25)", borderWidth:1, borderDash:[4,4], pointRadius:0, fill:false },
     ]},
     options:{
@@ -1268,8 +1265,8 @@ function buildChart(idx, cls, candidate) {
           callbacks:{
             label:ctx=>{
               const d=ctx.raw;
-              if (d.name==="Candidate") return `Candidate  (${gradeLabel(d.y)}, ${abilityToBook(d.x)})`;
-              const lines=[`${d.name}  (${gradeLabel(d.y)}, ${abilityToBook(d.x)})`];
+              if (d.name==="Candidate") return `Candidate  (${ageLabel(d.y)}, ${abilityToBook(d.x)})`;
+              const lines=[`${d.name}  (${ageLabel(d.y)}, ${abilityToBook(d.x)})`];
               if(d.tip) d.tip.split("\n").forEach(t=>lines.push("⚑ "+t));
               return lines;
             }
@@ -1282,9 +1279,9 @@ function buildChart(idx, cls, candidate) {
         x:{ title:{display:true,text:"Level",color:"#4a5568",font:{size:11}},
             grid:{color:"#0d1117"}, ticks:{color:"#4a5568",
               callback:val=>abilityToBook(val)} },
-        y:{ title:{display:true,text:"Grade",color:"#4a5568",font:{size:11}},
+        y:{ title:{display:true,text:"Age",color:"#4a5568",font:{size:11}},
             grid:{color:"#0d1117"}, ticks:{color:"#4a5568",
-              stepSize:1, callback:val=>gradeLabel(val)} },
+              stepSize:1, callback:val=>ageLabel(val)} },
       }
     }
   });
@@ -1295,7 +1292,7 @@ function buildChart(idx, cls, candidate) {
 function updateChartCandidate(candidate) {
   Object.entries(chartInstances).forEach(([idx, chart]) => {
     const data = (candidate && placementActive)
-      ? [{ x:candidate.ability, y:candidate.grade, name:"Candidate", status:"candidate", tip:"" }]
+      ? [{ x:candidate.ability, y:candidate.age, name:"Candidate", status:"candidate", tip:"" }]
       : [];
     chart.data.datasets[1].data = data;
     chart.update("none");
@@ -1382,10 +1379,10 @@ function clearSearch() {
 // EXPORT
 // ════════════════════════════════════════════════════════
 function buildCSV(analysed) {
-  const rows=[["Class","Name","Grade","Ability","Level","Status","Flags"]];
+  const rows=[["Class","Name","Age","Ability","Level","Status","Flags"]];
   analysed.forEach(cls=>{
     cls.studentFlags.forEach(s=>{
-      rows.push([cls.className,s.name,s.grade,s.ability.toFixed(2),
+      rows.push([cls.className,s.name,s.age,s.ability.toFixed(2),
                  abilityToBook(s.ability),s.status,s.flags.map(f=>f.msg).join(" | ")]);
     });
   });
@@ -1423,35 +1420,35 @@ function loadSample(){
   setTimeout(()=>{
     processClasses([
       { className:"Group A — Beginners", day:"Mon", time:"16:00", instructor:"Ms. Chen", shadows:["Cameron"], delivery:"in-person", comment:"Lively group, responds well to games. Room 3.", students:[
-        {name:"Alice", grade:1, ability:1.5},
-        {name:"Bob",   grade:2, ability:2.0},
-        {name:"Carol", grade:1, ability:1.0},
-        {name:"Dan",   grade:2, ability:2.5},
-        {name:"Eve",   grade:3, ability:1.5},
+        {name:"Alice", age:5, ability:1.5},
+        {name:"Bob",   age:7, ability:2.0},
+        {name:"Carol", age:5, ability:1.0},
+        {name:"Dan",   age:7, ability:2.5},
+        {name:"Eve",   age:8, ability:1.5},
       ]},
       { className:"Group B — Mid Level", day:"Wed", time:"15:30", instructor:"Mr. Patel", shadows:[], delivery:"online", comment:"Strong group overall. Kira is pulling ahead — monitor for move.", students:[
-        {name:"Frank", grade:4, ability:5.0},
-        {name:"Grace", grade:5, ability:5.5},
-        {name:"Henry", grade:4, ability:6.0},
-        {name:"Iris",  grade:5, ability:4.5},
-        {name:"Jack",  grade:6, ability:5.0},
-        {name:"Kira",  grade:5, ability:7.5},
-        {name:"Leo",   grade:4, ability:5.0},
-        {name:"Mia",   grade:5, ability:5.5},
-        {name:"Ned",   grade:5, ability:6.0},
+        {name:"Frank", age:9, ability:5.0},
+        {name:"Grace", age:10, ability:5.5},
+        {name:"Henry", age:9,  ability:6.0},
+        {name:"Iris",  age:10, ability:4.5},
+        {name:"Jack",  age:11, ability:5.0},
+        {name:"Kira",  age:10, ability:7.5},
+        {name:"Leo",   age:9,  ability:5.0},
+        {name:"Mia",   age:10, ability:5.5},
+        {name:"Ned",   age:10, ability:6.0},
       ]},
       { className:"Group C — Advanced", day:"Sat", time:"10:00", instructor:"Ms. Chen", shadows:["Jordan","Alex"], delivery:"in-person", comment:"Uma is exceptional — precocious placement working well so far.", students:[
-        {name:"Olivia", grade:5,  ability:10.0},
-        {name:"Pete",   grade:8,  ability:11.0},
-        {name:"Quinn",  grade:9,  ability:10.5},
-        {name:"Rosa",   grade:7,  ability:9.5},
-        {name:"Sam",    grade:10, ability:11.5},
-        {name:"Tara",   grade:6,  ability:10.0},
-        {name:"Uma",    grade:2,  ability:10.5},
-        {name:"Victor", grade:9,  ability:10.0},
-        {name:"Wendy",  grade:8,  ability:9.0},
-        {name:"Xavi",   grade:7,  ability:11.0},
-        {name:"Yara",   grade:10, ability:10.5},
+        {name:"Olivia", age:10, ability:10.0},
+        {name:"Pete",   age:13, ability:11.0},
+        {name:"Quinn",  age:14, ability:10.5},
+        {name:"Rosa",   age:12, ability:9.5},
+        {name:"Sam",    age:15, ability:11.5},
+        {name:"Tara",   age:11, ability:10.0},
+        {name:"Uma",    age:7,  ability:10.5},
+        {name:"Victor", age:14, ability:10.0},
+        {name:"Wendy",  age:13, ability:9.0},
+        {name:"Xavi",   age:12, ability:11.0},
+        {name:"Yara",   age:15, ability:10.5},
       ]},
     ]);
     showSpinner(false);
@@ -1529,7 +1526,7 @@ function buildFilterPanel(analysed) {
     days: [], instructors: [], delivery: [],
     health: [],
     levelMin: 0, levelMax: SLIDER_STEPS.length - 1,
-    gradeMin: -1, gradeMax: 12,
+    ageMin: 4, ageMax: 18,
     sizeMax: maxSize, needsFilling: false,
   };
 
@@ -1610,16 +1607,16 @@ function buildFilterPanel(analysed) {
     </div>
 
     <div class="flt-section">
-      <div class="flt-label">Grade Range</div>
+      <div class="flt-label">Age Range</div>
       <div class="flt-range-row" style="margin-bottom:6px;">
-        <span class="flt-range-val" id="flt-grade-min-val">${gradeLabel(-1)}</span>
-        <input class="flt-range-slider" type="range" id="flt-grade-min" min="-1" max="12" step="1" value="-1"
-          oninput="onFltGradeRange()"/>
+        <span class="flt-range-val" id="flt-age-min-val">${ageLabel(4)}</span>
+        <input class="flt-range-slider" type="range" id="flt-age-min" min="4" max="18" step="1" value="4"
+          oninput="onFltAgeRange()"/>
       </div>
       <div class="flt-range-row">
-        <span class="flt-range-val" id="flt-grade-max-val">${gradeLabel(12)}</span>
-        <input class="flt-range-slider" type="range" id="flt-grade-max" min="-1" max="12" step="1" value="12"
-          oninput="onFltGradeRange()"/>
+        <span class="flt-range-val" id="flt-age-max-val">${ageLabel(18)}</span>
+        <input class="flt-range-slider" type="range" id="flt-age-max" min="4" max="18" step="1" value="18"
+          oninput="onFltAgeRange()"/>
       </div>
     </div>
 
@@ -1674,13 +1671,13 @@ function onFltLevelRange() {
   applyClassFilter();
 }
 
-function onFltGradeRange() {
-  let lo = parseInt(document.getElementById("flt-grade-min").value);
-  let hi = parseInt(document.getElementById("flt-grade-max").value);
-  if (lo > hi) { lo = hi; document.getElementById("flt-grade-min").value = lo; }
-  document.getElementById("flt-grade-min-val").textContent = gradeLabel(lo);
-  document.getElementById("flt-grade-max-val").textContent = gradeLabel(hi);
-  classFilters.gradeMin = lo; classFilters.gradeMax = hi;
+function onFltAgeRange() {
+  let lo = parseInt(document.getElementById("flt-age-min").value);
+  let hi = parseInt(document.getElementById("flt-age-max").value);
+  if (lo > hi) { lo = hi; document.getElementById("flt-age-min").value = lo; }
+  document.getElementById("flt-age-min-val").textContent = ageLabel(lo);
+  document.getElementById("flt-age-max-val").textContent = ageLabel(hi);
+  classFilters.ageMin = lo; classFilters.ageMax = hi;
   applyClassFilter();
 }
 
@@ -1724,7 +1721,7 @@ function applyClassFilter() {
     // Level range — class accepted level range must overlap filter range
     if (s.acceptAbMin > lvMax || s.acceptAbMax < lvMin) { card.classList.add("filtered-out"); return; }
     // Grade range — class accepted grade range must overlap filter range
-    if (s.acceptGradeMin > f.gradeMax || s.acceptGradeMax < f.gradeMin) { card.classList.add("filtered-out"); return; }
+    if (s.acceptAgeMin > f.ageMax   || s.acceptAgeMax < f.ageMin) { card.classList.add("filtered-out"); return; }
     // Size
     if (s.n > f.sizeMax) { card.classList.add("filtered-out"); return; }
     // Needs filling
@@ -1751,7 +1748,7 @@ function countActiveFilters() {
   const maxSizeDefault = Math.max(...allAnalysed.map(c=>c.stats.n||0), SIZE_CRIT);
   return f.health.length + f.days.length + f.instructors.length + f.delivery.length
     + (f.levelMin > 0 || f.levelMax < SLIDER_STEPS.length-1 ? 1 : 0)
-    + (f.gradeMin > -1 || f.gradeMax < 12 ? 1 : 0)
+    + (f.ageMin > 4 || f.ageMax < 18 ? 1 : 0)
     + (f.sizeMax < maxSizeDefault ? 1 : 0)
     + (f.needsFilling ? 1 : 0);
 }
@@ -1763,7 +1760,7 @@ function clearClassFilter() {
   buildFilterPanel(allAnalysed);
   classFilters.days=[]; classFilters.instructors=[]; classFilters.delivery=[]; classFilters.health=[];
   classFilters.levelMin=0; classFilters.levelMax=SLIDER_STEPS.length-1;
-  classFilters.gradeMin=-1; classFilters.gradeMax=12;
+  classFilters.ageMin=4; classFilters.ageMax=18;
   const maxSize = Math.max(...allAnalysed.map(c=>c.stats.n||0), SIZE_CRIT);
   classFilters.sizeMax=maxSize; classFilters.needsFilling=false;
   document.querySelectorAll(".class-card").forEach(card=>card.classList.remove("filtered-out"));
@@ -1819,9 +1816,9 @@ function clearPlacementFilter(){
   sliderActive=false;
   updateChartCandidate(null); // remove candidate dots from all charts
   placementDelivery="any";
-  document.getElementById("p-grade-val").textContent="—";
+  document.getElementById("p-age-val").textContent="—";
   document.getElementById("p-ability-val").textContent="—";
-  document.getElementById("p-grade").value=7;
+  document.getElementById("p-age").value=10;
   document.getElementById("p-ability").value=24;
   document.getElementById("placement-hint").innerHTML="";
   document.querySelectorAll(".day-btn[data-day]").forEach(b=>b.classList.remove("active"));
@@ -1841,10 +1838,10 @@ function clearPlacementFilter(){
 
 function updateSliderDisplay(){
   sliderActive=true;
-  const gradeVal=parseInt(document.getElementById("p-grade").value);
+  const ageVal=parseInt(document.getElementById("p-age").value);
   const abilityIdx=parseInt(document.getElementById("p-ability").value);
   const ability=sliderIdxToAbility(abilityIdx);
-  document.getElementById("p-grade-val").textContent=gradeLabel(gradeVal);
+  document.getElementById("p-age-val").textContent=ageLabel(ageVal);
   document.getElementById("p-ability-val").textContent=abilityToBook(ability);
   runPlacementFilter();
 }
@@ -1861,14 +1858,14 @@ function toggleDay(btn) {
 function currentCandidate() {
   if (!placementActive) return null;
   return {
-    grade:   parseInt(document.getElementById("p-grade").value),
+    age:     parseInt(document.getElementById("p-age").value),
     ability: sliderIdxToAbility(parseInt(document.getElementById("p-ability").value)),
   };
 }
 
 function runPlacementFilter(){
   if(!placementActive) return;
-  const grade      = parseInt(document.getElementById("p-grade").value);
+  const age        = parseInt(document.getElementById("p-age").value);
   const ability    = sliderIdxToAbility(parseInt(document.getElementById("p-ability").value));
   const availDays  = getSelectedDays(); // empty = no day filter applied
   const daysActive = availDays.length > 0;
@@ -1891,7 +1888,7 @@ function runPlacementFilter(){
   document.querySelectorAll(".class-card").forEach(card=>{
     const idx      = parseInt(card.dataset.idx);
     const cls      = allAnalysed[idx];
-    const fit      = scorePlacement(cls, grade, ability);
+    const fit      = scorePlacement(cls, age, ability);
     const clsDay      = (cls.day||"").trim().toLowerCase().slice(0,3);
     const conflict    = daysActive && !!clsDay && !availDays.includes(clsDay);
     const deliveryMismatch = placementDelivery !== "any" && !!cls.delivery && cls.delivery !== placementDelivery;
@@ -1955,7 +1952,7 @@ function runPlacementFilter(){
   if (!total) {
     hint.innerHTML = `<span style="color:var(--muted)">No suitable classes found.</span>`;
   } else {
-    hint.innerHTML = `${gradeLabel(grade)}, ${abilityToBook(ability)}: ${parts.join(", ")}`;
+    hint.innerHTML = `${ageLabel(age)}, ${abilityToBook(ability)}: ${parts.join(", ")}`;
   }
 
   // Update candidate dot on all visible charts
@@ -2020,7 +2017,7 @@ function clearInstructorPreset(e){
 }
 
 document.addEventListener("DOMContentLoaded",function(){
-  document.getElementById("p-grade").addEventListener("input",updateSliderDisplay);
+  document.getElementById("p-age").addEventListener("input",updateSliderDisplay);
   document.getElementById("p-ability").addEventListener("input",updateSliderDisplay);
 
   // Apply config
@@ -2119,10 +2116,10 @@ document.addEventListener("DOMContentLoaded",function(){
   <div class="overlay-body">
     <div class="placement-field">
       <div class="p-label">
-        <span class="p-name">Grade</span>
-        <span class="p-val" id="p-grade-val">—</span>
+        <span class="p-name">Age</span>
+        <span class="p-val" id="p-age-val">—</span>
       </div>
-      <input type="range" id="p-grade" min="-1" max="12" step="1" value="7"/>
+      <input type="range" id="p-age" min="4" max="18" step="1" value="10"/>
     </div>
     <div class="placement-field">
       <div class="p-label">

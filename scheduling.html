@@ -381,8 +381,7 @@ function updateBookLevelsFromClasses(classes){
   bookLevels = filtered.length>=2 ? filtered : BOOK_LEVEL_MAP.map(b=>b.name);
 }
 
-const GRADES = ['JK','SK','Grade 1','Grade 2','Grade 3','Grade 4','Grade 5',
-                'Grade 6','Grade 7','Grade 8','Grade 9','Grade 10','Grade 11','Grade 12'];
+const AGES = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18]; // ages 4-18
 
 const STATES = ['none','ip','online','both'];
 const LABELS = {none:'—',ip:'IP',online:'Web',both:'Both'};
@@ -553,8 +552,8 @@ function parseCSV(text, program='math'){
       program,
       comment:oi>=0?c[oi]:""};
     }
-    const ni=hdr.indexOf("name"),gi=hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
-    if (ni>=0&&gi>=0&&bi>=0&&c[ni]) map[cn].push({name:c[ni],grade:parseFloat(c[gi])||0,ability:parseFloat(c[bi])||0});
+    const ni=hdr.indexOf("name"),gi=hdr.indexOf("age")>=0?hdr.indexOf("age"):hdr.indexOf("grade"),bi=hdr.indexOf("ability")>=0?hdr.indexOf("ability"):hdr.indexOf("level");
+    if (ni>=0&&gi>=0&&bi>=0&&c[ni]) map[cn].push({name:c[ni],age:parseFloat(c[gi])||0,ability:parseFloat(c[bi])||0});
   }
   return Object.entries(map).map(([cn,students])=>({...meta[cn],className:cn,students}));
 }
@@ -880,10 +879,10 @@ function renderProfile(el,uid){
         </div>
       </div>
     </div>
-    ${(p.notes||p.comment||p.gradeMin||p.levelMin)?`<div class="card" style="border-color:rgba(88,166,255,.15);margin-bottom:12px;">
-      ${p.gradeMin||p.gradeMax||p.levelMin||p.levelMax?`<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:${p.notes||p.comment?'12px':'0'};">
-        ${p.gradeMin||p.gradeMax?`<div><div class="section-label" style="margin-bottom:3px;">Grade range</div>
-          <span style="font-size:13px;color:var(--text);">${p.gradeMin||'?'} → ${p.gradeMax||'?'}</span></div>`:''}
+    ${(p.notes||p.comment||p.ageMin||p.levelMin)?`<div class="card" style="border-color:rgba(88,166,255,.15);margin-bottom:12px;">
+      ${p.ageMin||p.ageMax||p.levelMin||p.levelMax?`<div style="display:flex;gap:20px;flex-wrap:wrap;margin-bottom:${p.notes||p.comment?'12px':'0'};">
+        ${p.ageMin||p.ageMax?`<div><div class="section-label" style="margin-bottom:3px;">Age range</div>
+          <span style="font-size:13px;color:var(--text);">${p.ageMin||'?'} → ${p.ageMax||'?'}</span></div>`:''}
         ${p.levelMin||p.levelMax?`<div><div class="section-label" style="margin-bottom:3px;">Level range</div>
           <span style="font-size:13px;color:var(--text);">${p.levelMin||'?'} → ${p.levelMax||'?'}</span></div>`:''}
       </div>`:''}
@@ -1068,9 +1067,9 @@ function renderRollup(){
       <label style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;">To</label>
       <select id="rt-to">${SLOTS.map(s=>`<option value="${s}">${s}</option>`).join('')}</select>
       <input id="rq" placeholder="Filter instructor…" oninput="buildRollup()" style="min-width:150px;"/>
-      <select id="rf-grade" onchange="buildRollup()">
-        <option value="">Any grade</option>
-        ${GRADES.map(g=>`<option value="${g}">${g}</option>`).join('')}
+      <select id="rf-age" onchange="buildRollup()">
+        <option value="">Any age</option>
+        ${AGES.map(g=>`<option value="${g}">${g}</option>`).join('')}
       </select>
       <select id="rf-level" onchange="buildRollup()">
         <option value="">Any level</option>
@@ -1084,7 +1083,7 @@ function renderRollup(){
     <div id="rollup-wrap"></div>`;
 
   document.getElementById("rt-to").selectedIndex=SLOTS.length-1;
-  ["rt-from","rt-to","rf-grade","rf-level","rf-hw"].forEach(id=>{
+  ["rt-from","rt-to","rf-age","rf-level","rf-hw"].forEach(id=>{
     document.getElementById(id)?.addEventListener("change",buildRollup);
   });
   buildRollup();
@@ -1102,7 +1101,7 @@ window.buildRollup=function(){
   const fromVal = document.getElementById("rt-from")?.value||SLOTS[0];
   const toVal   = document.getElementById("rt-to")?.value||SLOTS[SLOTS.length-1];
   const q       = (document.getElementById("rq")?.value||"").toLowerCase();
-  const fGrade  = document.getElementById("rf-grade")?.value||"";
+  const fAge    = document.getElementById("rf-age")?.value||"";
   const fLevel  = document.getElementById("rf-level")?.value||"";
   const fHw     = document.getElementById("rf-hw")?.value||"";
   const wrap    = document.getElementById("rollup-wrap"); if(!wrap) return;
@@ -1115,7 +1114,7 @@ window.buildRollup=function(){
   allProfiles.forEach(p=>{ blockedByUid[p.uid]=assignedSlotsForProfile(p); });
 
   // Grade index for range comparison
-  const gradeIdx = g => GRADES.indexOf(g);
+  
 
   // Active instructors — filtered by role, name, grade, and level
   const insts=allProfiles.filter(p=>{
@@ -1124,11 +1123,11 @@ window.buildRollup=function(){
     if(scheduleMode==='juniors') return p.role==='junior-instructor';
     if(p.role==='junior-instructor') return false;
     // Grade filter — instructor's range must include the selected grade
-    if(fGrade){
-      const gi = gradeIdx(fGrade);
-      const pMin = gradeIdx(p.gradeMin||'');
-      const pMax = gradeIdx(p.gradeMax||'');
-      if(p.gradeMin && p.gradeMax && (gi < pMin || gi > pMax)) return false;
+    if(fAge){
+      const ai = AGES.indexOf(fAge);
+      const pMin = AGES.indexOf(p.ageMin||'');
+      const pMax = AGES.indexOf(p.ageMax||'');
+      if(p.ageMin && p.ageMax && (ai < pMin || ai > pMax)) return false;
     }
     // Level filter — instructor's level range must include the selected level
     if(fLevel){
@@ -1176,10 +1175,10 @@ window.buildRollup=function(){
 
   // Summary bar
   let html = '';
-  const filterActive = fGrade || fLevel || fHw || q;
+  const filterActive = fAge || fLevel || fHw || q;
   if(filterActive){
     const summary = insts.map(p=>{
-      const gr = (p.gradeMin||p.gradeMax) ? `${p.gradeMin||'?'}–${p.gradeMax||'?'}` : '';
+      const gr = (p.ageMin||p.ageMax) ? `${p.ageMin||'?'}–${p.ageMax||'?'} yrs` : '';
       const lr = (p.levelMin||p.levelMax) ? `${p.levelMin||'?'}–${p.levelMax||'?'}` : '';
       const meta = [gr,lr].filter(Boolean).join(', ');
       return `<span style="font-size:11px;background:var(--surface2);border-radius:5px;padding:2px 7px;white-space:nowrap;">${p.displayName}${meta?` <span style="color:var(--muted);">(${meta})</span>`:''}</span>`;
@@ -1217,9 +1216,9 @@ window.buildRollup=function(){
         html+=`<div style="flex:1;min-height:26px;border-radius:5px;border:1px solid ${border};background:${bg};padding:3px 5px;">`;
         if(freeInsts.length){
           html+=freeInsts.map(p=>{
-            const gradeRange = (p.gradeMin||p.gradeMax) ? `${p.gradeMin||'?'}–${p.gradeMax||'?'}` : '';
+            const ageRange   = (p.ageMin||p.ageMax) ? `${p.ageMin||'?'}–${p.ageMax||'?'}` : '';
             const levelRange = (p.levelMin||p.levelMax) ? `${p.levelMin||'?'}–${p.levelMax||'?'}` : '';
-            const tooltip = [gradeRange, levelRange].filter(Boolean).join(' · ') || p.displayName;
+            const tooltip = [ageRange, levelRange].filter(Boolean).join(' · ') || p.displayName;
             return `<div style="font-size:10px;font-weight:600;color:${accentColor};line-height:1.5;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer;"
               onclick="showTab('instructors');openProf('${p.uid}')" title="${p.displayName}${tooltip ? ' — ' + tooltip : ''}">${p.displayName}</div>`;
           }).join("");
@@ -1626,8 +1625,8 @@ function renderClassroom(){
   function tm(t){ const m=(t||'').match(/(\d+):(\d+)/); return m?parseInt(m[1])*60+parseInt(m[2]):null; }
 
   // Grade display helpers
-  const GRADE_LABELS = ['JK','SK','1','2','3','4','5','6','7','8','9','10','11','12'];
-  function gradeLabel(g){ return GRADE_LABELS[g+2] || String(g); }
+  // Age label for classroom display
+  function ageLabel(a){ return a != null ? String(a) + ' yrs' : '?'; }
   function abilityLabel(v){
     const BOOK_LEVEL_MAP=[
       {name:'KJr',min:-1,max:-0.5},{name:'KSr',min:-0.5,max:0},
@@ -1705,8 +1704,8 @@ function renderClassroom(){
 
         const statsHtml = stats?.stats ? [
           '<div style="font-size:9px;opacity:.85;margin-top:2px;">',
-          'Gr ' + gradeLabel(stats.stats.minGrade) + '–' + gradeLabel(stats.stats.maxGrade),
-          ' (avg ' + gradeLabel(Math.round(stats.stats.meanGrade)) + ')',
+          ageLabel(stats.stats.minAge) + '–' + ageLabel(stats.stats.maxAge),
+          ' (avg ' + ageLabel(Math.round(stats.stats.meanAge)) + ')',
           '</div>',
           '<div style="font-size:9px;opacity:.85;">',
           'Lv ' + abilityLabel(stats.stats.minAb) + '–' + abilityLabel(stats.stats.maxAb),
