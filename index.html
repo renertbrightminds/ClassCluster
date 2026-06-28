@@ -7,6 +7,7 @@
 <style>
   .nav-link { background:transparent; border:1px solid var(--border); color:var(--muted); padding:8px 18px; border-radius:8px; font-family:inherit; font-size:13px; font-weight:600; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px; transition:all .15s; }
   .nav-link:hover { border-color:var(--accent); color:var(--accent); }
+  .nav-link.active { border-color:var(--accent); color:var(--accent); background:rgba(88,166,255,.08); cursor:default; }
   .shadow-badge { font-size:10px; font-weight:600; padding:1px 7px; border-radius:8px; margin-left:6px; vertical-align:middle; background:rgba(188,140,255,.15); color:#d2a8ff; }
   .shadow-section { margin-top:18px; border-top:1px solid var(--border); padding-top:16px; }
   .shadow-instructor-row { display:flex; align-items:flex-start; gap:12px; padding:10px 0; border-bottom:1px solid #0a0f18; }
@@ -337,8 +338,6 @@ body { background:var(--bg); color:var(--text); font-family:'Inter',sans-serif; 
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
     <span id="last-updated"></span>
     <button id="refresh-btn" onclick="fetchData()" title="Refresh data">↻</button>
-    <a href="availability.html" class="nav-link" id="av-link">👥 Instructors</a>
-    <span id="cc-user-banner" style="display:none;font-size:11px;color:var(--muted);"></span>
     <button id="export-all-btn" onclick="exportAll()">↓ Export All</button>
     <button id="filter-toggle-btn" onclick="toggleFilterPanel()" style="display:none;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:8px 18px;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;position:relative;">
       ⚙ Filter Classes<span id="active-filter-count"></span>
@@ -497,20 +496,16 @@ const SIZE_SMALL = 3;
 
 // Hard maximum grade spread by mean ability
 function maxGradeSpread(meanAbility) {
-  if (meanAbility >= 6) return 5;  // warn at 5, hard at 6 — but spread > 5 is the violation
-  if (meanAbility >= 5) return 4;
-  if (meanAbility >= 2) return 3;
+  if (meanAbility > 9) return 4;
+  if (meanAbility > 2) return 3;
   return 2;
 }
 
-// Warning threshold — spread at or above this triggers a warning even if under hard limit.
-// For all tiers, warn when spread equals the hard limit (at the edge).
-// For level 6+, also warn at 5 (one below the hard limit of 6).
 function warnGradeSpread(meanAbility) {
-  if (meanAbility >= 6) return 5;   // hard limit is 6, warn at 5
-  if (meanAbility >= 5) return 4;   // hard limit is 5 (i.e. spread>=5 = danger), warn at 4
-  if (meanAbility >= 2) return 3;   // hard limit is 4, warn at 3
-  return 2;                          // hard limit is 3, warn at 2
+  // Warn one below the hard limit
+  if (meanAbility > 9) return 3;
+  if (meanAbility > 2) return 2;
+  return null; // no warn tier at the lowest level — just hard limit
 }
 
 function isPrecocious(student, meanGrade, meanAbility) {
@@ -750,6 +745,7 @@ function parseFile(text, filename) {
   const ii  = hdr.indexOf("instructor"), oi=hdr.indexOf("comment");
   const deli= hdr.indexOf("delivery");
   const shi = hdr.indexOf("shadows");
+  const ri  = hdr.indexOf("room");
   if ([ci,ni,gi,bi].includes(-1)) throw new Error("CSV must have columns: ClassID (or class), name, grade, ability (or level)");
   const map={};
   const classMeta={};
@@ -828,17 +824,61 @@ function processClasses(classes) {
   });
   const searchInput = document.getElementById("search-input");
   if (searchInput) { searchInput.value = ""; document.getElementById("search-clear").classList.remove("visible"); }
-  renderSummary(allAnalysed);
-  renderCards(allAnalysed);
-  buildFilterPanel(allAnalysed);
-  document.getElementById("export-all-btn").style.display="block";
-  document.getElementById("filter-toggle-btn").style.display="block";
-  document.getElementById("placement-toggle-btn").style.display="block";
-  document.getElementById("search-bar").classList.add("visible");
-  document.getElementById("sort-bar").classList.add("visible");
-  // Apply instructor preset after cards are rendered
-  window._ccDataReady = true;
-  ccTryApplyPreset();
+  // Store critical classes in localStorage for availability.html Action items tab
+  try {
+    const criticals = allAnalysed
+      .filter(c => c.health === 'critical')
+      .map(c => ({
+        classId:    c.classId,
+        className:  c.className,
+        day:        c.day,
+        time:       c.time,
+        instructor: c.instructor,
+        shadows:    c.shadows||[],
+        delivery:   c.delivery,
+        room:       c.room||'',
+        alerts:     c.alerts.filter(a=>a.level==='danger'),
+      }));
+    localStorage.setItem('bm_critical_classes', JSON.stringify(criticals));
+  } catch(e) {}
+
+  // Store full class stats for classroom schedule block view
+  try {
+    const classStats = allAnalysed.map(c => ({
+      classId:    c.classId,
+      day:        c.day,
+      time:       c.time,
+      instructor: c.instructor,
+      delivery:   c.delivery,
+      room:       c.room||'',
+      health:     c.health,
+      stats: c.stats ? {
+        n:            c.stats.n,
+        meanGrade:    Math.round(c.stats.meanGrade*10)/10,
+        meanAbility:  Math.round(c.stats.meanAbility*100)/100,
+        minGrade:     c.stats.minGrade,
+        maxGrade:     c.stats.maxGrade,
+        minAb:        c.stats.minAb,
+        maxAb:        c.stats.maxAb,
+        gradeSpread:  c.stats.gradeSpread,
+        abilitySpread:Math.round(c.stats.abilitySpread*100)/100,
+      } : null,
+    }));
+    localStorage.setItem('bm_class_stats', JSON.stringify(classStats));
+  } catch(e) {}
+
+  setTimeout(function(){
+    renderSummary(allAnalysed);
+    renderCards(allAnalysed);
+    buildFilterPanel(allAnalysed);
+    document.getElementById("export-all-btn").style.display="block";
+    document.getElementById("filter-toggle-btn").style.display="block";
+    document.getElementById("placement-toggle-btn").style.display="block";
+    document.getElementById("search-bar").classList.add("visible");
+    document.getElementById("sort-bar").classList.add("visible");
+    window._ccDataReady = true;
+    ccTryApplyPreset();
+  }, 0);
 }
 
 function renderSummary(a) {
@@ -1937,6 +1977,7 @@ function ccTryApplyPreset(){
   const match = csvInstructors.find(n => n.toLowerCase() === name.toLowerCase()) ||
                 csvInstructors.find(n => n.split(" ")[0].toLowerCase() === firstName);
 
+
   if(!match){
     // Name not found in CSV — show all classes rather than nothing
     console.log("CC preset: no CSV match for", name, "— showing all");
@@ -1947,20 +1988,22 @@ function ccTryApplyPreset(){
   applyClassFilter();
 
   // Show a banner so the instructor knows they're filtered
-  const banner = document.getElementById("cc-user-banner");
-  if(banner){
-    banner.textContent = "Showing your classes — ";
-    banner.style.display = "";
-    const link = document.createElement("a");
-    link.href = "#";
-    link.textContent = "show all";
-    link.style.color = "var(--accent)";
-    link.onclick = e => { e.preventDefault(); clearInstructorPreset(); };
-    banner.appendChild(link);
+  const notice = document.getElementById("cc-filter-notice");
+  if(notice){
+    notice.innerHTML = 'Showing your classes — <a href="#" onclick="clearInstructorPreset(event)" style="color:var(--accent);">show all</a>';
+    notice.style.display = "";
   }
 }
 
+function ccSignOut(){
+  // Clear session then delegate actual Firebase sign out to availability.html
+  // which already has Firebase initialised. Pass a signout flag in the URL.
+  try { localStorage.removeItem('bm_session'); } catch(e){}
+  window.location.href = "availability.html?signout=1";
+}
+
 function clearInstructorPreset(e){
+
   if(e) e.preventDefault();
   window._ccPresetFilter = null;
   // Deselect all instructor chips and clear filter
@@ -1969,9 +2012,11 @@ function clearInstructorPreset(e){
   });
   classFilters.instructors = [];
   applyClassFilter();
-  // Hide banner
-  const banner = document.getElementById("cc-user-banner");
-  if(banner) banner.style.display = "none";
+  // Hide filter notice
+  const notice = document.getElementById("cc-filter-notice");
+  if(notice) notice.style.display = "none";
+  // Rebuild filter panel so "Showing your classes" label disappears
+  buildFilterPanel(allAnalysed);
 }
 
 document.addEventListener("DOMContentLoaded",function(){
@@ -1988,15 +2033,76 @@ document.addEventListener("DOMContentLoaded",function(){
     dropzone.style.display = "";
   }
 
+  // Load writing URL from firebase-config
+  try {
+    import('./firebase-config.js').then(m => {
+      window.WRITING_DATA_URL = m.WRITING_DATA_URL || '';
+    }).catch(()=>{});
+  } catch(e){}
+
   // Read user session written by availability.html on login
   try {
     const session = JSON.parse(localStorage.getItem('bm_session')||'{}');
-    if(session.displayName){
-      window._ccIsAdmin      = session.role === 'admin';
-      window._ccPresetFilter = session.role === 'admin' ? null : session.displayName;
+    if(session.displayName && session.uid){
+      const isSuperAdmin = session.role === 'super-admin';
+      const isAdminRole = ['admin','super-admin'].includes(session.role);
+      window._ccIsAdmin      = isSuperAdmin;
+      window._ccPresetFilter = isSuperAdmin ? null : session.displayName;
+      window._ccSessionUid   = session.uid;
+      const nameEl = document.getElementById('cc-user-name');
+      if(nameEl){ nameEl.textContent = session.displayName; nameEl.style.display=''; }
+      if(isAdminRole){
+        const sn = document.getElementById('scheduling-nav');
+        const an = document.getElementById('admin-nav');
+        if(sn) sn.style.display='';
+        if(an) an.style.display='';
+      }
+      window._ccAuthReady = true;
+      ccTryApplyPreset();
+    } else {
+      // No session yet (e.g. first login before availability.html has run) —
+      // look up the profile directly from Firebase so classes are filtered immediately
+      Promise.all([
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js'),
+        import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js'),
+        import('./firebase-config.js'),
+      ]).then(([{initializeApp,getApps},{getAuth,onAuthStateChanged},{getFirestore,doc,getDoc},{firebaseConfig}])=>{
+        // Use the default app name so Auth persistence is shared with availability.html/login.html
+        const app=getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+        const auth=getAuth(app);
+        const db=getFirestore(app);
+        let settled=false;
+        const finish=()=>{ if(settled) return; settled=true; window._ccAuthReady=true; ccTryApplyPreset(); };
+        // Fallback in case onAuthStateChanged is slow or storage is blocked
+        setTimeout(finish, 3000);
+        onAuthStateChanged(auth, async user=>{
+          if(!user){ finish(); return; }
+          try{
+            const ps=await getDoc(doc(db,'instructors',user.uid));
+            if(ps.exists()){
+              const profile=ps.data();
+              const isSuperAdmin=profile.role==='super-admin';
+              const isAdminRole=['admin','super-admin'].includes(profile.role);
+              window._ccIsAdmin=isSuperAdmin;
+              window._ccPresetFilter=isSuperAdmin?null:profile.displayName;
+              window._ccSessionUid=user.uid;
+              try{ localStorage.setItem('bm_session', JSON.stringify({uid:user.uid,displayName:profile.displayName,role:profile.role||'instructor'})); }catch(e){}
+              const nameEl=document.getElementById('cc-user-name');
+              if(nameEl){ nameEl.textContent=profile.displayName; nameEl.style.display=''; }
+              if(isAdminRole){
+                const sn=document.getElementById('scheduling-nav');
+                const an=document.getElementById('admin-nav');
+                if(sn) sn.style.display='';
+                if(an) an.style.display='';
+              }
+            }
+          }catch(e){}
+          finish();
+        });
+      }).catch(()=>{ window._ccAuthReady=true; ccTryApplyPreset(); });
     }
-  } catch(e){}
-  window._ccAuthReady = true;
+  } catch(e){ window._ccAuthReady=true; }
 });
 </script>
 

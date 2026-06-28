@@ -620,7 +620,8 @@ function renderMine(){
         <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:5px;">
           ${isAdmin(p)?'<span class="badge b-purple">Admin</span>':''}
           ${p.active===false?'<span class="badge b-red">Inactive</span>':'<span class="badge b-green">Active</span>'}
-          ${p.maxNew===0?'<span class="badge b-amber">No new classes</span>':p.maxNew?`<span class="badge b-green">Open to ${p.maxNew} new</span>`:''}
+          ${p.maxHours===0?'<span class="badge b-amber">No hours set</span>':p.maxHours?`<span class="badge b-green">Max ${p.maxHours}h/week</span>`:''}
+          ${p.hwSupport?'<span class="badge b-teal">HW support</span>':''}
         </div>
       </div>
     </div>
@@ -644,6 +645,23 @@ function renderMine(){
             <span style="color:var(--muted);font-size:13px;">→</span>
             <select id="pref-level-max" style="${selectStyle}flex:1;"><option value="">Max level</option>${levelOptsMax}</select>
           </div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Max hours/week</div>
+          <input type="number" id="pref-max-hours" min="0" max="40"
+            value="${p.maxHours!=null?p.maxHours:''}"
+            placeholder="e.g. 10"
+            style="${inputStyle}width:100%;box-sizing:border-box;"/>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px;">Hours per week, leave blank if no limit</div>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;">Extra sessions</div>
+          <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text);padding:8px 0;">
+            <input type="checkbox" id="pref-hw-support" ${p.hwSupport?'checked':''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;"/>
+            Available for HW support &amp; extra sessions
+          </label>
         </div>
       </div>
       <div>
@@ -897,11 +915,16 @@ window.saveAvail=async function(){
   const levelMin  = document.getElementById('pref-level-min')?.value  || '';
   const levelMax  = document.getElementById('pref-level-max')?.value  || '';
   const comment   = document.getElementById('pref-comment')?.value    || '';
+  const maxHoursRaw = document.getElementById('pref-max-hours')?.value;
+  const maxHours    = maxHoursRaw !== '' && maxHoursRaw != null ? parseInt(maxHoursRaw, 10) : null;
+  const hwSupport = document.getElementById('pref-hw-support')?.checked || false;
   try{
     await updateDoc(doc(db,"instructors",currentUser.uid),{
       availability: draftAvail,
       dayNotes:     draftDayNotes,
       gradeMin, gradeMax, levelMin, levelMax, comment,
+      ...(maxHours !== null ? {maxHours} : {}),
+      hwSupport,
       availabilityUpdatedAt: serverTimestamp(),
     });
     currentProfile.availability=clone(draftAvail);
@@ -909,6 +932,8 @@ window.saveAvail=async function(){
     currentProfile.gradeMin=gradeMin; currentProfile.gradeMax=gradeMax;
     currentProfile.levelMin=levelMin; currentProfile.levelMax=levelMax;
     currentProfile.comment=comment;
+    if(maxHours !== null) currentProfile.maxHours=maxHours;
+    currentProfile.hwSupport=hwSupport;
     unsaved=false; setSS("✓ Saved",true);
   }catch(e){setSS("Error: "+e.message);}
   finally{btn.disabled=false;btn.textContent="Save";}

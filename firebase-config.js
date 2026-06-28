@@ -15,4 +15,4 @@ export const firebaseConfig = {
 export const CLASS_DATA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQc--XNIN9X3e1m2hAchdpJNtMvVF77PzDDSU-jLlgTk9FjO5ZwJNNTnatyjaMbDTUKsoe11VwHjy6R/pub?gid=320321807&single=true&output=csv";
 
 // Writing program class list URL — replace with your actual published CSV URL
-export const WRITING_DATA_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQ9gvnQYATZSWwF6oeFTsjBteltyGW-HTBIJTjG7pV5eVwCFHUxZZR6IaQJ6GfKJSmqUP6RYVBnP7n8/pub?gid=320321807&single=true&output=csv";
+export const WRITING_DATA_URL = "";
